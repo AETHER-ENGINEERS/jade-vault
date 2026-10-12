@@ -1,0 +1,85 @@
+# Jade Vault
+
+A mobile, Obsidian-style markdown vault with an AI agent, Jade, built in. It runs entirely in the browser
+or as an Android app. Jade reads and writes your notes, runs code, uses tools, remembers you, keeps
+schedules, and lives on [Vector](https://vectorapp.io) messenger as your bot and secretary.
+
+**Get it:** download the APK from [Releases](../../releases) (Android 7+), or open `jade-vault.html`
+from a release in any modern browser. Point it at Ollama on your computer, or at Ollama Cloud, Groq,
+llama.cpp or any OpenAI-compatible endpoint.
+
+## What Jade can do
+
+- **Notes:** markdown vault with `[[links]]`, backlinks, tags, graph, KaTeX math, images (`![[photo.png|300]]`), note embeds and a split editor.
+- **Agent:** read/write/edit notes, a BusyBox shell (WebAssembly), `node` with `fs`, `fetch` and `https`, MicroPython, SQLite (`sqlite3`, `node:sqlite`, Python `sqlite3`), web search and fetch, `http_request` for any API (secrets as `{{NAME}}`), MCP servers (pi-style codemode, deferred or direct), skills.
+- **Memory and steering:** long-term memory, a journal of past chats, and steering through SOUL.md, AGENTS.md and SYSTEM.md.
+- **Running on its own:** schedules in plain English, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
+- **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
+- **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
+- **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
+- **Vector messenger:**
+  - Jade is a bot. You (the owner) get the full Jade; admins get Vector powers; everyone else gets friendly chat and Mini Apps.
+  - She answers DMs and whitelisted channels by your trigger rules.
+  - She reacts, replies, sends and receives files, and sees images.
+  - She joins and leaves communities and plays Mini Apps.
+  - Secretary: messages for you land in an inbox, or reach you at once.
+- **Avatar:** Live2D Jade, with voice (TTS).
+
+## Repository layout
+
+| Path | What |
+| --- | --- |
+| `app/base/` | The pi-netrunner base page (Live2D Jade, BusyBox WebAssembly shell, Ollama agent loop). |
+| `app/modules/` | Jade Vault's layers: vault, memory, steering, providers, MCP, Python, SQLite, context guard, trajectories, HTTP, images, webxdc, Vector … |
+| `app/build.py` | Applies the layers to the base page with exact-match edits and writes `dist/jade-vault.html`. |
+| `app/tools/` | Tailwind compile, and the Android page (CDN-free basics inlined). |
+| `apps/jade-link/` | Source of the built-in Jade Link webxdc app. |
+| `android/` | Android wrapper (WebView, foreground service, TTS, file save), built without the Android SDK. |
+| `jade-vector/` | The Vector bridge: patch for Vector's vector-agent, the HTTP bridge, setup script, Docker. |
+| `sqlite-wasm/` | How `app/vendor/sqlite3.min.wasm` is built. |
+| `tests/` | Playwright suites (headless Chromium) and engine tests; `node tests/run.mjs`. |
+
+## Build
+
+Needs Node 20+, Python 3.9+, and for the APK a JDK 17+ (no Android SDK).
+
+```sh
+npm install
+npx playwright install chromium     # for the tests
+npm run build                       # dist/jade-vault.html, android/proj/assets/index.html
+npm test                            # 15 suites, ~8 minutes
+bash android/build-apk.sh           # dist/jade-vault-<version>.apk (debug key)
+```
+
+To sign a release APK:
+
+```sh
+JADE_KEYSTORE=/path/release.jks JADE_KEYSTORE_PASSWORD=… JADE_KEY_ALIAS=netrunner bash android/build-apk.sh
+```
+
+Keep the keystore out of the repository. An APK signed with a different key cannot update an
+installed one.
+
+The version comes from `VERSION`, and the Android version code from `android/VERSION_CODE`. Bump both
+for a release.
+
+## Jade on Vector
+
+See [`jade-vector/README.md`](jade-vector/README.md): run `jade-vector/setup.sh` on a Mac or Linux box
+(or `docker compose up` there), then fill in Config → Vector messenger in the app:
+- Bridge URL and token.
+- Your npub as **owner**.
+- Optionally an admin whitelist, a channel whitelist, who may DM her, trigger words, and how messages for you are delivered.
+
+## Releases
+
+Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`. It builds the web page, the signed APK
+(repository secrets `JADE_KEYSTORE_B64`, `JADE_KEYSTORE_PASSWORD`, `JADE_KEY_ALIAS`), Jade Link and
+the bridge kit, then publishes a GitHub release. `.github/workflows/docker.yml` publishes the bridge
+image to GHCR.
+
+## Security and licenses
+
+See [SECURITY.md](SECURITY.md) and [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md). Jade Vault's code
+is MIT. BusyBox is GPL-2.0. Live2D Cubism Core is under Live2D's proprietary license. The Jade avatar
+model is not covered by the MIT license.

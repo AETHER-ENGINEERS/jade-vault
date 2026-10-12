@@ -73,9 +73,9 @@ See [`jade-vector/README.md`](jade-vector/README.md): run `jade-vector/setup.sh`
 
 ## Releases
 
-Pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`. It builds the web page, the signed APK
+Publishing a GitHub release (tag `vX.Y.Z`) runs `.github/workflows/release.yml`. It builds the web page, the signed APK
 (repository secrets `JADE_KEYSTORE_B64`, `JADE_KEYSTORE_PASSWORD`, `JADE_KEY_ALIAS`), Jade Link and
-the bridge kit, then publishes a GitHub release. `.github/workflows/docker.yml` publishes the bridge
+the bridge kit, and attaches them to the release. `.github/workflows/docker.yml` publishes the bridge
 image to GHCR.
 
 ## Security and licenses

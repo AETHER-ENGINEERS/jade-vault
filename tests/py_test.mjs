@@ -23,7 +23,7 @@ async function makePage() {
     if (url.startsWith('https://cdn.jsdelivr.net/npm/@micropython/micropython-webassembly-pyscript@1.27.0/')) {
       cdnHits.push(url.split('/').pop()); if (!cdnUp) return route.abort('internetdisconnected');
       if (url.endsWith('micropython.mjs')) return route.fulfill({ headers: CORS, contentType: 'text/javascript', body: fs.readFileSync(process.env.MPY_MOCK || 'mpymock/micropython.min.mjs', 'utf8') });
-      if (url.endsWith('micropython.wasm')) return route.fulfill({ headers: CORS, contentType: 'application/wasm', body: 'MOCKWASM-1.27.0' });
+      if (url.endsWith('micropython.wasm')) return route.fulfill({ headers: CORS, contentType: 'application/wasm', body: Buffer.concat([Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), Buffer.from('MOCK-27')]) });
     }
     if (url === 'http://localhost:11434/api/tags') return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ models: [{ name: 'qwen3:8b' }] }) });
     if (url === 'http://localhost:11434/api/chat') {
@@ -49,6 +49,13 @@ ok(r.out === 'hello from python\n' && r.code === 0, 'python -c: ' + JSON.stringi
 ok(cdnHits.includes('micropython.mjs') && cdnHits.includes('micropython.wasm'), 'runtime downloaded from jsDelivr (PyScript build 1.27.0)');
 const cached = await page.evaluate(async () => { const c = await idb.get('mpy:1.27.0'); return !!c?.mjs && c.wasm.length === 15; });
 ok(cached, 'runtime cached in IndexedDB');
+// a corrupt cache entry (empty wasm, the "BufferSource argument is empty" crash) is discarded and downloaded again
+const hits0 = cdnHits.length;
+await page.evaluate(async () => { await idb.set('mpy:1.27.0', { mjs: 'x', wasm: new Uint8Array(0) }); });
+await page.reload();
+await page.waitForFunction(() => /BUSYBOX|JS APPLETS/.test(document.querySelector('#txtShell')?.textContent || '') && typeof runPython === 'function', null, { timeout: 90000 });
+r = await sh(page, `python -c "print('after repair')"`);
+ok(r.out === 'after repair\n' && cdnHits.length > hits0 && await page.evaluate(async () => (await idb.get('mpy:1.27.0')).wasm.length === 15), 'empty cached wasm is repaired by re-downloading: ' + JSON.stringify(r));
 // files in both directions
 await page.evaluate(() => vfs.write('/scripts/demo.py', "import sys, os\nprint(sys.argv)\nprint(open('/Inbox.md').read())\nopen('/py/new.md', 'w').write('# made by python')\nos.remove('/Todo List.md')\n"));
 await page.evaluate(() => vfs.mkdirp('/py'));
@@ -95,7 +102,7 @@ await ctx.close();
 cdnUp = true;
 const ctx2 = await browser.newContext({ viewport: { width: 390, height: 844 } });
 const p2 = await ctx2.newPage(); p2.on('pageerror', e => fail.push('[pageerror2] ' + e.message));
-await p2.route('**/*', async route => { const u = route.request().url(); if (u.startsWith('file:') || u.startsWith('blob:') || u.startsWith('data:')) return route.continue(); if (u.includes('micropython')) { cdnHits.push('second:' + u.split('/').pop()); if (!cdnUp) return route.abort(); return route.fulfill({ headers: CORS, contentType: u.endsWith('.mjs') ? 'text/javascript' : 'application/wasm', body: u.endsWith('.mjs') ? fs.readFileSync(process.env.MPY_MOCK || 'mpymock/micropython.min.mjs', 'utf8') : 'MOCKWASM-1.27.0' }); } if (u.includes('marked')) return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.JV_NM + 'marked/lib/marked.umd.js', 'utf8') }); if (u.includes('purify')) return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.JV_NM + 'dompurify/dist/purify.min.js', 'utf8') }); return route.abort(); });
+await p2.route('**/*', async route => { const u = route.request().url(); if (u.startsWith('file:') || u.startsWith('blob:') || u.startsWith('data:')) return route.continue(); if (u.includes('micropython')) { cdnHits.push('second:' + u.split('/').pop()); if (!cdnUp) return route.abort(); return route.fulfill({ headers: CORS, contentType: u.endsWith('.mjs') ? 'text/javascript' : 'application/wasm', body: u.endsWith('.mjs') ? fs.readFileSync(process.env.MPY_MOCK || 'mpymock/micropython.min.mjs', 'utf8') : Buffer.concat([Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), Buffer.from('MOCK-27')]) }); } if (u.includes('marked')) return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.JV_NM + 'marked/lib/marked.umd.js', 'utf8') }); if (u.includes('purify')) return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.JV_NM + 'dompurify/dist/purify.min.js', 'utf8') }); return route.abort(); });
 await p2.goto(URL_); await p2.waitForFunction(() => typeof runPython === 'function' && typeof userShell !== 'undefined', null, { timeout: 90000 });
 let rr = await sh(p2, `python -c "print('online once')"`);
 cdnUp = false; await p2.reload(); await p2.waitForFunction(() => typeof runPython === 'function' && typeof userShell !== 'undefined', null, { timeout: 90000 });

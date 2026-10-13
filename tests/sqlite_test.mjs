@@ -20,7 +20,7 @@ await page.route('**/*', async route => {
   if (url.includes('purify.min.js')) return route.fulfill({ contentType: 'text/javascript', body: fs.readFileSync(process.env.JV_NM + 'dompurify/dist/purify.min.js', 'utf8') });
   if (url.includes('micropython-webassembly-pyscript@1.27.0/')) {
     if (url.endsWith('micropython.mjs')) return route.fulfill({ headers: CORS, contentType: 'text/javascript', body: fs.readFileSync('mpymock/micropython.min.mjs', 'utf8') });
-    if (url.endsWith('micropython.wasm')) return route.fulfill({ headers: CORS, contentType: 'application/wasm', body: 'MOCKWASM-1.27.0' });
+    if (url.endsWith('micropython.wasm')) return route.fulfill({ headers: CORS, contentType: 'application/wasm', body: Buffer.concat([Buffer.from([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]), Buffer.from('MOCK-27')]) });
   }
   if (url === 'http://localhost:11434/api/tags') return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ models: [{ name: 'qwen3:8b' }] }) });
   if (url === 'http://localhost:11434/api/chat') {

@@ -91,11 +91,82 @@ function memoryTool(args) {
   if (a === 'list' || !a) { ensureMemory(); return vfs.read(MEM_PATH); }
   throw new Error(`unknown action "${a}" (use save, search, forget or list)`);
 }
+/* ---------- BM25 retrieval (Okapi BM25, same scoring as Python's rank_bm25.BM25Okapi) ----------
+   Optional (Settings → Long-term memory → "Rank memories with BM25"). Instead of pasting the
+   newest memory lines up to a budget, only the lines that best match the user's current
+   message are put in the system prompt. Everything stays on the device. */
+const BM25_STOP = new Set('a an and are as at be but by for from had has have he her his i if in into is it its me my of on or our she so that the their them then there they this to was we were what when where which who will with you your do does did can could would should about just not no yes am been being than too very also how why'.split(' '));
+function bm25Tokens(text) {
+  const out = [];
+  for (let w of String(text).toLowerCase().replace(/\(\d{4}-\d{2}-\d{2}\)/g, ' ').split(/[^\p{L}\p{N}]+/u)) {
+    if (w.length < 2 || BM25_STOP.has(w)) continue;
+    if (w.length > 4 && /[a-z]$/.test(w)) w = w.replace(/(ing|ed|es|s)$/, '');   // tiny stemmer: likes/liking/liked → lik
+    out.push(w);
+  }
+  return out;
+}
+class BM25Okapi {
+  constructor(corpus, { k1 = 1.5, b = 0.75, epsilon = 0.25 } = {}) {
+    this.k1 = k1; this.b = b; this.N = corpus.length;
+    this.tf = corpus.map(doc => { const m = new Map(); for (const t of doc) m.set(t, (m.get(t) || 0) + 1); return m; });
+    this.len = corpus.map(d => d.length);
+    this.avgdl = this.N ? this.len.reduce((a, c) => a + c, 0) / this.N : 0;
+    const nd = new Map(); for (const m of this.tf) for (const t of m.keys()) nd.set(t, (nd.get(t) || 0) + 1);
+    this.idf = new Map(); let sum = 0; const neg = [];
+    for (const [t, n] of nd) { const v = Math.log((this.N - n + 0.5) / (n + 0.5)); this.idf.set(t, v); sum += v; if (v < 0) neg.push(t); }
+    // rank_bm25: words that occur in over half the documents get epsilon * average idf instead of a negative weight
+    const floor = Math.max(epsilon * (nd.size ? sum / nd.size : 0), 0.01);
+    for (const t of neg) this.idf.set(t, floor);
+  }
+  scores(query) {
+    const sc = new Array(this.N).fill(0);
+    for (const q of new Set(query)) {
+      const idf = this.idf.get(q); if (idf === undefined) continue;
+      for (let i = 0; i < this.N; i++) {
+        const f = this.tf[i].get(q); if (!f) continue;
+        sc[i] += idf * (f * (this.k1 + 1)) / (f + this.k1 * (1 - this.b + this.b * this.len[i] / (this.avgdl || 1)));
+      }
+    }
+    return sc;
+  }
+}
+let bm25Cache = { key: null, mem: null, idx: null };
+function memoryRank(query, k) {
+  const mem = memoryLines(); if (!mem.length) return { hits: [], total: 0 };
+  const key = mem.map(m => m.text).join('\n');
+  if (bm25Cache.key !== key) bm25Cache = { key, mem, idx: new BM25Okapi(mem.map(m => bm25Tokens(m.text))) };
+  const q = bm25Tokens(query);
+  const sc = q.length ? bm25Cache.idx.scores(q) : [];
+  const hits = sc.map((s, i) => ({ ...mem[i], score: s, i })).filter(h => h.score > 0).sort((a, b) => b.score - a.score || b.i - a.i).slice(0, k);
+  return { hits, total: mem.length };
+}
+// the text we match memories against: the last couple of things the user said in this chat
+function memoryQuery() {
+  try {
+    const us = (typeof cur !== 'undefined' && cur?.messages || []).filter(m => m.role === 'user');
+    return us.slice(-2).map(m => String(m.display || m.content || '')).join('\n').slice(-1500);
+  } catch { return ''; }
+}
+
 // what goes into the system prompt
 function memoryContext() {
   if (!S.memoryOn) return '';
   ensureMemory();
-  const mem = memoryLines(); let block = '', used = 0; const budget = 2600;
+  const days = [...vfs.nodes.keys()].filter(p => p.startsWith(JOURNAL_DIR + '/') && isNote(p)).sort().slice(-2);
+  let jr = days.map(p => vfs.read(p).replace(/^#[^\n]*\n/, '').replace(/#journal/g, '').trim()).join('\n').trim();
+  if (jr.length > 1400) jr = '…' + jr.slice(-1400);
+  const journal = jr ? `\n\nRecent journal (earlier chats; memory search finds older ones):\n${jr}` : '';
+  const mem = memoryLines();
+  if (S.memoryRag) {
+    const K = Math.max(1, Math.min(30, +S.memoryRagK || 8));
+    const q = memoryQuery();
+    const { hits, total } = memoryRank(q, K);
+    let lines, note;
+    if (hits.length) { lines = hits.map(h => `- ${h.text}${h.sec ? ` [${h.sec}]` : ''}`); note = `the ${hits.length} of ${total} memory lines that best match the user's message`; }
+    else { lines = mem.slice(-5).map(m => `- ${m.text}${m.sec ? ` [${m.sec}]` : ''}`); note = q.trim() ? `nothing matched this message, so the ${lines.length} newest of ${total} lines` : `the ${lines.length} newest of ${total} lines`; }
+    return `\n\nLong-term memory (from the note [[Memory]], ${note}; use memory search for anything else, and keep it current with the memory tool):\n${lines.join('\n') || '(empty so far)'}${journal}`;
+  }
+  let block = '', used = 0; const budget = 2600;
   const bySec = {}; for (const m of mem) (bySec[m.sec] ||= []).push(m.text);
   const parts = [];
   for (const [sec, items] of Object.entries(bySec)) {
@@ -103,10 +174,7 @@ function memoryContext() {
     if (keep.length) parts.push(`${sec}:\n${keep.map(t => '- ' + t).join('\n')}${keep.length < items.length ? `\n- (${items.length - keep.length} older lines: use memory search)` : ''}`);
   }
   block = parts.join('\n') || '(empty so far)';
-  const days = [...vfs.nodes.keys()].filter(p => p.startsWith(JOURNAL_DIR + '/') && isNote(p)).sort().slice(-2);
-  let jr = days.map(p => vfs.read(p).replace(/^#[^\n]*\n/, '').replace(/#journal/g, '').trim()).join('\n').trim();
-  if (jr.length > 1400) jr = '…' + jr.slice(-1400);
-  return `\n\nLong-term memory (the note [[Memory]]; keep it current with the memory tool):\n${block}${jr ? `\n\nRecent journal (earlier chats; memory search finds older ones):\n${jr}` : ''}`;
+  return `\n\nLong-term memory (the note [[Memory]]; keep it current with the memory tool):\n${block}${journal}`;
 }
 
 /* ---------- journal: summarise a finished chat into episodic memory ---------- */

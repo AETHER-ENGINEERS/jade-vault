@@ -7,10 +7,13 @@
 const MPY_VER = '1.27.0';
 const MPY_BASE = `https://cdn.jsdelivr.net/npm/@micropython/micropython-webassembly-pyscript@${MPY_VER}/`;
 let mpyAssetsP = null;
+// a real wasm module starts with the bytes 00 61 73 6d; an empty or truncated download (or cache entry) fails here
+const wasmOk = u8 => !!u8 && u8.length >= 8 && u8[0] === 0 && u8[1] === 0x61 && u8[2] === 0x73 && u8[3] === 0x6d;
 async function mpyAssets() {
   return (mpyAssetsP ||= (async () => {
     let c = await idb.get('mpy:' + MPY_VER);
-    if (!c?.mjs || !c?.wasm) {
+    if (c && (!c.mjs || !wasmOk(c.wasm && new Uint8Array(c.wasm)))) { c = null; try { await idb.del('mpy:' + MPY_VER); } catch {} }   // bad cache entry: download again
+    if (!c) {
       let m, w;
       try {
         [m, w] = await Promise.all([
@@ -18,8 +21,11 @@ async function mpyAssets() {
           fetch(MPY_BASE + 'micropython.wasm').then(r => { if (!r.ok) throw new Error('HTTP ' + r.status); return r.arrayBuffer(); }),
         ]);
       } catch (e) { throw new Error(`could not download MicroPython ${MPY_VER} (${e.message}). Python needs internet once; after that it works offline.`); }
-      c = { mjs: m, wasm: new Uint8Array(w) }; await idb.set('mpy:' + MPY_VER, c);
+      const wb = new Uint8Array(w);
+      if (!m || !wasmOk(wb)) throw new Error(`MicroPython ${MPY_VER} downloaded incomplete (${wb.length} bytes of wasm). Check the connection and try again.`);
+      c = { mjs: m, wasm: wb }; await idb.set('mpy:' + MPY_VER, c);
     }
+    c.wasm = new Uint8Array(c.wasm);
     // a data: URL (not blob:) so the worker can fetch it even on file:// pages
     return { factory: mpyClassic(c.mjs), wasm: 'data:application/wasm;base64,' + b64enc(c.wasm), size: c.wasm.length };
   })().catch(e => { mpyAssetsP = null; throw e; }));

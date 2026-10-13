@@ -23,7 +23,7 @@ if(currentSafariVersion<150000){throw new Error(`This emscripten-generated code 
 export async function loadMicroPython(options) {
   const { url, stdout, stderr, stdin, heapsize } = options;
   const wasm = new Uint8Array(await (await fetch(url)).arrayBuffer());
-  if (new TextDecoder().decode(wasm) !== 'MOCKWASM-1.27.0') throw new Error('bad wasm ' + wasm.length);
+  if (new TextDecoder().decode(wasm.slice(8)) !== 'MOCK-27') throw new Error('bad wasm ' + wasm.length);
   const FS = makeFS(); const enc = s => new TextEncoder().encode(s);
   const out = s => stdout(enc(s)), errOut = s => stderr(enc(s));
   let argv = [];

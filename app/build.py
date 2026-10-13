@@ -348,7 +348,7 @@ rep("Use `node file.js` for scripting. Vault commands:", "For scripts longer tha
 
 # memory module after the notes UI
 s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n/* =====================================================================\n   UI WIRING', 1)
-rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, journalOn: true, compactAuto: true,")
+rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: false, memoryRagK: 8, journalOn: true, compactAuto: true,")
 rep("""  { name: 'notes_search', description:""", """  { name: 'memory', description: 'Your long-term memory across chats, kept in the note /Jade/Memory.md (you see it in your instructions every chat). save: remember one durable fact (who the user is, preferences, projects, people, decisions, or anything they ask you to remember). search: look through memory and your journal of past chats. forget: delete remembered lines containing text. list: show all of memory.',
     parameters: { type: 'object', properties: { action: { type: 'string', enum: ['save', 'search', 'forget', 'list'] }, text: { type: 'string', description: 'save: the fact, as one short sentence. search: words to look for. forget: text of the memory to delete.' }, section: { type: 'string', enum: ['about', 'preferences', 'projects', 'notes'], description: 'save: where it belongs (default notes)' } }, required: ['action'] } },
   { name: 'notes_search', description:""")
@@ -376,14 +376,16 @@ rep("""      <section class="flex flex-col gap-3">
         <div class="pane-h">Long-term memory</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade keeps what she learns about you in the note <span class="text-yl">Jade/Memory</span> and reads it at the start of every chat. When you leave a chat (or after a few quiet minutes) she writes a short entry in her journal under <span class="text-yl">Jade/Journal</span> and adds new facts to memory. Both are plain notes you can edit or delete.</p>
         <label class="flex items-center gap-2 text-sm" for="sMemoryOn"><input type="checkbox" id="sMemoryOn" class="accent-emerald-400 w-4 h-4"> Use long-term memory (memory tool + memory in every chat)</label>
+        <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories with BM25: put only the lines that match your message in the prompt</label>
+        <label class="flex items-center gap-2 text-sm" for="sMemoryRagK"><span>Memories to inject (BM25)</span><input type="number" id="sMemoryRagK" class="field" min="1" max="30" step="1" style="width:5rem"></label>
         <label class="flex items-center gap-2 text-sm" for="sJournalOn"><input type="checkbox" id="sJournalOn" class="accent-emerald-400 w-4 h-4"> Journal finished chats and learn facts from them</label>
         <div><button type="button" class="btn btn-ghost" id="btnOpenMemory">Open memory note</button></div>
       </section>
 
       <section class="flex flex-col gap-3">
         <div class="pane-h">History compaction</div>""")
-rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
-rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)) });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
 rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };")
 rep("  if (!(await vfs.load())) seedFs();", "  if (!(await vfs.load())) seedFs();\n  ensureMemory();")
 rep("Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $ });", "Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell });")

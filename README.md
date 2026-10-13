@@ -25,6 +25,36 @@ llama.cpp or any OpenAI-compatible endpoint.
   - Secretary: messages for you land in an inbox, or reach you at once.
 - **Avatar:** Live2D Jade, with voice (TTS).
 
+## HTTP API (Android app)
+
+Settings → Connect → API endpoint. Off by default. When on, Jade listens on your port (default 8787) and answers
+**GET** requests with **JSON**. A message sent to `/v1/chat` goes through the normal chat: it appears in the app and
+she answers there. Every call except `/v1/health` needs the token (`Authorization: Bearer TOKEN` or `?token=TOKEN`).
+It listens on this phone only unless you allow your Wi-Fi; the traffic is plain HTTP, so use a trusted network.
+
+```
+curl -H "Authorization: Bearer $TOKEN" "http://PHONE:8787/v1/chat?message=What%20notes%20mention%20Lisbon%3F"
+```
+```json
+{"ok":true,"api":1,"reply":"Two notes mention Lisbon: [[Trip Ideas]] and [[Maya]].",
+ "session":{"id":"k3x9a2","title":"What notes mention Lisbon?","messages":2,"updated":1791916791826},
+ "tool_calls":[{"name":"notes_search","arguments":{"query":"Lisbon"},"ok":true,"result":"..."}],
+ "error":null,"model":"qwen3:8b","elapsed_ms":4210}
+```
+
+| Endpoint | What it does |
+|---|---|
+| `/v1/chat?message=TEXT` | Send a message. Optional: `session=new` or a chat id, `new=1`, `wait=0` (answer 202 now, read the result later), `tools=0`, `timeout=SECONDS` (default 300, max 1800), or all of it as `json={"message":"hi","new":true}`. |
+| `/v1/status` | `busy`, model, the open chat. |
+| `/v1/history?limit=20&session=ID` | The last messages of a chat. |
+| `/v1/chats` | The list of chats. |
+| `/v1/health` | Public liveness check. |
+
+Errors are JSON too: `{"ok":false,"error":{"code":"busy","message":"..."}}` with HTTP 400 (bad request), 401 (token), 404
+(unknown chat), 409 (Jade is busy; one message at a time), 502 (model error) or 504 (still working; she carries on in the app).
+Slash commands other than `/skill:name` are refused. While the API is on, the app keeps running in the background
+with its notification.
+
 ## Repository layout
 
 | Path | What |

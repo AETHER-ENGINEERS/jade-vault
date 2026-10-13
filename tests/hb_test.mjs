@@ -1,3 +1,4 @@
+import { autoTabs } from './_tabs.mjs';
 import pw from 'playwright';
 import fs from 'node:fs';
 const { chromium } = pw;
@@ -12,7 +13,7 @@ await ctx.addInitScript(() => {
   window.NetrunnerAndroid = { keepAlive() {}, batteryOptimized() { return false; }, openBatterySettings() {}, requestNotifications() {}, notify(t, b) { (window.__notes ||= []).push([t, b]); } };
   if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', groqKey: 'gsk_test', journalOn: false }));
 });
-const page = await ctx.newPage();
+const page = autoTabs(await ctx.newPage());
 page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 let hbMode = 'ok', noVision = false; const chats = [], groqBodies = [], lcppBodies = [];
 const nd = (lines) => lines.map(l => JSON.stringify(l)).join('\n') + '\n';

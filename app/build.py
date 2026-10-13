@@ -1051,6 +1051,102 @@ rep("Object.assign(window, { XWAKE,", "Object.assign(window, { saveSettings, VEC
 
 rep("function newSession() { if (cur?.messages?.length) journalSession(cur);", "function newSession() { saveSession.flush?.(); if (cur?.messages?.length) journalSession(cur);")
 rep("async function openSession(id) { if (cur?.messages?.length && cur.id !== id) journalSession(cur);", "async function openSession(id) { if (cur?.id !== id) saveSession.flush?.(); if (cur?.messages?.length && cur.id !== id) journalSession(cur);")
+
+# ---------- v17: HTTP API (Android app) + settings tabs ----------
+rep("const DEFAULTS = { provider: 'local',", "const DEFAULTS = { apiOn: false, apiPort: 8787, apiLan: false, apiToken: '', provider: 'local',")
+API_HTML = r"""      <section class="flex flex-col gap-3" id="apiSection">
+        <div class="pane-h">API endpoint</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Let other apps and scripts talk to Jade. They send a GET request and get JSON back. A message sent this way goes through the normal chat: it appears in the app and Jade answers there.</p>
+        <div id="apiNative" class="flex flex-col gap-3">
+          <label class="flex items-center gap-2 text-sm" for="sApiOn"><input type="checkbox" id="sApiOn" class="accent-emerald-400 w-4 h-4"> Enable the API (stays running in the background while on)</label>
+          <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <div><label class="lbl" for="sApiPort">Port</label><input id="sApiPort" type="number" min="1024" max="65535" step="1" class="field mt-1"></div>
+            <div class="flex items-end"><label class="flex items-center gap-2 text-sm" for="sApiLan"><input type="checkbox" id="sApiLan" class="accent-emerald-400 w-4 h-4"> Allow other devices on my Wi-Fi</label></div>
+          </div>
+          <div><label class="lbl" for="sApiToken">Access token (required on every call)</label>
+            <div class="flex gap-2 mt-1"><input id="sApiToken" class="field" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="made for you when you enable the API"><button type="button" class="btn" id="btnApiCopy">Copy</button><button type="button" class="btn btn-ghost" id="btnApiToken">New</button></div></div>
+          <div class="text-sm flex items-center gap-2 flex-wrap" id="apiStatus"></div>
+          <div><div class="lbl">Try it</div><pre class="field mt-1" id="apiExample" style="white-space:pre-wrap;word-break:break-all;margin:0"></pre><div class="mt-1"><button type="button" class="btn btn-ghost" id="btnApiCopyEx">Copy example</button></div></div>
+          <details class="text-sm"><summary class="cursor-pointer text-[#c2d6ce]">Request and reply format</summary>
+<pre class="hint leading-relaxed mt-2" style="white-space:pre-wrap;overflow-x:auto">GET /v1/chat?message=TEXT
+  session=new | CHAT_ID   start a new chat or continue one
+                          (default: the chat open in the app)
+  wait=0                  answer 202 at once; poll /v1/status,
+                          then read /v1/history
+  tools=0                 leave tool_calls out of the reply
+  timeout=SECONDS         how long to wait (default 300, max 1800)
+  json={"message":"hi","new":true}
+                          the same parameters as one JSON object
+
+Reply: {"ok":true,"api":1,"reply":"...",
+  "session":{"id","title","messages"},
+  "tool_calls":[{"name","arguments","ok","result"}],
+  "model","elapsed_ms","error":null}
+
+GET /v1/status   busy flag, model, open chat
+GET /v1/history?limit=20&amp;session=CHAT_ID
+GET /v1/chats    list of chats
+GET /v1/health   no token needed
+
+Errors: {"ok":false,"error":{"code","message"}} with HTTP
+400 bad request, 401 token, 404 unknown chat, 409 busy,
+502 model error, 504 timeout (Jade keeps going in the app).
+
+Send the token as  Authorization: Bearer TOKEN  or  ?token=TOKEN.
+Over Wi-Fi the traffic is plain HTTP, so use a trusted network.</pre></details>
+        </div>
+        <p class="hint leading-relaxed" id="apiWeb">The API runs inside the Android app. A browser tab cannot listen for requests.</p>
+      </section>
+
+"""
+VS = '      <section class="flex flex-col gap-3" id="vecSection">'
+rep(VS, API_HTML + VS)
+rep("  renderSkillsSettings(); renderBgSettings();", "  renderSkillsSettings(); renderBgSettings(); renderApiSettings(); initSettingsTabs();")
+rep("bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked });", "bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked, ...apiReadFields() });")
+rep("  saveSettings(); bgSync(); setVoice($('#sJadeVoice').checked);", "  saveSettings(); apiApply(); bgSync(); setVoice($('#sJadeVoice').checked);")
+rep("  const want = S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));", "  const apiUp = !!(S.apiOn && apiState?.listening);\n  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));")
+rep("vecOnline ? 'Jade is online on Vector' :", "vecOnline ? 'Jade is online on Vector' : apiUp ? `Jade API on port ${apiState.port}` :")
+rep("  bgSync();\n  setTab('chat');\n})();", "  apiApply();\n  bgSync();\n  setTab('chat');\n})();")
+s = s.replace('/* =====================================================================\n   BOOT', rd('api.js') + '\n' + '/* =====================================================================\n   BOOT', 1)
+
+for sec_id in ('trajSection', 'vecSection', 'mcpSection'):
+    rep(f"setTimeout(() => $('#{sec_id}').scrollIntoView({{ block: 'start' }}), 60)", f"setTimeout(() => showSettingsSection('#{sec_id}'), 60)")
+rep("openSettings(); $('#sProvider').value = p; showProvFields(); return; }", "openSettings(); showSettingsSection('#sProvider'); $('#sProvider').value = p; showProvFields(); return; }")
+# settings tabs: every section gets data-tab (an unknown section fails the build, so none is ever lost)
+TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect', 'Connect'), ('app', 'App')]
+TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
+          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
+          'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
+          'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect',
+          'Heartbeat': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
+a = s.index('<div class="modal-bg" id="settings" hidden>'); b = s.index('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', a)
+blk = s[a:b]; seen = set()
+def tag(m):
+    t = re.search(r'class="pane-h">([^<]+)<', m.group(0))
+    if not t: sys.exit('SETTINGS SECTION WITHOUT TITLE: ' + m.group(0)[:100])
+    title = t.group(1).replace('&amp;', '&').replace('&#39;', "'")
+    if title not in TAB_OF: sys.exit(f'SETTINGS SECTION NOT ASSIGNED TO A TAB: {title!r}')
+    seen.add(title)
+    return '<section data-tab="' + TAB_OF[title] + '"' + m.group(0)[len('<section'):]
+blk2 = re.sub(r'<section class="flex flex-col gap-3"[^>]*>.*?</section>', tag, blk, flags=re.S)
+if seen != set(TAB_OF): sys.exit('SETTINGS TABS: sections missing from the page: ' + repr(set(TAB_OF) - seen))
+HDR_END = '<button class="btn btn-ghost" id="btnCloseSettings">Close</button></div>\n'
+assert blk2.count(HDR_END) == 1
+bar = '<div class="set-top"><div class="set-tabs" id="setTabs" role="tablist">' + ''.join(f'<button type="button" role="tab" class="set-tab" data-tab="{k}" aria-selected="false">{v}</button>' for k, v in TABS) + '</div><input id="setSearch" type="search" class="field" placeholder="Search settings" autocomplete="off" autocapitalize="off" spellcheck="false"></div>\n      <p class="hint" id="setNone" hidden>No setting matches that.</p>\n'
+blk2 = blk2.replace(HDR_END, HDR_END + '      ' + bar, 1)
+s = s[:a] + blk2 + s[b:]
+s = s.replace('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', '<div class="flex justify-end gap-2 set-foot"><button class="btn" id="btnCancel">', 1)
+s = s.replace('s = s', 's = s') if False else s
+s = s.replace('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """#settings section.tab-off{display:none!important}
+#settings .set-top{position:sticky;top:-20px;z-index:3;background:var(--panel);margin:-20px -20px 0;padding:20px 20px 10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+#settings .set-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#settings .set-tabs::-webkit-scrollbar{display:none}
+.set-tab{flex:1 0 auto;font-family:var(--f-disp);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding:7px 8px;border:1px solid var(--line);color:var(--dim);background:transparent;cursor:pointer;white-space:nowrap}
+.set-tab:hover{color:var(--fg)} .set-tab[aria-selected="true"]{color:var(--yl);border-color:var(--yl);background:rgba(31,229,165,.07)}
+#settings .set-foot{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:0 -20px -20px;padding:10px 20px 20px;border-top:1px solid var(--line)}
+""", 1)
+s = s.replace('/* =====================================================================\n   BOOT', rd('settings_tabs.js') + '\n' + '/* =====================================================================\n   BOOT', 1)
+
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

@@ -1,3 +1,4 @@
+import { autoTabs } from './_tabs.mjs';
 import pw from 'playwright';
 import fs from 'node:fs';
 const { chromium } = pw;
@@ -8,7 +9,7 @@ const log = [], fail = []; const ok = (c, m) => (c ? log : fail).push((c ? 'PASS
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, timezoneId: 'America/Detroit' });
 await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', journalOn: false })); });
-const page = await ctx.newPage();
+const page = autoTabs(await ctx.newPage());
 page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 const CAT = fs.readFileSync('xdcfix/cat.png'); const apiSeen = []; let chatStep = 0;
 await ctx.route('**/*', async route => {

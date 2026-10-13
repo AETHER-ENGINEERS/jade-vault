@@ -33,7 +33,7 @@ import java.util.Locale;
  *   speak(uid, text, pitch, rate) / stop()  -> Android TextToSpeech, events back via window.__jadeTTS(ev, uid)
  *   notify(title, body) / requestNotifications()
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements ApiServer.Host {
     static final int REQ_FILE = 7, REQ_NOTIFY = 9, REQ_SAVE = 11;
     static final String CHANNEL = "netrunner";
     static final int BG = 0xff040807;
@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     boolean ttsReady;
     int notifyId = 100;
     String pendingSaveText, pendingSaveName;
+    ApiServer api;
 
     @Override
     protected void onCreate(Bundle state) {
@@ -71,6 +72,7 @@ public class MainActivity extends Activity {
         web.setWebChromeClient(new Chrome());
         // keep the page's JS at full priority when the app is not visible, so the agent loop keeps going
         if (Build.VERSION.SDK_INT >= 26) { try { web.setRendererPriorityPolicy(WebView.RENDERER_PRIORITY_IMPORTANT, false); } catch (Exception ignored) { } }
+        api = new ApiServer(this);
         web.addJavascriptInterface(new Bridge(this), "NetrunnerAndroid");
 
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
@@ -97,6 +99,7 @@ public class MainActivity extends Activity {
     @Override
     protected void onDestroy() {
         try { stopService(new Intent(this, KeepAliveService.class)); } catch (Exception ignored) { }
+        if (api != null) api.stop();
         if (tts != null) { tts.stop(); tts.shutdown(); }
         if (web != null) web.destroy();
         super.onDestroy();
@@ -137,7 +140,8 @@ public class MainActivity extends Activity {
         super.onActivityResult(requestCode, resultCode, data);
     }
 
-    void js(final String code) {
+    @Override
+    public void js(final String code) {
         web.post(new Runnable() {
             @Override
             public void run() { web.evaluateJavascript(code, null); }
@@ -229,6 +233,17 @@ public class MainActivity extends Activity {
 
         @JavascriptInterface
         public void openBatterySettings() { a.openBatterySettings(); }
+
+        /** Start/restart/stop Jade's HTTP API to match the settings. Returns its status as JSON text. */
+        @JavascriptInterface
+        public String apiConfigure(boolean enabled, int port, boolean lan, String token) { return a.api.configure(enabled, port, lan, token); }
+
+        @JavascriptInterface
+        public String apiStatus() { return a.api.status(); }
+
+        /** JS hands back the finished answer for an API request (id from window.__jadeApi). */
+        @JavascriptInterface
+        public void apiResult(String id, int status, String body) { a.api.deliver(id, status, body); }
     }
 
     void saveFile(final String name, final String mime, final String text) {

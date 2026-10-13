@@ -1,5 +1,18 @@
 # Changelog
 
+## 2.6.0
+- **HTTP API (Android app).** Jade listens on a port you choose and answers GET requests with JSON. A message sent
+  to `/v1/chat?message=...` goes through the normal chat: it shows up in the app and she answers there, and the reply
+  comes back as JSON (`reply`, `session`, `tool_calls`, `model`, `elapsed_ms`, `error`). Also `/v1/status`, `/v1/history`,
+  `/v1/chats` and a public `/v1/health`. Token required on every call (`Authorization: Bearer` or `?token=`); off by
+  default; local only unless you allow your Wi-Fi. Input can also be one JSON object (`?json={...}`). Keeps the app
+  alive in the background while on. Settings → Connect.
+- **Memory retrieval with BM25.** Optional: only the memory lines that match your recent messages go into the system
+  prompt (Okapi BM25, top-k adjustable). Off by default.
+- **Settings are split into tabs** (Model, Memory, Tools, Connect, App) with a search box, and Save stays in view.
+- Python: a corrupt or empty cached MicroPython runtime is detected and downloaded again.
+- Browser build for GitHub Pages in `docs/`.
+
 ## 2.5.0
 - **Jade on Vector messenger.** She runs as a Vector bot through the new Jade Vector bridge (Vector's own
   `vector-agent` plus a token-protected HTTP bridge; macOS, Linux or Docker).

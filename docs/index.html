@@ -310,6 +310,9 @@
   .grow {
     flex-grow: 1;
   }
+  .cursor-pointer {
+    cursor: pointer;
+  }
   .resize {
     resize: both;
   }
@@ -898,6 +901,14 @@ details>summary{cursor:pointer;list-style:none} details>summary::-webkit-details
 .hljs-addition{color:var(--ok)} .hljs-deletion{color:var(--rd)}
 
 [hidden]{display:none!important}
+#settings section.tab-off{display:none!important}
+#settings .set-top{position:sticky;top:-20px;z-index:3;background:var(--panel);margin:-20px -20px 0;padding:20px 20px 10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+#settings .set-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#settings .set-tabs::-webkit-scrollbar{display:none}
+.set-tab{flex:1 0 auto;font-family:var(--f-disp);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding:7px 8px;border:1px solid var(--line);color:var(--dim);background:transparent;cursor:pointer;white-space:nowrap}
+.set-tab:hover{color:var(--fg)} .set-tab[aria-selected="true"]{color:var(--yl);border-color:var(--yl);background:rgba(31,229,165,.07)}
+#settings .set-foot{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:0 -20px -20px;padding:10px 20px 20px;border-top:1px solid var(--line)}
+
 /* history compaction */
 .compact-card{border:1px dashed var(--line-hot);background:rgba(31,229,165,.04);font-size:13px}
 .compact-card>summary{display:flex;align-items:center;gap:10px;padding:8px 12px;flex-wrap:wrap;font-family:var(--f-disp);font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--yl);font-size:12px}
@@ -1401,8 +1412,10 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
   <div class="frame cut w-full" style="max-width:680px;max-height:calc(100% - 32px);display:flex">
     <div class="inner p-5 overflow-y-auto w-full flex flex-col gap-5">
       <div class="flex items-center justify-between"><div class="logo" style="font-size:20px" data-text="CONFIG">CONFIG</div><button class="btn btn-ghost" id="btnCloseSettings">Close</button></div>
+      <div class="set-top"><div class="set-tabs" id="setTabs" role="tablist"><button type="button" role="tab" class="set-tab" data-tab="model" aria-selected="false">Model</button><button type="button" role="tab" class="set-tab" data-tab="memory" aria-selected="false">Memory</button><button type="button" role="tab" class="set-tab" data-tab="tools" aria-selected="false">Tools</button><button type="button" role="tab" class="set-tab" data-tab="connect" aria-selected="false">Connect</button><button type="button" role="tab" class="set-tab" data-tab="app" aria-selected="false">App</button></div><input id="setSearch" type="search" class="field" placeholder="Search settings" autocomplete="off" autocapitalize="off" spellcheck="false"></div>
+      <p class="hint" id="setNone" hidden>No setting matches that.</p>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="model" class="flex flex-col gap-3">
         <div class="pane-h">Model provider</div>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
           <div><label class="lbl" for="sProvider">Provider</label><select id="sProvider" class="field mt-1"><option value="local">Ollama on my computer</option><option value="llamacpp">llama.cpp server</option><option value="cloud">Ollama Cloud (ollama.com)</option><option value="groq">Groq</option><option value="openai">OpenAI-compatible endpoint</option></select></div>
@@ -1424,7 +1437,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed" id="corsHint">Ollama must allow this page's origin. Start it with <span class="text-yl">OLLAMA_ORIGINS="*" ollama serve</span> (or set the variable in the Ollama app's environment and restart it). Pick a model with tool support, such as qwen3, gpt-oss, llama3.1 or mistral-small.</p>
       </section>
 
-      <section class="flex flex-col gap-3" id="mcpSection">
+      <section data-tab="tools" class="flex flex-col gap-3" id="mcpSection">
         <div class="flex items-center justify-between gap-2"><div class="pane-h">MCP servers</div><span class="hint" id="mcpCount"></span></div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Works like pi: servers live in <span class="text-yl">Jade/mcp.json</span> and connect in the background. <b>codemode</b> (default) keeps their tools out of the prompt; Jade writes a short script that calls them. <b>deferred</b> loads tools on demand with tool_search, <b>direct</b> shows them like built-in tools, <b>hidden</b> turns them off. Streamable HTTP servers only; a stdio server needs an HTTP bridge such as <span class="mono text-yl">npx -y supergateway --stdio "…" --outputTransport streamableHttp</span>.</p>
         <div id="mcpList" class="flex flex-col gap-2"></div>
@@ -1441,7 +1454,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <div><label class="lbl" for="mcpSecrets">Secrets for headers (NAME=value per line, used as ${NAME}; kept out of the vault)</label><textarea id="mcpSecrets" class="field mt-1 mono" rows="2" spellcheck="false" autocapitalize="off" placeholder="GITHUB_TOKEN=ghp_…"></textarea></div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="app" class="flex flex-col gap-3">
         <div class="pane-h">Heartbeat</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Every so often Jade wakes up, reads <span class="text-yl">Jade/HEARTBEAT.md</span> and checks what it lists. If all is well she answers HEARTBEAT_OK and stays quiet; otherwise you get a notification. An empty checklist costs nothing.</p>
         <label class="flex items-center gap-2 text-sm" for="sHbOn"><input type="checkbox" id="sHbOn" class="accent-emerald-400 w-4 h-4"> Heartbeat on</label>
@@ -1460,7 +1473,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <div class="hint" id="hbStatus"></div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="app" class="flex flex-col gap-3">
         <div class="pane-h">Background</div>
         <div><label class="lbl" for="sBgMode">Keep Jade running when the app is in the background</label><select id="sBgMode" class="field mt-1"><option value="agent">While she is working (recommended)</option><option value="always">Always while the app is open (keeps schedules firing)</option><option value="off">Off</option></select></div>
         <label class="flex items-center gap-2 text-sm" for="sBgNotify"><input type="checkbox" id="sBgNotify" class="accent-emerald-400 w-4 h-4"> Notify me when a run finishes in the background</label>
@@ -1468,7 +1481,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed" id="bgWeb">In a browser tab, Jade keeps working while the tab stays open, but the browser may slow it down in the background. Install the Android app for real background runs.</p>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="app" class="flex flex-col gap-3">
         <div class="pane-h">Backup</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Export to a JSON file. <b>Everything</b> = all notes and files, chats, schedules, memory, skills and settings. <b>Config</b> = settings, SOUL.md, AGENTS.md, SYSTEM.md, memory and skills. Import a file to restore it: a full backup replaces what is here, a config file merges in.</p>
         <label class="flex items-center gap-2 text-sm" for="sBackupKeys"><input type="checkbox" id="sBackupKeys" class="accent-emerald-400 w-4 h-4"> Include API keys (keep that file private)</label>
@@ -1476,7 +1489,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <div class="hint" id="backupNote"></div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="memory" class="flex flex-col gap-3">
         <div class="pane-h">Persona, instructions & skills</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]"><span class="text-yl">SOUL.md</span> is who Jade is. <span class="text-yl">AGENTS.md</span> holds your standing instructions. <span class="text-yl">SYSTEM.md</span> (optional) replaces her base prompt. All three are notes, read fresh on every message; text inside &lt;!-- comments --&gt; is not sent.</p>
         <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-ghost" id="btnOpenSoul">SOUL.md</button><button type="button" class="btn btn-ghost" id="btnOpenAgents">AGENTS.md</button><button type="button" class="btn btn-ghost" id="btnOpenSystem">SYSTEM.md</button></div>
@@ -1484,7 +1497,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <div id="skillList" class="flex flex-col gap-1"></div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="memory" class="flex flex-col gap-3">
         <div class="pane-h">Long-term memory</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade keeps what she learns about you in the note <span class="text-yl">Jade/Memory</span> and reads it at the start of every chat. When you leave a chat (or after a few quiet minutes) she writes a short entry in her journal under <span class="text-yl">Jade/Journal</span> and adds new facts to memory. Both are plain notes you can edit or delete.</p>
         <label class="flex items-center gap-2 text-sm" for="sMemoryOn"><input type="checkbox" id="sMemoryOn" class="accent-emerald-400 w-4 h-4"> Use long-term memory (memory tool + memory in every chat)</label>
@@ -1494,7 +1507,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <div><button type="button" class="btn btn-ghost" id="btnOpenMemory">Open memory note</button></div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="memory" class="flex flex-col gap-3">
         <div class="pane-h">History compaction</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Long chats overflow the model's context window. Compaction has the model summarise the older turns; from then on it sees the summary instead of them. The full history stays visible here.</p>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -1508,7 +1521,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed">A small, fast model is usually enough for summaries and saves your main model's time. If it fails, the chat model is used. A turn is one message from you plus everything the agent does in reply. Type <span class="text-yl">/compact</span> to compact now.</p>
       </section>
 
-      <section class="flex flex-col gap-3" id="trajSection">
+      <section data-tab="memory" class="flex flex-col gap-3" id="trajSection">
         <div class="pane-h">Trajectory log (fine-tuning data)</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Records every agent run exactly as the model saw it: system prompt, tools, your messages, its replies, tool calls and results. It stays on this device until you export it as JSONL for fine-tuning your own model. Rate replies with 👍 / 👎 in the chat to choose what goes in.</p>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
@@ -1522,7 +1535,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <label class="flex items-center gap-2 text-sm" for="sStampOn"><input type="checkbox" id="sStampOn" class="accent-emerald-400 w-4 h-4"> Tell Jade the date and time of each message</label>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="app" class="flex flex-col gap-3">
         <div class="pane-h">Jade companion</div>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
           <label class="flex items-center gap-2 text-sm" for="sJadeShow"><input type="checkbox" id="sJadeShow" class="accent-emerald-400 w-4 h-4"> Show the avatar</label>
@@ -1535,7 +1548,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed">Voices come from your browser and operating system, so the list differs between machines. British female voices are picked first when set to Auto. Jade lip-syncs to whatever voice you choose.</p>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="model" class="flex flex-col gap-3">
         <div class="pane-h">Ollaya decisions</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Ollaya runs decision models locally. It doesn't write text: it answers questions you define with calibrated probabilities. When it's on, the agent gets a <span class="mono text-yl">decide</span> tool for triage, classification, scoring and yes/no checks. Ollama still does the chatting.</p>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
@@ -1549,7 +1562,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed">Install from ollaya.dev, then run <span class="text-yl">ollaya serve</span> and pull a model (for example <span class="text-yl">ollaya pull winnow:e4b</span>). It accepts requests from localhost and local files by default. For the hosted page, start it with <span class="text-yl">OLLAYA_ORIGINS="*" ollaya serve</span>.</p>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="tools" class="flex flex-col gap-3">
         <div class="pane-h">BusyBox WASM</div>
         <div class="text-sm leading-relaxed text-[#c2d6ce]">BusyBox 1.37 is built into this page. Each applet runs as a fresh WebAssembly instance in a worker, on a copy of the virtual filesystem that is written back when it exits. Pipes, redirects, <span class="mono text-yl">sh -c</span> and <span class="mono text-yl">xargs</span> are handled by the page's own shell, because WebAssembly cannot fork.</div>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
@@ -1559,7 +1572,51 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         </div>
       </section>
 
-      <section class="flex flex-col gap-3" id="vecSection">
+      <section data-tab="connect" class="flex flex-col gap-3" id="apiSection">
+        <div class="pane-h">API endpoint</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Let other apps and scripts talk to Jade. They send a GET request and get JSON back. A message sent this way goes through the normal chat: it appears in the app and Jade answers there.</p>
+        <div id="apiNative" class="flex flex-col gap-3">
+          <label class="flex items-center gap-2 text-sm" for="sApiOn"><input type="checkbox" id="sApiOn" class="accent-emerald-400 w-4 h-4"> Enable the API (stays running in the background while on)</label>
+          <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <div><label class="lbl" for="sApiPort">Port</label><input id="sApiPort" type="number" min="1024" max="65535" step="1" class="field mt-1"></div>
+            <div class="flex items-end"><label class="flex items-center gap-2 text-sm" for="sApiLan"><input type="checkbox" id="sApiLan" class="accent-emerald-400 w-4 h-4"> Allow other devices on my Wi-Fi</label></div>
+          </div>
+          <div><label class="lbl" for="sApiToken">Access token (required on every call)</label>
+            <div class="flex gap-2 mt-1"><input id="sApiToken" class="field" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="made for you when you enable the API"><button type="button" class="btn" id="btnApiCopy">Copy</button><button type="button" class="btn btn-ghost" id="btnApiToken">New</button></div></div>
+          <div class="text-sm flex items-center gap-2 flex-wrap" id="apiStatus"></div>
+          <div><div class="lbl">Try it</div><pre class="field mt-1" id="apiExample" style="white-space:pre-wrap;word-break:break-all;margin:0"></pre><div class="mt-1"><button type="button" class="btn btn-ghost" id="btnApiCopyEx">Copy example</button></div></div>
+          <details class="text-sm"><summary class="cursor-pointer text-[#c2d6ce]">Request and reply format</summary>
+<pre class="hint leading-relaxed mt-2" style="white-space:pre-wrap;overflow-x:auto">GET /v1/chat?message=TEXT
+  session=new | CHAT_ID   start a new chat or continue one
+                          (default: the chat open in the app)
+  wait=0                  answer 202 at once; poll /v1/status,
+                          then read /v1/history
+  tools=0                 leave tool_calls out of the reply
+  timeout=SECONDS         how long to wait (default 300, max 1800)
+  json={"message":"hi","new":true}
+                          the same parameters as one JSON object
+
+Reply: {"ok":true,"api":1,"reply":"...",
+  "session":{"id","title","messages"},
+  "tool_calls":[{"name","arguments","ok","result"}],
+  "model","elapsed_ms","error":null}
+
+GET /v1/status   busy flag, model, open chat
+GET /v1/history?limit=20&amp;session=CHAT_ID
+GET /v1/chats    list of chats
+GET /v1/health   no token needed
+
+Errors: {"ok":false,"error":{"code","message"}} with HTTP
+400 bad request, 401 token, 404 unknown chat, 409 busy,
+502 model error, 504 timeout (Jade keeps going in the app).
+
+Send the token as  Authorization: Bearer TOKEN  or  ?token=TOKEN.
+Over Wi-Fi the traffic is plain HTTP, so use a trusted network.</pre></details>
+        </div>
+        <p class="hint leading-relaxed" id="apiWeb">The API runs inside the Android app. A browser tab cannot listen for requests.</p>
+      </section>
+
+      <section data-tab="connect" class="flex flex-col gap-3" id="vecSection">
         <div class="pane-h">Vector messenger (Jade as a bot)</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade lives on <span class="text-cy">Vector</span> as a bot account: she answers DMs and channels, reacts, sends files, sees images, plays Mini Apps, joins and leaves communities, and takes messages for you. Vector itself runs in the <b>Jade Vector bridge</b> on a computer that stays on (Mac, Linux or Docker: see the jade-vector folder), and this app connects to it like it does to Ollama.</p>
         <label class="flex items-center gap-2 text-sm" for="sVecOn"><input type="checkbox" id="sVecOn" class="accent-emerald-400 w-4 h-4"> Run Jade on Vector</label>
@@ -1583,7 +1640,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed">You (the owner) get the same Jade as in this app, with every tool. Admins get Vector powers but never your notes, memory or files. Everyone else can chat, play Mini Apps and leave you messages. Each Vector chat has its own chat here (💬). Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
       </section>
 
-      <section class="flex flex-col gap-3" id="secretSection">
+      <section data-tab="tools" class="flex flex-col gap-3" id="secretSection">
         <div class="pane-h">Secrets (API keys for Jade's HTTP requests)</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade writes <code class="text-cy">{{NAME}}</code> in a URL, header or body and the app fills in the value when the request goes out. She never sees the value, so it stays out of chats, the trajectory log and replies (any echo is blanked). Node scripts get them as <code class="text-cy">process.env.NAME</code>.</p>
         <div id="secretList" class="flex flex-col gap-2"></div>
@@ -1594,7 +1651,7 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         </div>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="model" class="flex flex-col gap-3">
         <div class="pane-h">Web search</div>
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
           <div><label class="lbl" for="sSearch">Provider</label>
@@ -1605,12 +1662,12 @@ div.math-tex{overflow-x:auto;overflow-y:hidden;margin:.7em 0;padding:4px 0;max-w
         <p class="hint leading-relaxed">The key stays in this browser. web_fetch uses Ollama's fetch API when a key is set, otherwise r.jina.ai's reader.</p>
       </section>
 
-      <section class="flex flex-col gap-3">
+      <section data-tab="app" class="flex flex-col gap-3">
         <div class="pane-h">Danger zone</div>
         <div class="flex gap-2 flex-wrap"><button class="btn btn-red" id="btnDelAllChats">Delete all chats</button><button class="btn btn-red" id="btnResetFs">Reset filesystem</button><span class="hint self-center" id="resetNote"></span></div>
       </section>
 
-      <div class="flex justify-end gap-2"><button class="btn" id="btnCancel">Cancel</button><button class="btn btn-solid cut cut-sm" id="btnSave">Save &amp; reconnect</button></div>
+      <div class="flex justify-end gap-2 set-foot"><button class="btn" id="btnCancel">Cancel</button><button class="btn btn-solid cut cut-sm" id="btnSave">Save &amp; reconnect</button></div>
     </div>
   </div>
 </div>
@@ -1685,7 +1742,7 @@ const idb = (() => {
 })();
 
 /* ---------------- settings ---------------- */
-const DEFAULTS = { provider: 'local', fallbacks: [], fallbackOrder: ['local', 'llamacpp', 'cloud', 'groq', 'openai'], lcppHost: 'http://localhost:8080', lcppKey: '', hbOn: false, hbEvery: 30, hbStart: '08:00', hbEnd: '22:00', hbChat: 'own', hbPrompt: '', hbProv: '', hbModel: '', auxProv: '', auxModel: '', bgMode: 'agent', bgNotify: true, groqKey: '', oaiHost: '', oaiKey: '', modelBy: {}, memoryOn: true, memoryRag: false, memoryRagK: 8, journalOn: true, compactAuto: true, compactAfter: 8, compactKeep: 2, compactPct: 85, jadeCompact: false, jadeShow: true, jadeVoice: false, voiceName: '', voicePitch: 1.25, voiceRate: 1.03, jadeFrame: 'portrait', ollayaOn: false, ollayaHost: 'http://localhost:11435', ollayaModel: '', ollayaKey: '', host: 'http://localhost:11434', model: '', temperature: 0.2, numCtx: 16384, think: false, maxTurns: 40, bbUrl: '', engine: 'auto', search: 'auto', ollamaKey: '', searx: '' };
+const DEFAULTS = { apiOn: false, apiPort: 8787, apiLan: false, apiToken: '', provider: 'local', fallbacks: [], fallbackOrder: ['local', 'llamacpp', 'cloud', 'groq', 'openai'], lcppHost: 'http://localhost:8080', lcppKey: '', hbOn: false, hbEvery: 30, hbStart: '08:00', hbEnd: '22:00', hbChat: 'own', hbPrompt: '', hbProv: '', hbModel: '', auxProv: '', auxModel: '', bgMode: 'agent', bgNotify: true, groqKey: '', oaiHost: '', oaiKey: '', modelBy: {}, memoryOn: true, memoryRag: false, memoryRagK: 8, journalOn: true, compactAuto: true, compactAfter: 8, compactKeep: 2, compactPct: 85, jadeCompact: false, jadeShow: true, jadeVoice: false, voiceName: '', voicePitch: 1.25, voiceRate: 1.03, jadeFrame: 'portrait', ollayaOn: false, ollayaHost: 'http://localhost:11435', ollayaModel: '', ollayaKey: '', host: 'http://localhost:11434', model: '', temperature: 0.2, numCtx: 16384, think: false, maxTurns: 40, bbUrl: '', engine: 'auto', search: 'auto', ollamaKey: '', searx: '' };
 const S = Object.assign({}, DEFAULTS, ls.get('settings', {}));
 const saveSettings = () => { if (window.__restoring || window.__modelOverride) return; if (activeProv && S.model) (S.modelBy ||= {})[activeProv] = S.model; ls.set('settings', S); };
 
@@ -4014,9 +4071,9 @@ function slash(text) {
   if (cmd === 'delete') { if (cur) deleteSession(cur.id); return; }
   if (cmd === 'copy' || cmd === 'export') { copyText(chatMarkdown()).then?.(() => {}); toast('Chat copied as Markdown', 'ok'); return; }
   if (cmd === 'voice') { setVoice(!S.jadeVoice); return; }
-  if (cmd === 'trajectories' || cmd === 'traj') { if (arg === 'export') { exportTrajectories().then(r => r && toast(`Exported ${r.count} of ${r.of} runs`, 'ok')); return; } openSettings(); setTimeout(() => $('#trajSection').scrollIntoView({ block: 'start' }), 60); return; }
+  if (cmd === 'trajectories' || cmd === 'traj') { if (arg === 'export') { exportTrajectories().then(r => r && toast(`Exported ${r.count} of ${r.of} runs`, 'ok')); return; } openSettings(); setTimeout(() => showSettingsSection('#trajSection'), 60); return; }
   if (cmd === 'inbox') { if (!vfs.isFile(VEC_INBOX)) vecInboxAdd({ from: '', chat: '', text: 'Inbox created.' }); openFile(VEC_INBOX, { mode: 'read' }); return; }
-  if (cmd === 'vector') { openSettings(); setTimeout(() => $('#vecSection').scrollIntoView({ block: 'start' }), 60); return; }
+  if (cmd === 'vector') { openSettings(); setTimeout(() => showSettingsSection('#vecSection'), 60); return; }
   if (cmd === 'context' || cmd === 'ctx') { showContext(); return; }
   if (cmd === 'compact') { if (running) return toast('Wait for the agent to finish first.'); compactHistory({ keepTurns: arg !== '' && Number.isFinite(+arg) ? +arg : +S.compactKeep, reason: 'manual' }); return; }
   if (cmd === 'schedule' || cmd === 'schedules' || cmd === 'cron') { setTab('sched'); return; }
@@ -4030,7 +4087,7 @@ function slash(text) {
   if (cmd === 'mcp') {
     const [sub, srvName] = rest;
     if (sub === 'reconnect') { const list = srvName ? [MCP.servers.get(srvName)].filter(Boolean) : [...MCP.servers.values()].filter(x => x.cfg.enabled !== false && x.state !== 'invalid'); Promise.all(list.map(mcpConnect)).then(() => toast(list.map(x => `${esc(x.name)}: ${esc(x.state)}`).join(' · ') || 'No servers', 'ok')); return; }
-    openSettings(); setTimeout(() => $('#mcpSection').scrollIntoView({ block: 'start' }), 60); return;
+    openSettings(); setTimeout(() => showSettingsSection('#mcpSection'), 60); return;
   }
   if (cmd === 'heartbeat') { if (arg === 'edit') { ensureHeartbeatFile(); openFile(HB_PATH, { mode: 'edit' }); } else runHeartbeat({ manual: true }); return; }
   if (cmd === 'export') { exportBackup(arg === 'config' ? 'config' : 'full'); return; }
@@ -4692,7 +4749,7 @@ $('#btnNewTop').onclick = () => $('#btnNew').click();
 $('#btnClearTasks').onclick = () => { tasks.items = []; renderTasks(); persistTasks(); };
 $('#modelSel').onchange = e => { S.model = e.target.value; saveSettings(); fillModelSelects(); };
 $('#provSel').value = S.provider || 'local';
-$('#provSel').onchange = async e => { const p = e.target.value; const miss = providerMissing(p); if (miss) { toast(esc(miss.replace(/ \(.*\)$/, '')) + '. Add it in Config.', 'err'); e.target.value = S.provider || 'local'; openSettings(); $('#sProvider').value = p; showProvFields(); return; } S.provider = p; saveSettings(); await connect(); };
+$('#provSel').onchange = async e => { const p = e.target.value; const miss = providerMissing(p); if (miss) { toast(esc(miss.replace(/ \(.*\)$/, '')) + '. Add it in Config.', 'err'); e.target.value = S.provider || 'local'; openSettings(); showSettingsSection('#sProvider'); $('#sProvider').value = p; showProvFields(); return; } S.provider = p; saveSettings(); await connect(); };
 
 function updateShellChip() {
   const on = !!bb.module && !!bb.applets.size && S.engine !== 'js';
@@ -4833,7 +4890,7 @@ $('#btnDelAllChats').onclick = async () => {
   delAllArmed = false; b.textContent = 'Delete all chats'; await deleteAllSessions(); $('#resetNote').textContent = 'All chats deleted.';
 };
 function openSettings() {
-  renderSkillsSettings(); renderBgSettings(); renderTrajSettings(); window.__trajSync?.(); window.__vecSync?.();
+  renderSkillsSettings(); renderBgSettings(); renderApiSettings(); initSettingsTabs(); renderTrajSettings(); window.__trajSync?.(); window.__vecSync?.();
   $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;
   $('#sCompactAuto').checked = !!S.compactAuto; $('#sCompactAfter').value = S.compactAfter; $('#sCompactKeep').value = S.compactKeep; $('#sCompactPct').value = S.compactPct;
   $('#sJadeShow').checked = S.jadeShow; $('#sJadeVoice').checked = S.jadeVoice; fillVoices(); $('#sPitch').value = S.voicePitch; $('#sRate').value = S.voiceRate; showRange();
@@ -4886,9 +4943,9 @@ $('#btnSave').onclick = async () => {
     ollayaOn: $('#sOllayaOn').checked, ollayaHost: $('#sOllayaHost').value.trim() || DEFAULTS.ollayaHost, ollayaModel: $('#sOllayaModel').value || S.ollayaModel, ollayaKey: $('#sOllayaKey').value.trim(),
     host: $('#sHost').value.trim() || DEFAULTS.host, model: $('#sModel').value || S.model, temperature: +$('#sTemp').value || 0, numCtx: +$('#sCtx').value || 16384, maxTurns: +$('#sTurns').value || 40, think: $('#sThink').checked, engine: $('#sEngine').value, search: $('#sSearch').value, ollamaKey: $('#sKey').value.trim(), searx: $('#sSearx').value.trim() });
   readProvFields(); readHbSettings(); readMcpSettings();
-  Object.assign(S, { auxProv: $('#sAuxProv').value, auxModel: $('#sAuxProv').value ? $('#sAuxModel').value : '', bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked });
+  Object.assign(S, { auxProv: $('#sAuxProv').value, auxModel: $('#sAuxProv').value ? $('#sAuxModel').value : '', bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked, ...apiReadFields() });
   if (S.bgMode !== 'off' && window.NetrunnerAndroid?.requestNotifications) { try { window.NetrunnerAndroid.requestNotifications(); } catch {} }
-  saveSettings(); bgSync(); setVoice($('#sJadeVoice').checked); applyJadeVisibility(); updateShellChip(); closeSettings(); ollayaCheck(); await connect();
+  saveSettings(); apiApply(); bgSync(); setVoice($('#sJadeVoice').checked); applyJadeVisibility(); updateShellChip(); closeSettings(); ollayaCheck(); await connect();
 };
 let resetArmed = false;
 $('#btnResetFs').onclick = () => { if (!resetArmed) { resetArmed = true; $('#btnResetFs').textContent = 'Click again to wipe all files'; $('#resetNote').textContent = 'This deletes every file in the browser filesystem.'; return; } vfs.replace([['/', { dir: true, mtime: Date.now() }]]); seedFs(); resetArmed = false; $('#btnResetFs').textContent = 'Reset filesystem'; $('#resetNote').textContent = 'Filesystem reset to the sample project.'; };
@@ -5572,8 +5629,9 @@ var bgOn = false, bgText = '';
 function bgSync(text) {
   if (!nativeBG()) return;
   const vecOnline = typeof VEC !== 'undefined' && S.vecOn && VEC.connected;
-  const want = S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));
-  const t = text || (running ? 'Jade is working…' : vecOnline ? 'Jade is online on Vector' : `Standing by${Sched?.list?.filter?.(x => x.enabled !== false).length ? ` · ${Sched.list.filter(x => x.enabled !== false).length} schedules armed` : ''}`);
+  const apiUp = !!(S.apiOn && apiState?.listening);
+  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));
+  const t = text || (running ? 'Jade is working…' : vecOnline ? 'Jade is online on Vector' : apiUp ? `Jade API on port ${apiState.port}` : `Standing by${Sched?.list?.filter?.(x => x.enabled !== false).length ? ` · ${Sched.list.filter(x => x.enabled !== false).length} schedules armed` : ''}`);
   try {
     if (want && (!bgOn || t !== bgText)) { window.NetrunnerAndroid.keepAlive(true, t); bgOn = true; bgText = t; }
     else if (!want && bgOn) { window.NetrunnerAndroid.keepAlive(false, ''); bgOn = false; bgText = ''; }
@@ -8176,6 +8234,192 @@ function renderVecSettings() {
 setTimeout(() => { if (S.vecOn && S.vecUrl) vecConnect(); }, 2500);
 
 /* =====================================================================
+   HTTP API (Android app) — GET only, JSON only.
+   The native shell (ApiServer.java) listens on a port and calls window.__jadeApi(id, route, params) with the
+   query string as an object. We answer through NetrunnerAndroid.apiResult(id, status, jsonText).
+     /v1/chat?message=…      runs the message through the normal chat: it shows up in the app and Jade
+                             answers there. Also: session=<id>|new, new=1, wait=0, tools=0, json={…}
+     /v1/status  /v1/history  /v1/chats
+   ===================================================================== */
+const API_VERSION = 1, API_MAX_MESSAGE = 20000;
+var apiState = null, apiBusy = false;
+const apiNative = () => typeof window.NetrunnerAndroid?.apiConfigure === 'function';
+const apiTruthy = v => v === true || /^(1|true|yes|on)$/i.test(String(v ?? ''));
+function apiGenToken() {
+  const b = new Uint8Array(18); (globalThis.crypto || window.crypto).getRandomValues(b);
+  return 'jv_' + [...b].map(x => x.toString(16).padStart(2, '0')).join('');
+}
+// push the saved settings to the native server (on boot and after Save)
+function apiApply() {
+  if (!apiNative()) return null;
+  if (S.apiOn && !S.apiToken) { S.apiToken = apiGenToken(); saveSettings(); }
+  try { apiState = JSON.parse(window.NetrunnerAndroid.apiConfigure(!!S.apiOn, +S.apiPort || 8787, !!S.apiLan, S.apiToken || '')); }
+  catch (e) { apiState = { enabled: !!S.apiOn, listening: false, error: String(e.message || e), addresses: [] }; }
+  try { bgSync(); } catch {}
+  return apiState;
+}
+const apiErr = (status, code, message, extra = {}) => ({ status, body: { ok: false, api: API_VERSION, error: { code, message }, ...extra } });
+const apiPreview = (v, n) => { const s = typeof v === 'string' ? v : JSON.stringify(v ?? ''); return s.length > n ? s.slice(0, n) + '…' : s; };
+const apiClean = t => String(t || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
+const apiSessionInfo = s => ({ id: s.id, title: s.title || '', messages: (s.messages || []).filter(m => m.role === 'user' || m.role === 'assistant').length, updated: s.updated || null });
+
+// JSON can also arrive as ?json={"message":"hi","new":true}; plain query keys win over it
+function apiParams(p) {
+  let q = {};
+  if (p.json !== undefined && p.json !== '') {
+    try { q = JSON.parse(p.json); } catch (e) { return { error: apiErr(400, 'bad_json', 'the json parameter is not valid JSON: ' + e.message) }; }
+    if (!q || typeof q !== 'object' || Array.isArray(q)) return { error: apiErr(400, 'bad_json', 'the json parameter must be a JSON object') };
+  }
+  for (const [k, v] of Object.entries(p)) if (k !== 'json' && k !== 'timeout') q[k] = v;
+  return { q };
+}
+
+async function apiChat(q) {
+  const message = String(q.message ?? q.q ?? q.text ?? q.prompt ?? '').trim();
+  if (!message) return apiErr(400, 'missing_message', 'send the text in the message parameter, e.g. /v1/chat?message=hello');
+  if (message.length > API_MAX_MESSAGE) return apiErr(413, 'message_too_long', `messages are limited to ${API_MAX_MESSAGE} characters`);
+  if (message.startsWith('/') && !/^\/skill:/i.test(message)) return apiErr(400, 'slash_command', 'slash commands are not available over the API (only /skill:name)');
+  if (running || apiBusy || (typeof compacting !== 'undefined' && compacting)) return apiErr(409, 'busy', 'Jade is already working on something. Try again when she is done (see /v1/status).', { busy: true });
+  if (!S.model) return apiErr(503, 'no_model', 'No model is selected in the app (Config → Model provider).');
+  apiBusy = true;
+  const wait = q.wait === undefined ? true : apiTruthy(q.wait);
+  try {
+    const want = q.session === undefined ? '' : String(q.session);
+    if (want === 'new' || apiTruthy(q.new)) newSession();
+    else if (want && want !== cur?.id) {
+      if (!sessions.find(x => x.id === want)) { apiBusy = false; return apiErr(404, 'unknown_session', `no chat with id ${want}. List them with /v1/chats`); }
+      await openSession(want);
+    }
+    if (!cur) newSession();
+    try { setTab('chat'); } catch {}
+    const sess = cur, n0 = sess.messages.length, t0 = Date.now();
+    const done = send(message);
+    const result = async () => {
+      await done;
+      const slice = sess.messages.slice(n0);
+      if (!slice.some(m => m.role === 'user')) return apiErr(500, 'not_sent', 'the app did not accept the message (is a model selected and reachable?)');
+      const asst = slice.filter(m => m.role === 'assistant');
+      const finalMsg = [...asst].reverse().find(m => apiClean(m.content) && !m.tool_calls?.length) || [...asst].reverse().find(m => apiClean(m.content));
+      const reply = finalMsg ? apiClean(finalMsg.content) : '';
+      const agentError = slice.find(m => m._error)?._error || null;
+      const calls = asst.flatMap(m => (m.tool_calls || []).map(t => t.function || {}));
+      const results = slice.filter(m => m.role === 'tool');
+      const out = {
+        ok: !(agentError && !reply), api: API_VERSION,
+        session: apiSessionInfo(sess), reply, error: agentError ? { code: 'agent_error', message: String(agentError) } : null,
+        model: S.model, elapsed_ms: Date.now() - t0,
+      };
+      if (apiTruthy(q.tools ?? '1')) out.tool_calls = calls.map((f, i) => ({ name: f.name, arguments: JSON.parse(safeArgs(f.arguments)), ok: results[i] ? !results[i]._err : null, result: results[i] ? apiPreview(results[i].content, 300) : null }));
+      return { status: out.ok ? 200 : 502, body: out };
+    };
+    if (!wait) {
+      done.catch(() => {}).finally(() => { apiBusy = false; });
+      return { status: 202, body: { ok: true, api: API_VERSION, accepted: true, session: apiSessionInfo(sess), message: 'Jade is working on it in the app. Poll /v1/status, then read /v1/history.' } };
+    }
+    const r = await result(); apiBusy = false; return r;
+  } catch (e) { apiBusy = false; return apiErr(500, 'internal', String(e.message || e)); }
+}
+// tool arguments can hold whole files: keep each string short so the JSON reply stays small
+function safeArgs(a) {
+  const o = {}; for (const [k, v] of Object.entries(a && typeof a === 'object' ? a : {})) o[k] = typeof v === 'string' && v.length > 200 ? v.slice(0, 200) + '…' : v;
+  return JSON.stringify(o);
+}
+
+function apiStatus() {
+  return { status: 200, body: { ok: true, api: API_VERSION, app: 'jade-vault', version: typeof APP_VERSION !== 'undefined' ? APP_VERSION : undefined, busy: !!(running || apiBusy), model: S.model || null, provider: S.provider || null, session: cur ? apiSessionInfo(cur) : null } };
+}
+async function apiHistory(q) {
+  let s = cur;
+  if (q.session && q.session !== cur?.id) {
+    if (!sessions.find(x => x.id === q.session)) return apiErr(404, 'unknown_session', `no chat with id ${q.session}. List them with /v1/chats`);
+    s = await idb.get('session:' + q.session);
+  }
+  if (!s) return { status: 200, body: { ok: true, api: API_VERSION, session: null, messages: [] } };
+  const limit = Math.max(1, Math.min(200, parseInt(q.limit) || 20));
+  const msgs = (s.messages || []).filter(m => (m.role === 'user' || m.role === 'assistant') && apiClean(m.display || m.content))
+    .map(m => ({ role: m.role, content: apiClean(m.display || m.content), ts: m.ts || null })).slice(-limit);
+  return { status: 200, body: { ok: true, api: API_VERSION, session: apiSessionInfo(s), messages: msgs } };
+}
+function apiChats() {
+  const all = [...sessions]; if (cur?.messages?.length && !all.find(s => s.id === cur.id)) all.push(cur);   // the open chat is saved a moment after it changes
+  const list = all.sort((a, b) => (b.updated || 0) - (a.updated || 0)).slice(0, 100).map(s => ({ id: s.id, title: s.title || '', updated: s.updated || null, current: s.id === cur?.id }));
+  return { status: 200, body: { ok: true, api: API_VERSION, chats: list } };
+}
+
+window.__jadeApi = async (id, route, params) => {
+  let r;
+  try {
+    const pq = apiParams(params || {});
+    if (pq.error) r = pq.error;
+    else if (route === 'chat') r = await apiChat(pq.q);
+    else if (route === 'status') r = apiStatus();
+    else if (route === 'history') r = await apiHistory(pq.q);
+    else if (route === 'chats') r = apiChats();
+    else r = apiErr(404, 'not_found', 'unknown endpoint');
+  } catch (e) { r = apiErr(500, 'internal', String(e.message || e)); }
+  try { window.NetrunnerAndroid.apiResult(id, r.status, JSON.stringify(r.body)); } catch (e) { console.warn('apiResult failed', e); }
+};
+
+/* ---------- settings section ---------- */
+function apiExampleUrl() { const base = apiState?.addresses?.[apiState.addresses.length - 1] || `http://127.0.0.1:${S.apiPort || 8787}`; return base; }
+function renderApiSettings() {
+  const native = apiNative();
+  $('#apiNative').hidden = !native; $('#apiWeb').hidden = native;
+  if (!native) return;
+  $('#sApiOn').checked = !!S.apiOn; $('#sApiPort').value = S.apiPort || 8787; $('#sApiLan').checked = !!S.apiLan;
+  $('#sApiToken').value = S.apiToken || '';
+  try { apiState = JSON.parse(window.NetrunnerAndroid.apiStatus()); } catch {}
+  const st = apiState || {};
+  $('#apiStatus').innerHTML = !S.apiOn ? '<span class="dot"></span>Off.' : st.listening ? `<span class="dot ok"></span>Listening: ${(st.addresses || []).map(a => `<code>${esc(a)}</code>`).join(' · ')}` : `<span class="dot bad"></span>Not running${st.error ? ': ' + esc(st.error) : '. Save to start it.'}`;
+  const tok = S.apiToken || 'YOUR_TOKEN', base = apiExampleUrl();
+  $('#apiExample').textContent = `curl -H "Authorization: Bearer ${tok}" \\\n  "${base}/v1/chat?message=Hello%20Jade"`;
+}
+function apiReadFields() {
+  if (!apiNative()) return {};
+  const port = Math.max(1024, Math.min(65535, parseInt($('#sApiPort').value) || 8787));
+  return { apiOn: $('#sApiOn').checked, apiPort: port, apiLan: $('#sApiLan').checked, apiToken: $('#sApiToken').value.trim() };
+}
+$('#btnApiToken').onclick = () => { $('#sApiToken').value = apiGenToken(); };
+$('#btnApiCopy').onclick = async () => { try { await navigator.clipboard.writeText($('#sApiToken').value); toast('Token copied'); } catch { $('#sApiToken').select(); toast('Select and copy the token', 'err'); } };
+$('#btnApiCopyEx').onclick = async () => { try { await navigator.clipboard.writeText($('#apiExample').textContent); toast('Example copied'); } catch { toast('Could not copy', 'err'); } };
+
+/* =====================================================================
+   SETTINGS TABS — the Config panel is split into a few tabs, with a search box that looks
+   through all of them. build.py tags every settings <section> with data-tab.
+   ===================================================================== */
+const SET_TABS = ['model', 'memory', 'tools', 'connect', 'app'];
+let setTabNow = 'model';
+function setSettingsTab(name) {
+  if (!SET_TABS.includes(name)) name = 'model';
+  setTabNow = name; try { ls.set('setTab', name); } catch {}
+  const q = $('#setSearch'); if (q) q.value = '';
+  $('#setNone').hidden = true;
+  document.querySelectorAll('#settings section[data-tab]').forEach(s => s.classList.toggle('tab-off', s.dataset.tab !== name));
+  document.querySelectorAll('#setTabs .set-tab').forEach(b => { const on = b.dataset.tab === name; b.setAttribute('aria-selected', String(on)); if (on) try { b.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } catch {} });
+  const box = $('#settings .inner'); if (box) box.scrollTop = 0;
+}
+function filterSettings(text) {
+  const q = String(text || '').trim().toLowerCase();
+  if (!q) return setSettingsTab(setTabNow);
+  let n = 0;
+  document.querySelectorAll('#settings section[data-tab]').forEach(s => {
+    const hit = s.textContent.toLowerCase().includes(q) || [...s.querySelectorAll('input[placeholder],textarea[placeholder]')].some(i => i.placeholder.toLowerCase().includes(q));
+    s.classList.toggle('tab-off', !hit); if (hit) n++;
+  });
+  document.querySelectorAll('#setTabs .set-tab').forEach(b => b.setAttribute('aria-selected', 'false'));
+  $('#setNone').hidden = n > 0;
+}
+// open the tab that holds an element, then scroll to it (slash commands and prompts that point at one setting)
+function showSettingsSection(sel) {
+  const el = document.querySelector(sel), sec = el?.closest('section[data-tab]');
+  if (sec) setSettingsTab(sec.dataset.tab);
+  try { el?.scrollIntoView({ block: 'start' }); } catch {}
+}
+function initSettingsTabs() { let t = 'model'; try { t = ls.get('setTab', 'model'); } catch {} setSettingsTab(t); }
+document.querySelectorAll('#setTabs .set-tab').forEach(b => { b.onclick = () => setSettingsTab(b.dataset.tab); });
+$('#setSearch').addEventListener('input', e => filterSettings(e.target.value));
+
+/* =====================================================================
    BOOT
    ===================================================================== */
 (async function boot() {
@@ -8195,6 +8439,7 @@ setTimeout(() => { if (S.vecOn && S.vecUrl) vecConnect(); }, 2500);
   await connect();
   loadSchedules();
   await bbBoot; if (!cur?.messages.length) renderEmpty();
+  apiApply();
   bgSync();
   setTab('chat');
 })();

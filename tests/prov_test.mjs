@@ -1,3 +1,4 @@
+import { autoTabs } from './_tabs.mjs';
 import pw from 'playwright';
 import fs from 'node:fs';
 const { chromium } = pw;
@@ -13,7 +14,7 @@ await ctx.addInitScript(() => {
     saveFile(n, m, t) { window.__saved = [n, m, t]; setTimeout(() => window.__jadeSaved(true, n), 10); }, notify(t, b) { (window.__notes ||= []).push([t, b]); } };
 });
 await ctx.addInitScript(() => { if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', fallback: 'groq', groqKey: 'gsk_test', ollamaKey: 'olk_test', journalOn: false })); });
-const page = await ctx.newPage();
+const page = autoTabs(await ctx.newPage());
 page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 let localUp = false, cloudDown = false, groq429 = 0; const groqBodies = [], cloudReqs = [];
 const sse = (objs) => objs.map(o => 'data: ' + JSON.stringify(o) + '\n\n').join('') + 'data: [DONE]\n\n';

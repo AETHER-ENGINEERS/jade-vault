@@ -1,5 +1,35 @@
 # Changelog
 
+## 2.7.0
+- **Flows**, a small n8n in its own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers,
+  full Jade chat turns, notes, if / switch / for-each, wait, notify and other flows, with `{{ expressions }}`, retries,
+  continue-on-error and a step-by-step run log. Triggers: by hand, schedule, note or folder change. Run them from the
+  shell (`flow run`), from scripts (`jade.flow`), from schedules and crontab, over the API (`/v1/flows`, `/v1/flow`), and
+  Jade builds and runs them with her new `flow` tool. Kept as JSON in `/Jade/Flows`.
+- **Scripting Jade**: `jade.tool()`, `jade.decide()` (structured Ollaya decisions), `jade.ask()`, `jade.agent()`,
+  `jade.flow()`, `jade.shell()`, `jade.notify()` and `jade.kv` in the shell's `node`; `jade` and `flow` shell commands.
+- **Schedules run shell commands and flows** (Schedule tab, the schedule tool, and a new `crontab` command with crontab
+  files and `@daily` macros). They run on their own, log to `/Jade/Logs/cron.log` and notify you on failure.
+- **Note scripts & templates** (Obsidian style): live `dataviewjs` / `jade-js` blocks and inline `$=` values with a
+  Dataview-like `dv`, and Templater templates (`<% tp.date.now() %>`, `<%* %>`, prompts, includes, cursor) inserted with
+  the { } button. Sandboxed: no network, no file changes, tools only if you allow them.
+- Fix: a BusyBox command no longer undoes files written while it ran (it replaced the whole vault with its starting copy).
+- Fix: notes written and opened at once are already in the link/tag index.
+- The bottom bar has seven tabs; settings gain a "Note scripts & templates" section (Tools).
+
+## 2.6.0
+- **HTTP API (Android app).** Jade listens on a port you choose and answers GET requests with JSON. A message sent
+  to `/v1/chat?message=...` goes through the normal chat: it shows up in the app and she answers there, and the reply
+  comes back as JSON (`reply`, `session`, `tool_calls`, `model`, `elapsed_ms`, `error`). Also `/v1/status`, `/v1/history`,
+  `/v1/chats` and a public `/v1/health`. Token required on every call (`Authorization: Bearer` or `?token=`); off by
+  default; local only unless you allow your Wi-Fi. Input can also be one JSON object (`?json={...}`). Keeps the app
+  alive in the background while on. Settings → Connect.
+- **Memory retrieval with BM25.** Optional: only the memory lines that match your recent messages go into the system
+  prompt (Okapi BM25, top-k adjustable). Off by default.
+- **Settings are split into tabs** (Model, Memory, Tools, Connect, App) with a search box, and Save stays in view.
+- Python: a corrupt or empty cached MicroPython runtime is detected and downloaded again.
+- Browser build for GitHub Pages in `docs/`.
+
 ## 2.5.0
 - **Jade on Vector messenger.** She runs as a Vector bot through the new Jade Vector bridge (Vector's own
   `vector-agent` plus a token-protected HTTP bridge; macOS, Linux or Docker).

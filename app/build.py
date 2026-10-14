@@ -1051,6 +1051,237 @@ rep("Object.assign(window, { XWAKE,", "Object.assign(window, { saveSettings, VEC
 
 rep("function newSession() { if (cur?.messages?.length) journalSession(cur);", "function newSession() { saveSession.flush?.(); if (cur?.messages?.length) journalSession(cur);")
 rep("async function openSession(id) { if (cur?.messages?.length && cur.id !== id) journalSession(cur);", "async function openSession(id) { if (cur?.id !== id) saveSession.flush?.(); if (cur?.messages?.length && cur.id !== id) journalSession(cur);")
+
+# ---------- v17: HTTP API (Android app) + settings tabs ----------
+rep("const DEFAULTS = { provider: 'local',", "const DEFAULTS = { apiOn: false, apiPort: 8787, apiLan: false, apiToken: '', provider: 'local',")
+API_HTML = r"""      <section class="flex flex-col gap-3" id="apiSection">
+        <div class="pane-h">API endpoint</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Let other apps and scripts talk to Jade. They send a GET request and get JSON back. A message sent this way goes through the normal chat: it appears in the app and Jade answers there.</p>
+        <div id="apiNative" class="flex flex-col gap-3">
+          <label class="flex items-center gap-2 text-sm" for="sApiOn"><input type="checkbox" id="sApiOn" class="accent-emerald-400 w-4 h-4"> Enable the API (stays running in the background while on)</label>
+          <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(160px,1fr))">
+            <div><label class="lbl" for="sApiPort">Port</label><input id="sApiPort" type="number" min="1024" max="65535" step="1" class="field mt-1"></div>
+            <div class="flex items-end"><label class="flex items-center gap-2 text-sm" for="sApiLan"><input type="checkbox" id="sApiLan" class="accent-emerald-400 w-4 h-4"> Allow other devices on my Wi-Fi</label></div>
+          </div>
+          <div><label class="lbl" for="sApiToken">Access token (required on every call)</label>
+            <div class="flex gap-2 mt-1"><input id="sApiToken" class="field" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="made for you when you enable the API"><button type="button" class="btn" id="btnApiCopy">Copy</button><button type="button" class="btn btn-ghost" id="btnApiToken">New</button></div></div>
+          <div class="text-sm flex items-center gap-2 flex-wrap" id="apiStatus"></div>
+          <div><div class="lbl">Try it</div><pre class="field mt-1" id="apiExample" style="white-space:pre-wrap;word-break:break-all;margin:0"></pre><div class="mt-1"><button type="button" class="btn btn-ghost" id="btnApiCopyEx">Copy example</button></div></div>
+          <details class="text-sm"><summary class="cursor-pointer text-[#c2d6ce]">Request and reply format</summary>
+<pre class="hint leading-relaxed mt-2" style="white-space:pre-wrap;overflow-x:auto">GET /v1/chat?message=TEXT
+  session=new | CHAT_ID   start a new chat or continue one
+                          (default: the chat open in the app)
+  wait=0                  answer 202 at once; poll /v1/status,
+                          then read /v1/history
+  tools=0                 leave tool_calls out of the reply
+  timeout=SECONDS         how long to wait (default 300, max 1800)
+  json={"message":"hi","new":true}
+                          the same parameters as one JSON object
+
+Reply: {"ok":true,"api":1,"reply":"...",
+  "session":{"id","title","messages"},
+  "tool_calls":[{"name","arguments","ok","result"}],
+  "model","elapsed_ms","error":null}
+
+GET /v1/status   busy flag, model, open chat
+GET /v1/history?limit=20&amp;session=CHAT_ID
+GET /v1/chats    list of chats
+GET /v1/health   no token needed
+
+Errors: {"ok":false,"error":{"code","message"}} with HTTP
+400 bad request, 401 token, 404 unknown chat, 409 busy,
+502 model error, 504 timeout (Jade keeps going in the app).
+
+Send the token as  Authorization: Bearer TOKEN  or  ?token=TOKEN.
+Over Wi-Fi the traffic is plain HTTP, so use a trusted network.</pre></details>
+        </div>
+        <p class="hint leading-relaxed" id="apiWeb">The API runs inside the Android app. A browser tab cannot listen for requests.</p>
+      </section>
+
+"""
+VS = '      <section class="flex flex-col gap-3" id="vecSection">'
+rep(VS, API_HTML + VS)
+rep("  renderSkillsSettings(); renderBgSettings();", "  renderSkillsSettings(); renderBgSettings(); renderApiSettings(); initSettingsTabs();")
+rep("bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked });", "bgMode: $('#sBgMode').value, bgNotify: $('#sBgNotify').checked, ...apiReadFields() });")
+rep("  saveSettings(); bgSync(); setVoice($('#sJadeVoice').checked);", "  saveSettings(); apiApply(); bgSync(); setVoice($('#sJadeVoice').checked);")
+rep("  const want = S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));", "  const apiUp = !!(S.apiOn && apiState?.listening);\n  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));")
+rep("vecOnline ? 'Jade is online on Vector' :", "vecOnline ? 'Jade is online on Vector' : apiUp ? `Jade API on port ${apiState.port}` :")
+rep("  bgSync();\n  setTab('chat');\n})();", "  apiApply();\n  bgSync();\n  setTab('chat');\n})();")
+s = s.replace('/* =====================================================================\n   BOOT', rd('api.js') + '\n' + '/* =====================================================================\n   BOOT', 1)
+
+for sec_id in ('trajSection', 'vecSection', 'mcpSection'):
+    rep(f"setTimeout(() => $('#{sec_id}').scrollIntoView({{ block: 'start' }}), 60)", f"setTimeout(() => showSettingsSection('#{sec_id}'), 60)")
+rep("openSettings(); $('#sProvider').value = p; showProvFields(); return; }", "openSettings(); showSettingsSection('#sProvider'); $('#sProvider').value = p; showProvFields(); return; }")
+# settings tabs: every section gets data-tab (an unknown section fails the build, so none is ever lost)
+TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect', 'Connect'), ('app', 'App')]
+TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
+          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
+          'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
+          'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect',
+          'Heartbeat': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
+a = s.index('<div class="modal-bg" id="settings" hidden>'); b = s.index('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', a)
+blk = s[a:b]; seen = set()
+def tag(m):
+    t = re.search(r'class="pane-h">([^<]+)<', m.group(0))
+    if not t: sys.exit('SETTINGS SECTION WITHOUT TITLE: ' + m.group(0)[:100])
+    title = t.group(1).replace('&amp;', '&').replace('&#39;', "'")
+    if title not in TAB_OF: sys.exit(f'SETTINGS SECTION NOT ASSIGNED TO A TAB: {title!r}')
+    seen.add(title)
+    return '<section data-tab="' + TAB_OF[title] + '"' + m.group(0)[len('<section'):]
+blk2 = re.sub(r'<section class="flex flex-col gap-3"[^>]*>.*?</section>', tag, blk, flags=re.S)
+if seen != set(TAB_OF): sys.exit('SETTINGS TABS: sections missing from the page: ' + repr(set(TAB_OF) - seen))
+HDR_END = '<button class="btn btn-ghost" id="btnCloseSettings">Close</button></div>\n'
+assert blk2.count(HDR_END) == 1
+bar = '<div class="set-top"><div class="set-tabs" id="setTabs" role="tablist">' + ''.join(f'<button type="button" role="tab" class="set-tab" data-tab="{k}" aria-selected="false">{v}</button>' for k, v in TABS) + '</div><input id="setSearch" type="search" class="field" placeholder="Search settings" autocomplete="off" autocapitalize="off" spellcheck="false"></div>\n      <p class="hint" id="setNone" hidden>No setting matches that.</p>\n'
+blk2 = blk2.replace(HDR_END, HDR_END + '      ' + bar, 1)
+s = s[:a] + blk2 + s[b:]
+s = s.replace('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', '<div class="flex justify-end gap-2 set-foot"><button class="btn" id="btnCancel">', 1)
+s = s.replace('s = s', 's = s') if False else s
+s = s.replace('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """#settings section.tab-off{display:none!important}
+#settings .set-top{position:sticky;top:-20px;z-index:3;background:var(--panel);margin:-20px -20px 0;padding:20px 20px 10px;display:flex;flex-direction:column;gap:8px;border-bottom:1px solid var(--line)}
+#settings .set-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;-webkit-overflow-scrolling:touch}
+#settings .set-tabs::-webkit-scrollbar{display:none}
+.set-tab{flex:1 0 auto;font-family:var(--f-disp);font-weight:700;letter-spacing:.06em;text-transform:uppercase;font-size:11px;padding:7px 8px;border:1px solid var(--line);color:var(--dim);background:transparent;cursor:pointer;white-space:nowrap}
+.set-tab:hover{color:var(--fg)} .set-tab[aria-selected="true"]{color:var(--yl);border-color:var(--yl);background:rgba(31,229,165,.07)}
+#settings .set-foot{position:sticky;bottom:-20px;z-index:3;background:var(--panel);margin:0 -20px -20px;padding:10px 20px 20px;border-top:1px solid var(--line)}
+""", 1)
+s = s.replace('/* =====================================================================\n   BOOT', rd('settings_tabs.js') + '\n' + '/* =====================================================================\n   BOOT', 1)
+
+
+# ---------- v18 fix: a BusyBox command applies only its own changes ----------
+# The worker gets a copy of the vault and hands back the whole tree. Replacing the vault with it lost files
+# written meanwhile (by Jade, a flow, a cron job, an autosave) and brought deleted ones back. Now the result
+# is compared with the copy the command started from: only what the command changed is applied.
+rep_between('function applyBbEntries(entries) {', 'async function loadEmbeddedBusybox() {', """function applyBbEntries(entries, base) {
+  const same = (a, b) => a === b || (a.length === b.length && a.every((x, i) => x === b[i]));
+  if (!base) {
+    const next = new Map(); let changed = false;
+    for (const [p, n] of entries) {
+      const old = vfs.nodes.get(p);
+      if (n.dir) next.set(p, old?.dir ? old : (changed = true, { dir: true, mtime: Date.now() }));
+      else { const s = old && !old.dir && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }
+    }
+    if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);
+    return;
+  }
+  const seen = new Set(); let changed = false;
+  for (const [p, n] of entries) {
+    seen.add(p); const b = base.get(p), cur = vfs.nodes.get(p);
+    if (n.dir) { if (!cur) { vfs.nodes.set(p, { dir: true, mtime: Date.now() }); changed = true; } continue; }
+    if (b && !b.dir && same(b.data, n.data)) continue;               // the command did not touch it: keep what is there now
+    if (cur && !cur.dir && same(cur.data, n.data)) continue;
+    vfs.nodes.set(p, { data: n.data, mtime: Date.now() }); changed = true;
+  }
+  for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b) { vfs.nodes.delete(p); changed = true; }   // the command removed it (and nobody changed it since)
+  if (changed) vfs.changed();
+}
+""")
+rep("    const r = await bbRun([name, ...args], stdin, this.timeoutMs, this.cwd);", "    const base = new Map(vfs.nodes); const r = await bbRun([name, ...args], stdin, this.timeoutMs, this.cwd);")
+rep("    applyBbEntries(r.entries);", "    applyBbEntries(r.entries, base);")
+
+# ---------- v18: flows (n8n-light), jade.* bridge for scripts, shell/flow schedules + crontab, note scripts & templates ----------
+rep("const DEFAULTS = { apiOn: false,", "const DEFAULTS = { tplOn: true, tplTools: false, tplDir: '/Templates', apiOn: false,")
+# bottom bar: a Flows tab between Schedule and Apps
+SCHED_TAB = '<button class="tab" role="tab" data-tab="sched" aria-selected="false"><svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2M9 2h6"/></svg>Schedule<span class="badge" id="schedBadge" hidden>0</span></button>'
+rep(SCHED_TAB, SCHED_TAB + '\n    <button class="tab" role="tab" data-tab="flows" aria-selected="false"><svg viewBox="0 0 24 24"><rect x="3" y="3.5" width="7" height="5.5" rx="1"/><rect x="14" y="15" width="7" height="5.5" rx="1"/><circle cx="17.5" cy="6.25" r="2.75"/><path d="M10 6.25h4.75M6.5 9v5.25a3 3 0 0 0 3 3H14"/></svg>Flows<span class="badge" id="flowBadge" hidden>0</span></button>')
+rep("repeat(6,1fr)", "repeat(7,1fr)")
+rep("font-size:9.5px;letter-spacing:.1em;position:relative}", "font-size:8.8px;letter-spacing:.04em;position:relative}")
+rep("    <!-- GRAPH -->", """    <!-- FLOWS -->
+    <section class="m-screen overflow-y-auto" data-panel="flows" hidden>
+      <div class="p-4 flex flex-col gap-3" id="flowsPanel"></div>
+    </section>
+
+    <!-- GRAPH -->""")
+rep("  if (name === 'apps') xdcRefresh().catch(() => {});", "  if (name === 'apps') xdcRefresh().catch(() => {});\n  if (name === 'flows') flowsRender();")
+rep('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """#flowsPanel .fl-new{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px dashed var(--line-hot)}
+.fl-ex{display:flex;flex-direction:column;gap:2px;text-align:left;padding:8px 10px;border:1px solid var(--line);background:rgba(5,10,8,.7);color:var(--fg);cursor:pointer}
+.fl-ex b{font-family:var(--f-disp);letter-spacing:.06em;color:var(--yl);font-size:13px} .fl-ex span{font-size:12px;color:var(--dim)} .fl-ex:hover{border-color:var(--line-hot)}
+.fl-runrow{display:flex;align-items:center;gap:8px;flex-wrap:wrap;text-align:left;padding:8px 4px;border-bottom:1px solid var(--line);color:var(--fg);font-size:13px;background:none;cursor:pointer}
+.fl-st{font-family:var(--f-mono);font-size:11px;white-space:nowrap} .fl-st-ok{color:var(--ok)} .fl-st-error{color:var(--rd)} .fl-st-running{color:var(--yl)} .fl-st-stopped,.fl-st-skipped{color:var(--dim)}
+.fl-err{border-left:2px solid var(--rd);background:rgba(255,61,79,.08);padding:6px 10px;font-size:12.5px;color:#ffc2c9;white-space:pre-wrap;word-break:break-word}
+.fl-errs{border:1px solid var(--rd);background:rgba(255,61,79,.06);padding:8px 12px;font-size:12.5px;color:#ffc2c9} .fl-errs ul{margin:4px 0 0 16px;list-style:disc}
+.fl-io summary,.fl-srow summary{cursor:pointer;font-size:13px;display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.fl-srow{border:1px solid var(--line);background:rgba(5,10,8,.7);padding:6px 10px} .fl-srow.bad{border-color:rgba(255,61,79,.5)}
+.fl-srow pre,.fl-io pre,.fl-out{font-family:var(--f-mono);font-size:11.5px;white-space:pre-wrap;word-break:break-word;max-height:260px;overflow:auto;background:#030705;border:1px solid var(--line);padding:6px 8px;margin:4px 0;color:#cde3da}
+.fl-title{font-family:var(--f-disp);font-weight:700;letter-spacing:.06em}
+.fl-list{display:flex;flex-direction:column;gap:6px}
+.fl-step{border:1px solid var(--line);background:rgba(5,10,8,.75)} .fl-step.open{border-color:var(--line-hot)} .fl-step.off{opacity:.55} .fl-step.bad{border-color:var(--rd)}
+.fl-step-h{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 10px;cursor:pointer;min-height:44px}
+.fl-ico{width:22px;text-align:center;color:var(--yl);flex:none;font-size:14px}
+.fl-type{font-family:var(--f-disp);font-weight:700;letter-spacing:.08em;text-transform:uppercase;font-size:11px;color:var(--yl);flex:none}
+.fl-sname{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:#c2d6ce}
+.fl-acts{display:flex;gap:2px;flex:none} .fl-acts button{min-width:32px;height:32px;border:1px solid transparent;color:var(--dim);background:none;font-size:13px}
+.fl-acts button:hover:not(:disabled){color:var(--yl);border-color:var(--line)} .fl-acts button:disabled{opacity:.3} .fl-acts button.armed{color:var(--rd);border-color:var(--rd);padding:0 6px}
+.fl-step-b{display:flex;flex-direction:column;gap:10px;padding:6px 10px 12px;border-top:1px solid var(--line)}
+.fl-branch{border-left:2px solid var(--line-hot);padding:6px 0 6px 10px;display:flex;flex-direction:column;gap:6px}
+.fl-branch-h{font-family:var(--f-disp);font-weight:700;letter-spacing:.1em;text-transform:uppercase;font-size:11px;color:var(--cy)}
+.fl-add{max-width:230px;color:var(--dim);border-style:dashed}
+.fl-json{min-height:50vh} .field.bad{border-color:var(--rd)} .btn.armed{color:var(--rd);border-color:var(--rd)}
+.jv-js{border-left:2px solid var(--line-hot);padding:4px 0 4px 12px;margin:.6em 0}
+.jv-js-log{font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;background:#030705;border:1px solid var(--line);padding:6px 8px}
+.jv-js-err{color:#ffc2c9;border-left:2px solid var(--rd);padding:4px 8px;font-family:var(--f-mono);font-size:12px;white-space:pre-wrap;word-break:break-word}
+.jv-js-inline{color:var(--cy)} .jv-js-inline.err{color:var(--rd);font-family:var(--f-mono);font-size:12px}
+.jv-dv-wrap{overflow-x:auto;max-width:100%} .jv-dv-table{border-collapse:collapse;width:100%;font-size:13px}
+.jv-dv-table th,.jv-dv-table td{border:1px solid var(--line);padding:4px 8px;text-align:left;vertical-align:top}
+.jv-dv-table th{color:var(--yl);font-family:var(--f-disp);letter-spacing:.06em;text-transform:uppercase;font-size:11px} .jv-dv-group{margin-top:.5em;font-weight:700}
+.jv-dlg{align-items:center!important;padding:16px!important;background:rgba(0,0,0,.72)!important} .jv-dlg>.frame{height:auto!important}
+.jv-dlg-item{text-transform:none;letter-spacing:0;font-family:var(--f-mono);text-align:left;justify-content:flex-start;font-weight:400}
+""")
+
+# the Schedule tab: run a prompt, a shell command or a flow
+rep('<div class="pane-h">Scheduled prompts</div>', '<div class="pane-h">Schedules</div>')
+rep("Runs a prompt on a schedule, in your local time.", "Runs a prompt, a shell command or a flow on a schedule, in your local time. From the shell: <span class=\"mono text-cy\">crontab -l</span>.")
+SNAME = '<div><label class="lbl" for="schedName">Name</label><input id="schedName" class="field mt-1" maxlength="60" placeholder="Morning standup"></div>'
+rep(SNAME, SNAME + """
+            <div class="sched-row"><div><label class="lbl" for="schedKind">Run</label><select id="schedKind" class="field mt-1"><option value="prompt">A prompt (Jade does it in a chat)</option><option value="shell">A shell command</option><option value="flow">A flow</option></select></div><div id="schedFlowWrap" hidden><label class="lbl" for="schedFlow">Flow</label><select id="schedFlow" class="field mt-1"></select></div></div>
+            <div id="schedCmdWrap" hidden><label class="lbl" for="schedCmd">Command</label><input id="schedCmd" class="field mt-1 mono" autocapitalize="off" autocorrect="off" spellcheck="false" placeholder="node /scripts/sync.js >> /Jade/Logs/sync.log"><div class="hint mt-1">Runs in the shell on its own (no chat, no model). Output goes to /Jade/Logs/cron.log; a failure notifies you.</div></div>
+            <div id="schedInputWrap" hidden><label class="lbl" for="schedInput">Flow input (JSON, optional)</label><input id="schedInput" class="field mt-1 mono" autocapitalize="off" spellcheck="false" placeholder='{"folder": "/projects"}'></div>""")
+rep('<div><label class="lbl" for="schedPrompt">Prompt</label>', '<div id="schedPromptWrap"><label class="lbl" for="schedPrompt">Prompt</label>')
+rep("syncSchedForm(true); $('#schedName').focus();", "schedKindFill(s); syncSchedForm(true); $('#schedName').focus();")
+rep("  try {\n    if (Sched.editing) {\n      if (!vals.prompt.trim()) throw new Error('the prompt is empty');", "  try {\n    if (schedKindSubmit(vals)) { $('#schedForm').hidden = true; Sched.editing = null; return; }\n    if (Sched.editing) {\n      if (!vals.prompt.trim()) throw new Error('the prompt is empty');")
+rep("  if (b.dataset.act === 'run') { if (!Sched.queue.some(j => j.s === s))", "  if (b.dataset.act === 'run' && schedIsJob(s)) { runScheduleKind(s, 'manual'); return; }\n  if (b.dataset.act === 'run') { if (!Sched.queue.some(j => j.s === s))")
+rep("    if (!Sched.queue.some(j => j.s.id === s.id)) Sched.queue.push({ s, why: 'scheduled' });", "    if (schedIsJob(s)) runScheduleKind(s, 'scheduled'); else if (!Sched.queue.some(j => j.s.id === s.id)) Sched.queue.push({ s, why: 'scheduled' });")
+rep("      if (s.catchUp) { Sched.queue.push({ s, why: 'catch-up' }); s.lastStatus = 'missed, catching up'; }", "      if (s.catchUp) { if (schedIsJob(s)) setTimeout(() => runScheduleKind(s, 'catch-up'), 4000); else Sched.queue.push({ s, why: 'catch-up' }); s.lastStatus = 'missed, catching up'; }")
+rep("async function runSchedule({ s, why }) {", "async function runSchedule({ s, why }) {\n  if (schedIsJob(s)) return runScheduleKind(s, why);")
+rep("runningNow = s.lastStatus === 'running' && Sched.draining;", "runningNow = (s.lastStatus === 'running' && Sched.draining) || SchedBusy.has(s.id);")
+rep('<div class="sched-prompt">${esc(s.prompt)}</div>', '<div class="sched-prompt${schedIsJob(s) ? \' mono\' : \'\'}">${esc(s.prompt)}</div>')
+rep("    const s = addSchedule({ name: a.name, when, prompt: a.prompt || a.message || a.task || a.name, chat: a.chat });", "    const s = (a.command || a.flow) ? addScheduleKind({ name: a.name, when, kind: a.command ? 'shell' : 'flow', command: a.command, flow: a.flow, input: a.input ?? null }) : addSchedule({ name: a.name, when, prompt: a.prompt || a.message || a.task || a.name, chat: a.chat });")
+rep("Each run sends the prompt to you as a new message.", "Each run sends the prompt to you as a new message; or it runs a shell command (\"command\", no chat, output in /Jade/Logs/cron.log) or one of your flows (\"flow\").")
+rep("prompt: { type: 'string', description: 'What to do or say each time, e.g. \"Remind the user to finish their projects\" (add)' },", "prompt: { type: 'string', description: 'What to do or say each time, e.g. \"Remind the user to finish their projects\" (add)' }, command: { type: 'string', description: 'add: run this shell command instead of a prompt, e.g. \"node /scripts/sync.js\"' }, flow: { type: 'string', description: 'add: run this flow (by name) instead of a prompt' }, input: { type: 'object', description: 'add with flow: the flow\\'s input' },")
+rep(r"- schedule: create/list/pause/delete scheduled prompts and reminders.", r"- schedule: create/list/pause/delete scheduled prompts and reminders, or scheduled shell commands (command) and flows (flow).")
+
+# shell: jade, flow, crontab; node gets the jade bridge (runNode now lives in bridge.js)
+rep_between('async function runNode(c) {', '/* =====================================================================\n   TERMINAL (xterm.js', '')
+rep("  async mcp(c) { try { return await mcpShell(c); }", "  async jade(c) { return jadeShell(c); },\n  async flow(c) { return flowShell(c); },\n  async crontab(c) { return crontabShell(c); },\n  async mcp(c) { try { return await mcpShell(c); }")
+rep("'sqlite3', 'sqlite']);", "'sqlite3', 'sqlite', 'jade', 'flow', 'crontab']);")
+rep(r"MCP: mcp list | add <name> <url> | remove | reconnect | tools [server] | call <tool> '<json>'.\n\n`", r"MCP: mcp list | add <name> <url> | remove | reconnect | tools [server] | call <tool> '<json>'.\nJade: jade tool <name> '<json>' | decide | ask | agent | notify | kv  (jade help; in node: jade.tool(), jade.decide() …).\nFlows: flow list | run <name> [json] | show | runs  (flow help).  Cron: crontab -l | add '<when>' '<command>' | <file>  (crontab -h).\n\n`")
+rep(r"Use node for bulk edits across many notes.\n", r"Use node for bulk edits across many notes. In node, jade.tool(name, args), jade.decide({...}), jade.ask(prompt), jade.flow(name, input), jade.shell(cmd) and jade.notify(title, body) call your tools, decisions, model and flows.\n")
+
+# Jade's flow tool
+rep("    case 'schedule': return scheduleTool(args);", "    case 'schedule': return scheduleTool(args);\n    case 'flow': return await flowTool(args);")
+rep("...VEC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);", "...VEC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...FLOW_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);")
+rep("vector: a => `${a.action || ''}${a.to ? ' → ' + a.to : ''}", "flow: a => `${a.action || 'list'}${a.name ? ' ' + a.name : ''}`, vector: a => `${a.action || ''}${a.to ? ' → ' + a.to : ''}")
+rep("vector: () => `Vector: ${a.action || ''}`,", "flow: () => `Flow: ${a.action || 'list'}${a.name ? ' ' + short(a.name) : ''}`, vector: () => `Vector: ${a.action || ''}`,")
+rep(r"- skill: load a skill's instructions by name\n", r"- skill: load a skill's instructions by name\n- flow: build, change and run automation flows (steps of tools, JavaScript, shell commands, decisions, AI and logic; triggers: by hand, schedule, note change). Use a flow when the user wants an automation with several steps; read flow help before creating one.\n- Notes can hold live JavaScript: \`\`\`dataviewjs blocks and inline \`$= expr\` with a Dataview-like dv (dv.pages('#tag' or '\"folder\"'), dv.table(headers, rows), dv.list(items), dv.current()). Templates in ${S.tplDir || '/Templates'} use Templater tags (<% tp.date.now(\"YYYY-MM-DD\") %>, <% tp.file.title %>, <%* code %>).\n")
+
+# note scripts & templates: settings (Tools tab), live blocks in Read view
+API_SEC = '      <section data-tab="connect" class="flex flex-col gap-3" id="apiSection">'
+rep(API_SEC, """      <section data-tab="tools" class="flex flex-col gap-3" id="tplSection">
+        <div class="pane-h">Note scripts &amp; templates</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Notes can run JavaScript like Obsidian's Dataview and Templater: <span class="mono text-cy">```dataviewjs</span> (or <span class="mono text-cy">```jade-js</span>) blocks and inline <span class="mono text-cy">`$= …`</span> show live results in Read view, and notes in your templates folder fill in <span class="mono text-cy">&lt;% tp.date.now() %&gt;</span> tags when you insert them with the <b class="text-yl">{ }</b> button in the editor. Scripts run sandboxed: they read the vault, with no network and no file changes.</p>
+        <label class="flex items-center gap-2 text-sm" for="sTplOn"><input type="checkbox" id="sTplOn" class="accent-emerald-400 w-4 h-4"> Run JavaScript in notes</label>
+        <label class="flex items-start gap-2 text-sm" for="sTplTools"><input type="checkbox" id="sTplTools" class="accent-emerald-400 w-4 h-4 mt-0.5"> <span>Let note scripts and templates call Jade's tools (jade.tool, jade.decide, jade.ask, jade.flow). Only if you trust every note: a note written from web content could then run tools just by being opened.</span></label>
+        <div><label class="lbl" for="sTplDir">Templates folder</label><input id="sTplDir" class="field mt-1 mono" placeholder="/Templates" autocapitalize="off" spellcheck="false"></div>
+      </section>
+
+""" + API_SEC)
+rep("renderApiSettings(); initSettingsTabs();", "renderApiSettings(); renderTplSettings(); initSettingsTabs();")
+rep("...apiReadFields() });", "...apiReadFields(), ...tplReadFields() });")
+rep("  const pv = $('#notePrev'); const st = pv.scrollTop; pv.replaceChildren(el); pv.scrollTop = st;", "  const pv = $('#notePrev'); const st = pv.scrollTop; pv.replaceChildren(el); pv.scrollTop = st;\n  try { tplHydrate(el, editing); } catch (e) { console.warn('note scripts', e); }")
+
+rep("  apiApply();\n  bgSync();", "  flowsInit();\n  apiApply();\n  bgSync();")
+s = s.replace('/* =====================================================================\n   BOOT', rd('bridge.js') + '\n' + rd('cron.js') + '\n' + rd('flows.js') + '\n' + rd('templates.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("Object.assign(window, { saveSettings, VEC,", "Object.assign(window, { setNoteMode, renderNotePreview, openSettings, scheduleTool, addSchedule, saveSchedules, renderSchedules, TOOL_DEFS, flowRecordsLoad, flowDelete, flowHelp, cronLog, SchedBusy, crontabShell, jadeShell, flowShell, tplBlock, tplExec, renderTplSettings, schedKindFill, flowRun, flowRunByName, flowList, flowFind, flowSave, flowValidate, flowTool, flowClean, FlowRuns, FlowTrig, flowsRender, FUI, flowNoteCheck, flowTick, flowsArm, runNodeScript, jadeBridge, decideData, askOnce, runShellLine, kvOp, jvDialog, tplHydrate, tplRender, tplCompile, tplPages, TplState, tplInsertFlow, jvDate, addScheduleKind, runScheduleKind, Sched, schedTick, saveSettings, VEC,")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

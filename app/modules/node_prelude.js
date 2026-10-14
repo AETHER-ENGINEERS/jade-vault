@@ -160,17 +160,66 @@ const __mkRequire = (dir) => (m) => {
   new Function('module', 'exports', 'require', '__filename', '__dirname', 'console', 'process', src)(mod, mod.exports, __mkRequire(__parent(cand)), cand, __parent(cand), console, process);
   return mod.exports;
 };
+// ---- jade: call Jade's tools, decisions, model, shell and flows from a script ----
+// Each call goes to the app over postMessage. Files the script wrote are handed over first, and files the
+// call changed come back, so fs and Jade's tools see the same vault.
+let __globals = {}; let __jseq = 0; const __jpend = new Map(); let __jbridge = true; let __jwhy = '';
+function __takeSync() {
+  const w = {}; let n = 0;
+  for (const p of Object.keys(__writes)) { const d = __writes[p]; w[p] = d; n++; if (d === null) delete __files[p]; else __files[p] = d; delete __writes[p]; }
+  const mk = [...__mk], rm = [...__rmd]; __mk.clear(); __rmd.clear();
+  return n || mk.length || rm.length ? { writes: w, mkdirs: mk, rmdirs: rm } : null;
+}
+function __applySync(s) {
+  if (!s) return;
+  for (const p of s.deleted || []) { delete __files[p]; delete __writes[p]; }
+  for (const d of s.rmdirs || []) __dirs.delete(d);
+  for (const d of s.dirs || []) __dirs.add(d);
+  for (const [p, d] of Object.entries(s.files || {})) { __files[p] = d; delete __writes[p]; let q = __parent(p); while (q !== '/' && !__dirs.has(q)) { __dirs.add(q); q = __parent(q); } }
+}
+const __jcall = (op, a) => {
+  if (!__jbridge) return Promise.reject(new Error(`jade.${op} is not available here${__jwhy ? ': ' + __jwhy : ''}`));
+  let args; try { args = a == null ? {} : JSON.parse(JSON.stringify(a)); } catch (e) { return Promise.reject(new Error(`jade.${op}: arguments must be plain JSON data (${e.message})`)); }
+  return new Promise((res, rej) => { const id = ++__jseq; __inflight++; __jpend.set(id, { res, rej }); self.postMessage({ t: 'jade', id, op, a: args, sync: __takeSync() }); });
+};
+self.addEventListener('message', ev => {
+  const m = ev.data; if (!m || m.t !== 'jret') return;
+  const p = __jpend.get(m.id); if (!p) return; __jpend.delete(m.id); __inflight--;
+  __applySync(m.sync); m.ok ? p.res(m.value) : p.rej(new Error(m.error));
+});
+const jade = Object.freeze({
+  tool: (name, args) => __jcall('tool', { name: String(name), args: args || {} }),
+  tools: new Proxy({}, { get: (_, n) => typeof n === 'string' && n !== 'then' && n !== 'toJSON' ? (args) => __jcall('tool', { name: n, args: args || {} }) : undefined }),
+  list: () => __jcall('list', {}),
+  decide: (o) => __jcall('decide', o || {}),
+  ask: (prompt, o) => __jcall('ask', { ...(o || {}), prompt: String(prompt ?? '') }),
+  agent: (message, o) => __jcall('agent', { ...(o || {}), message: String(message ?? '') }),
+  flow: (name, input) => __jcall('flow', { name: String(name), input: input === undefined ? null : input }),
+  flows: () => __jcall('flows', {}),
+  shell: (command) => __jcall('shell', { command: String(command ?? '') }),
+  notify: (title, body) => __jcall('notify', { title: String(title ?? ''), body: String(body ?? '') }),
+  search: (query, limit) => __jcall('tool', { name: 'notes_search', args: { query: String(query ?? ''), ...(limit ? { limit } : {}) } }),
+  kv: Object.freeze({ get: (k) => __jcall('kv', { op: 'get', k: String(k) }), set: (k, v) => __jcall('kv', { op: 'set', k: String(k), v: v === undefined ? null : v }), all: () => __jcall('kv', { op: 'all' }) }),
+  prompt: (message, def) => __jcall('ui.prompt', { message: String(message ?? ''), def: def == null ? '' : String(def) }),
+  suggest: (items, values, placeholder) => __jcall('ui.suggest', { items, values, placeholder }),
+  sleep: (ms) => new Promise(r => setTimeout(r, Math.max(0, +ms || 0))),
+});
 let require = __mkRequire('/');
 const module = { exports: {} }; const exports = module.exports; let __filename = '/[eval]', __dirname = '/';
 let __pending = 0; const __st = self.setTimeout.bind(self), __ct = self.clearTimeout.bind(self); const __live = new Set();
 self.setTimeout = (f, ms, ...a) => { const id = __st(() => { __live.delete(id); try { typeof f === 'function' && f(...a); } catch (e) { __out.push(['e', (e && e.stack || e) + '\n']); } }, ms); __live.add(id); return id; };
 self.clearTimeout = (id) => { __live.delete(id); __ct(id); };
 let __code = 0;
+let __ret;
 self.onmessage = async (ev) => {
+  if (ev.data && ev.data.t === 'jret') return;
+  __globals = ev.data.globals || {}; __jbridge = ev.data.bridge !== false; __jwhy = ev.data.bridgeWhy || '';
+  if (ev.data.noNet) { self.fetch = undefined; self.XMLHttpRequest = undefined; self.WebSocket = undefined; self.EventSource = undefined; }
   __files = ev.data.files; __bins = ev.data.bins || {}; __sqMod = ev.data.sqliteModule || null; __dirs = new Set(ev.data.dirs); __cwd = ev.data.cwd; process.env.PWD = __cwd; Object.assign(process.env, ev.data.env || {}); process.argv = ['node', ...ev.data.argv];
   if (ev.data.argv[0] && ev.data.argv[0].startsWith('/')) { __filename = ev.data.argv[0]; __dirname = __parent(__filename); require = __mkRequire(__dirname); } else require = __mkRequire(__cwd);
-  try { await __main(); await new Promise(r => __st(r, 5)); while (__live.size || __inflight) await new Promise(r => __st(r, 10)); for (const d of __sqOpen) d._flush(); } catch (err) { if (err instanceof __Exit) __code = err.code; else { __out.push(['e', (err && (err.code ? err.message : err.stack)) || String(err)]); __out.push(['e', '\n']); __code = 1; } }
+  try { __ret = await __main(); await new Promise(r => __st(r, 5)); while (__live.size || __inflight) await new Promise(r => __st(r, 10)); for (const d of __sqOpen) d._flush(); } catch (err) { if (err instanceof __Exit) __code = err.code; else { __out.push(['e', (err && (err.code ? err.message : err.stack)) || String(err)]); __out.push(['e', '\n']); __code = 1; } }
   if (!__code && process.exitCode) __code = process.exitCode;
-  self.postMessage({ out: __out, writes: __writes, mkdirs: [...__mk], rmdirs: [...__rmd], code: __code });
+  let ret; if (__ret !== undefined) { try { ret = JSON.parse(JSON.stringify(__ret)); } catch (e) { ret = String(__ret); } }
+  self.postMessage({ out: __out, writes: __writes, mkdirs: [...__mk], rmdirs: [...__rmd], code: __code, ret });
 };
 self.addEventListener('unhandledrejection', e => { __out.push(['e', 'Unhandled promise rejection: ' + ((e.reason && e.reason.stack) || e.reason) + '\n']); });

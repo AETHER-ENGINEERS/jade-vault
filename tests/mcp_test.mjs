@@ -1,3 +1,4 @@
+import { autoTabs } from './_tabs.mjs';
 import pw from 'playwright';
 import fs from 'node:fs';
 const { chromium } = pw;
@@ -9,7 +10,7 @@ const log = [], fail = []; const ok = (c, m) => (c ? log : fail).push((c ? 'PASS
 const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=swiftshader', '--enable-unsafe-swiftshader'] });
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 await ctx.addInitScript(() => { if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', journalOn: false, mcpSecrets: { CALC_TOKEN: 'secret123' } })); });
-const page = await ctx.newPage();
+const page = autoTabs(await ctx.newPage());
 page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 const chats = []; const mcpLog = []; let expireNotes = false; let notesSession = 'sessA-1';
 const PNG = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';

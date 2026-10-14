@@ -1,3 +1,4 @@
+import { autoTabs } from './_tabs.mjs';
 import pw from 'playwright';
 import fs from 'node:fs'; import { spawn } from 'node:child_process';
 const { chromium } = pw;
@@ -18,7 +19,7 @@ const CAT = fs.readFileSync('xdcfix/cat.png');
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, timezoneId: 'America/New_York' });
 await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', journalOn: false })); });
-const page = await ctx.newPage(); page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
+const page = autoTabs(await ctx.newPage()); page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 const calls = [];   // model requests
 await ctx.route('**/*', async route => {
   const req = route.request(); const url = req.url();

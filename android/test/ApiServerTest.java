@@ -57,6 +57,16 @@ public class ApiServerTest {
         ok(code.contains("window.__jadeApi(") && code.contains("'chat'") && code.contains("'message':'h\\u00e9llo \\u0022w\\u0022\\u000a\\u2713\\u0027x'".replace("'message'", "'message'")) && !code.contains("token"), "query reaches JS as escaped literals, token stripped: " + code);
         r = get(base + "/v1/status?token=jv_test_token_123456", "GET", null);
         ok(r[0].equals("200"), "?token= works");
+        calls.clear();
+        r = get(base + "/v1/flows", "GET", "Bearer jv_test_token_123456");
+        ok(r[0].equals("200") && calls.size() == 1 && calls.get(0).contains("'flows'"), "/v1/flows reaches the page");
+        calls.clear();
+        r = get(base + "/v1/flow?name=Daily%20digest&input=%7B%22x%22%3A1%7D", "GET", "Bearer jv_test_token_123456");
+        ok(r[0].equals("200") && calls.get(0).contains("'flow'") && calls.get(0).contains("'name':'Daily digest'") && calls.get(0).contains("'input':'\\u007b\\u0022x\\u0022\\u003a1\\u007d'"), "/v1/flow passes the name and the JSON input: " + (calls.isEmpty() ? "" : calls.get(0)));
+        r = get(base + "/v1/health", "GET", null);
+        ok(r[1].contains("/v1/flows") && r[1].contains("/v1/flow?name="), "health lists the flow endpoints");
+        r = get(base + "/v1/flowz", "GET", "Bearer jv_test_token_123456");
+        ok(r[0].equals("404"), "a near-miss path is still 404");
         r = get(base + "/v1/chat?message=x", "POST", "Bearer jv_test_token_123456");
         ok(r[0].equals("405") && r[1].contains("\"ok\":false"), "POST -> 405 JSON");
         r = get(base + "/v1/nope", "GET", null);

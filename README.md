@@ -13,7 +13,10 @@ llama.cpp or any OpenAI-compatible endpoint.
 - **Notes:** markdown vault with `[[links]]`, backlinks, tags, graph, KaTeX math, images (`![[photo.png|300]]`), note embeds and a split editor.
 - **Agent:** read/write/edit notes, a BusyBox shell (WebAssembly), `node` with `fs`, `fetch` and `https`, MicroPython, SQLite (`sqlite3`, `node:sqlite`, Python `sqlite3`), web search and fetch, `http_request` for any API (secrets as `{{NAME}}`), MCP servers (pi-style codemode, deferred or direct), skills.
 - **Memory and steering:** long-term memory, a journal of past chats, and steering through SOUL.md, AGENTS.md and SYSTEM.md.
-- **Running on its own:** schedules in plain English, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
+- **Running on its own:** schedules in plain English (a prompt, a shell command or a flow), `crontab`, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
+- **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
+- **Scripting Jade:** `jade.tool()`, `jade.decide()`, `jade.ask()`, `jade.flow()` … in the shell's `node`, plus `jade` and `flow` shell commands.
+- **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
 - **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
 - **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
 - **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
@@ -24,6 +27,57 @@ llama.cpp or any OpenAI-compatible endpoint.
   - She joins and leaves communities and plays Mini Apps.
   - Secretary: messages for you land in an inbox, or reach you at once.
 - **Avatar:** Live2D Jade, with voice (TTS).
+
+## Flows
+
+The **Flows** tab holds automations kept as JSON in `/Jade/Flows/<name>.flow.json`. A flow is a list of steps that run in
+order; each step's output is `$json` for the next. Step types: **Tool** (any of Jade's tools), **JavaScript** (node sandbox
+with `fs`, `fetch` and `jade.*`), **Shell** (a BusyBox command line → `{code, stdout, stderr}`), **Decide** (Ollaya:
+`{result, confidence, probabilities}`), **Ask AI** (one answer, optionally JSON), **Jade agent** (a full chat turn),
+**Note** (read / write / append / prepend), **Set fields**, **If**, **Switch**, **For each**, **Wait**, **Notify me**,
+**Run flow**, **Stop**. Any text field may hold `{{ JavaScript }}` with `$json`, `$input`, `$node["Step"]`, `$vars`, `$item`,
+`$index`, `$now`, `$today` and `$date(fmt, date, days)`; expressions run in a sandbox without network. Each step can retry
+(0-3) or continue on error, and every run is logged step by step (input, output, log, time).
+
+Triggers: by hand, a schedule (`every weekday at 9am`, cron, `@daily`), or a note/folder changing. Also from the shell
+(`flow run Name '{"x":1}'`), from scripts (`await jade.flow('Name', input)`), from the Schedule tab or `crontab`, by Jade
+(her `flow` tool: help, list, get, create, update, delete, run, runs) and over the API (`/v1/flows`, `/v1/flow?name=…`).
+
+```json
+{"name": "Inbox triage", "trigger": {"type": "note", "path": "/Inbox.md"}, "steps": [
+  {"type": "note", "name": "Inbox", "action": "read", "path": "/Inbox.md"},
+  {"type": "each", "items": "$json.split('\n').filter(l => l.startsWith('- '))", "steps": [
+    {"type": "decide", "name": "Urgent?", "state": "{{ $item }}", "question": "Is this urgent?", "kind": "yesno"},
+    {"type": "if", "condition": "$json.result === true", "then": [
+      {"type": "note", "action": "append", "path": "/Urgent.md", "content": "- [ ] {{ $item }}"}]}]},
+  {"type": "notify", "title": "Inbox triaged", "body": "{{ $node.Inbox.length }} characters read"}]}
+```
+
+## Scripting Jade from the shell
+
+In `node` (the shell, a flow's JavaScript step, or Jade's own bash): `await jade.tool('notes_search', {query: 'x'})`,
+`jade.tools.read({path})`, `jade.decide({state, question, type, options})`, `jade.ask(prompt, {json, system})`,
+`jade.agent(message)`, `jade.flow(name, input)`, `jade.shell('ls | wc -l')`, `jade.notify(title, body)`, `jade.kv.get/set`.
+Files the script writes are visible to the tools it calls and the other way round.
+Shell commands: `jade tool <name> [json | key=value …]`, `jade decide`, `jade ask`, `jade agent`, `jade notify`, `jade kv`;
+`flow list | run | show | runs | enable | disable | import | export`; `crontab -l | add '<when>' '<command>' | -r <id> | <file>`.
+
+Schedules (the Schedule tab, Jade's schedule tool, `crontab`) run a **prompt** (Jade, in a chat), a **shell command**
+or a **flow**. Command and flow schedules run on their own, without the model and without waiting for the chat; their
+output goes to `/Jade/Logs/cron.log` and a failure sends a notification. Like the rest of the app, schedules fire while
+the app is open (on Android, keep it in the background with Config → App → Background).
+
+## Note scripts & templates
+
+Like Obsidian's Dataview and Templater. In Read and Split view, ```` ```dataviewjs ```` (or ```` ```jade-js ````) blocks run
+and show their output, with `dv.pages('#tag' | '"folder"')`, `dv.page()`, `dv.current()`, `dv.table()`, `dv.list()`,
+`dv.taskList()`, `dv.header()`, `dv.paragraph()`, `dv.io.load()`; pages carry their frontmatter and `file.{name, path,
+link, tags, outlinks, inlinks, tasks, mtime}`. Inline `` `$= dv.pages('#proj').length` `` shows a value.
+Templates are notes in `/Templates` (configurable); the **{ }** button in the editor inserts one, filling in
+`<% tp.date.now("YYYY-MM-DD") %>`, `<% tp.file.title %>`, `<% tp.frontmatter.x %>`, `<% await tp.system.prompt("?") %>`,
+`<% tp.file.include("[[Note]]") %>`, `<% tp.file.cursor() %>` and `<%* code; tR += "text" %>` (`-%>` trims a line break).
+Scripts run in a sandbox: they read the vault, with no network and no file changes. Calling Jade's tools from them needs
+Config → Tools → "Let note scripts call Jade's tools" (off by default).
 
 ## HTTP API (Android app)
 
@@ -48,6 +102,8 @@ curl -H "Authorization: Bearer $TOKEN" "http://PHONE:8787/v1/chat?message=What%2
 | `/v1/status` | `busy`, model, the open chat. |
 | `/v1/history?limit=20&session=ID` | The last messages of a chat. |
 | `/v1/chats` | The list of chats. |
+| `/v1/flows` | The flows, their triggers and last runs. |
+| `/v1/flow?name=NAME&input=JSON` | Run a flow; returns its status, output and steps (`steps=0` leaves them out). |
 | `/v1/health` | Public liveness check. |
 
 Errors are JSON too: `{"ok":false,"error":{"code":"busy","message":"..."}}` with HTTP 400 (bad request), 401 (token), 404

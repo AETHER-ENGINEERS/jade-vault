@@ -111,6 +111,24 @@ function apiChats() {
   return { status: 200, body: { ok: true, api: API_VERSION, chats: list } };
 }
 
+// flows over the API: GET /v1/flows, GET /v1/flow?name=…&input={json}
+async function apiFlows() {
+  await flowRecordsLoad();
+  const list = flowList().map(f => { const last = FlowRuns.recent.find(r => r.path === f._path); return { name: f.name, description: f.description || '', enabled: f.enabled !== false, valid: !f._bad, trigger: f.trigger?.type || 'manual', trigger_text: f._bad ? null : flowTriggerText(f), steps: flowCount(f.steps), last_run: last ? { id: last.id, status: last.status, started: last.started, error: last.error || null } : null }; });
+  return { status: 200, body: { ok: true, api: API_VERSION, flows: list } };
+}
+async function apiFlowRun(q) {
+  const name = String(q.name ?? q.flow ?? '').trim();
+  if (!name) return apiErr(400, 'missing_name', 'say which flow: /v1/flow?name=Daily%20digest');
+  const f = flowFind(name); if (!f) return apiErr(404, 'unknown_flow', `no flow named "${name}". List them with /v1/flows`);
+  let input = q.input ?? null;
+  if (typeof input === 'string' && /^\s*[\[{"]|^\s*(-?\d|true|false|null)/.test(input)) { try { input = JSON.parse(input); } catch (e) { return apiErr(400, 'bad_input', 'input is not valid JSON: ' + e.message); } }
+  const run = await flowRun(f, input, { via: 'api' });
+  const body = { ok: run.status === 'ok', api: API_VERSION, run: { id: run.id, flow: run.flow, status: run.status, error: run.error, output: run.output ?? null, elapsed_ms: run.ended - run.started,
+    steps: q.steps === '0' ? undefined : run.steps.map(s => ({ name: s.name, type: s.type, status: s.status, ms: s.ms, note: s.note || null, error: s.error || null })) } };
+  return { status: run.status === 'ok' ? 200 : 502, body };
+}
+
 window.__jadeApi = async (id, route, params) => {
   let r;
   try {
@@ -120,6 +138,8 @@ window.__jadeApi = async (id, route, params) => {
     else if (route === 'status') r = apiStatus();
     else if (route === 'history') r = await apiHistory(pq.q);
     else if (route === 'chats') r = apiChats();
+    else if (route === 'flows') r = await apiFlows();
+    else if (route === 'flow') r = await apiFlowRun(pq.q);
     else r = apiErr(404, 'not_found', 'unknown endpoint');
   } catch (e) { r = apiErr(500, 'internal', String(e.message || e)); }
   try { window.NetrunnerAndroid.apiResult(id, r.status, JSON.stringify(r.body)); } catch (e) { console.warn('apiResult failed', e); }

@@ -1296,6 +1296,14 @@ body.jv-running .reply-bar [data-ract="retry"]{display:none}
 """)
 s = s.replace('/* =====================================================================\n   BOOT', rd('replybar.js') + '\n/* =====================================================================\n   BOOT', 1)
 rep("Object.assign(window, { setNoteMode,", "Object.assign(window, { replyBar, replyText, replyRetry, replyRetrySync, setNoteMode,")
+
+# ---------- v20: TensorFlow.js 4.22 for Jade's scripts (embedded, gzip + base64, unpacked on first use) ----------
+_tf = open(os.path.join(D, 'vendor', 'tf.min.js'), 'rb').read()
+_tfb = _b64.b64encode(_gz.compress(_tf, 9, mtime=0)).decode()
+_i = s.index('<script type="application/octet-stream" id="sqlite-wasm">'); _j = s.index('</script>', _i) + len('</script>')
+s = s[:_j] + '\n<script type="application/octet-stream" id="tfjs-src">' + _tfb + '</script>' + s[_j:]
+rep(r"jade.shell(cmd) and jade.notify(title, body) call your tools, decisions, model and flows.\n", r"jade.shell(cmd) and jade.notify(title, body) call your tools, decisions, model and flows. TensorFlow.js 4.22 is built in: use tf (or require('@tensorflow/tfjs')) in node for tensors and small models; keep a trained model with await model.save('indexeddb://name') and tf.loadLayersModel('indexeddb://name').\n")
+rep("Object.assign(window, { replyBar,", "Object.assign(window, { tfjsSource, replyBar,")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

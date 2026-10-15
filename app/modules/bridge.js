@@ -36,13 +36,16 @@ const cloneSafe = v => { if (v === undefined) return null; try { return JSON.par
    Returns { out: [[kind, text]], code, ret }. */
 async function runNodeScript({ code, argv = ['[eval]'], cwd = '/', globals = null, timeoutMs = 60000, readOnly = false, bridge = true, bridgeWhy = '', allow = null, ui = false, noNet = false, signal = null, depth = 0, via = 'script', lineShift = 0, onErr = null } = {}) {
   code = String(code ?? '').replace(/^#!.*\n/, '');
-  if (/^\s*(import|export)\s/m.test(code)) code = code.replace(/^\s*import\s+(\w+)\s+from\s+['"](?:node:)?(\w+)['"];?/gm, 'const $1 = require("$2");').replace(/^\s*import\s+\{([^}]+)\}\s+from\s+['"](?:node:)?([\w/]+)['"];?/gm, 'const {$1} = require("$2");').replace(/^\s*export\s+(default\s+)?/gm, '');
+  if (/^\s*(import|export)\s/m.test(code)) code = code.replace(/^\s*import\s+\*\s+as\s+(\w+)\s+from\s+['"]([^'"]+)['"];?/gm, 'const $1 = require("$2");').replace(/^\s*import\s+(\w+)\s+from\s+['"]([^'"]+)['"];?/gm, 'const $1 = require("$2");').replace(/^\s*import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"];?/gm, (x, a, b) => 'const {' + a.replace(/\s+as\s+/g, ': ') + '} = require("' + b + '");').replace(/^\s*import\s+['"]([^'"]+)['"];?/gm, 'require("$1");').replace(/^\s*export\s+(default\s+)?/gm, '');
   const useSq = !noNet && (/sqlite/i.test(code) || [...vfs.nodes].some(([p, n]) => !n.dir && /\.[cm]?js$/.test(p) && n.data.length < 2e6 && /sqlite/i.test(dec.decode(n.data))));
   const files = {}, dirs = [], bins = {}; for (const [p, n] of vfs.nodes) { if (n.dir) dirs.push(p); else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (n.data.length < 2e6) files[p] = dec.decode(n.data); }
   let sqMod = null; if (useSq) { try { sqMod = await sqliteModule(); } catch (e) { onErr?.(`node: could not load SQLite (${e.message})\n`); } }
+  // TensorFlow.js 4.22 (embedded): loaded when the script (or a local .js it may require) uses tf; not in note scripts
+  const useTf = !noNet && tfUsed(code, argv[0] && String(argv[0]).startsWith('/') ? vfs.parent(argv[0]) : cwd);
+  let tfSrc = ''; if (useTf) { try { tfSrc = await tfjsSource(); } catch (e) { onErr?.(`node: could not load TensorFlow.js (${e.message})\n`); } }
   const names = globals ? Object.keys(globals).filter(k => /^[$A-Za-z_][\w$]*$/.test(k)) : [];
   const head = names.length ? `const { ${names.join(', ')} } = __globals;\n` : '';
-  const src = NODE_PRELUDE + `\nasync function __main() {\n${head}${code}\n}\n` + (sqMod ? '\n' + SQLITE_GLUE_SRC + '\n' : '');
+  const src = NODE_PRELUDE + `\nasync function __main() {\n${head}${code}\n}\n` + (sqMod ? '\n' + SQLITE_GLUE_SRC + '\n' : '') + (tfSrc ? `\n(function () { var exports, module, define;\n${tfSrc}\n}).call(self);\nself.__tfInit = ${tfInitWorker.toString()};\n` : '');
   const off = NODE_PRELUDE.split('\n').length + 1 + (head ? 1 : 0) + lineShift;
   const url = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
   const ctx = { depth, via, ui, allow };
@@ -75,6 +78,35 @@ async function runNodeScript({ code, argv = ['[eval]'], cwd = '/', globals = nul
   if (!readOnly) applyNodeWrites(r, onErr);
   r.out ||= []; return r;
 }
+const TF_USE = /\btf\s*\.\s*[A-Za-z_$]|@tensorflow\/tfjs/;
+// runs in the worker before the script: use the GPU (WebGL) when it really works there, else the CPU backend,
+// so a phone or browser without WebGL in workers still computes instead of failing
+async function tfInitWorker() {
+  const tf = self.tf; if (!tf) return;
+  try { tf.env().set('IS_NODE', false); } catch (e) {}   // the sandbox has a `process` object, but this is a browser: no "install tfjs-node" banner
+  let gl = false;
+  try { if (typeof OffscreenCanvas !== 'undefined') { const c = new OffscreenCanvas(2, 2); gl = !!(c.getContext('webgl2') || c.getContext('webgl')); } } catch (e) { gl = false; }
+  const keep = { log: console.log, info: console.info, warn: console.warn, error: console.error }; console.log = console.info = console.warn = console.error = () => {};   // TensorFlow logs its WebGL probing
+  try {
+    if (gl) { try { gl = await tf.setBackend('webgl'); if (gl) { await tf.ready(); tf.tensor([1]).add(1).dataSync(); } } catch (e) { gl = false; } }
+    if (!gl) { try { tf.removeBackend('webgl'); } catch (e) {} await tf.setBackend('cpu'); }
+    await tf.ready();
+  } finally { Object.assign(console, keep); }
+}
+// does the script (or a local file it requires, followed a few levels) use tf?
+function tfUsed(code, dir, depth = 0, seen = new Set()) {
+  if (TF_USE.test(code)) return true;
+  if (depth > 4) return false;
+  for (const m of String(code).matchAll(/(?:require\(\s*|from\s+|import\s+)['"](\.{0,2}\/[^'"]+)['"]/g)) {
+    const base = vfs.norm(m[1], dir); const p = [base, base + '.js', base + '.mjs', base + '.cjs', base + '/index.js'].find(x => vfs.isFile(x));
+    if (!p || seen.has(p)) continue; seen.add(p);
+    let src = ''; try { src = vfs.read(p); } catch {}
+    if (tfUsed(src, vfs.parent(p), depth + 1, seen)) return true;
+  }
+  return false;
+}
+let tfjsP = null;
+const tfjsSource = () => (tfjsP ||= gunzipB64('tfjs-src').then(b => dec.decode(b)).catch(e => { tfjsP = null; throw e; }));
 async function runNode(c) {
   const { f, rest } = opts(c.argv, 'e:p:'); let code, argv;
   if (f.e != null || f.p != null) { code = f.p != null ? `console.log(${f.p})` : f.e; argv = rest; }

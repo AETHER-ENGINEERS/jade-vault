@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.7.2
+- **TensorFlow.js 4.22 in Jade's scripts**: `tf` and `require('@tensorflow/tfjs')` in `node` (shell, flow JavaScript steps,
+  Jade's bash). Embedded (no download), unpacked only for scripts that use it. GPU (WebGL) when it works in the WebView's
+  worker, otherwise the CPU backend, with TensorFlow's own probing messages kept out of the output. Models persist with
+  `indexeddb://`. Not loaded into note scripts.
+- node scripts understand `import * as x from '…'`, `import x from '@scope/pkg'` and side-effect imports.
+
 ## 2.7.1
 - **Reply bar** under each of Jade's replies: **Copy** (everything she said in that turn, as Markdown, without tool
   output), **👍 / 👎** (now always there, not only with the trajectory log on) and **Retry** on the newest reply, which

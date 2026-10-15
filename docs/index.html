@@ -925,6 +925,11 @@ details>summary{cursor:pointer;list-style:none} details>summary::-webkit-details
 .hljs-addition{color:var(--ok)} .hljs-deletion{color:var(--rd)}
 
 [hidden]{display:none!important}
+.reply-bar{align-items:center;flex-wrap:wrap}
+.reply-bar [data-ract]{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);opacity:.9;filter:none;min-height:30px}
+.reply-bar [data-ract]:hover,.reply-bar [data-ract]:active{color:var(--cy);border-color:var(--line-hot)}
+body.jv-running .reply-bar [data-ract="retry"]{display:none}
+
 #flowsPanel .fl-new{display:flex;flex-direction:column;gap:6px;padding:10px;border:1px dashed var(--line-hot)}
 .fl-ex{display:flex;flex-direction:column;gap:2px;text-align:left;padding:8px 10px;border:1px solid var(--line);background:rgba(5,10,8,.7);color:var(--fg);cursor:pointer}
 .fl-ex b{font-family:var(--f-disp);letter-spacing:.06em;color:var(--yl);font-size:13px} .fl-ex span{font-size:12px;color:var(--dim)} .fl-ex:hover{border-color:var(--line-hot)}
@@ -3824,7 +3829,8 @@ function renderChat() {
         card.done(res ? res.content : '(no result)', res?._err);
       }
       if (m._error) body.appendChild(errorEl(m._error));
-      if (m.trajId) { const w = ai.querySelector('[data-when]'); if (m.dur && w.textContent) w.textContent += ' · ' + fmtDur(m.dur); ai.appendChild(rateBar(m)); }
+      if (m.dur) { const w = ai.querySelector('[data-when]'); if (w.textContent && !w.textContent.includes(' · ')) w.textContent += ' · ' + fmtDur(m.dur); }
+      if (replyTurnEnd(msgs, i)) ai.appendChild(replyBar(m));
     }
   }
   scrollDown(true);
@@ -3907,7 +3913,7 @@ Guidelines:
 let running = false; const queue = [];
 function setState(s) { bgState(s); $('#hudState').textContent = s; $('#hudState').style.color = s === 'IDLE' ? '' : 'var(--yl)'; }
 function setRunning(v) {
-  running = v; const b = $('#btnSend');
+  running = v; document.body.classList.toggle('jv-running', !!v); const b = $('#btnSend');
   b.textContent = v ? 'Abort' : 'Send'; b.classList.toggle('btn-solid', !v); b.classList.toggle('btn-red', v);
   if (!v) { setState('IDLE'); scheduleJournal(); bgFinished(); } else { clearTimeout(journalT); bgSync(); }
 }
@@ -4116,7 +4122,8 @@ async function agentLoop() {
       const tid = await TR.end(abortReq ? 'aborted' : runError ? 'error' : 'ok', runError);
       setWhen(ai, runT0, fmtDur(Date.now() - runT0));
       const lastA = cur?.messages.slice(runStart).filter(m => m.role === 'assistant').at(-1);
-      if (lastA) { lastA.dur = Date.now() - runT0; if (tid) { lastA.trajId = tid; ai.appendChild(rateBar(lastA)); } }
+      if (lastA) { lastA.dur = Date.now() - runT0; if (tid) lastA.trajId = tid; }
+      if (ai && !ai.querySelector(':scope > .reply-bar')) ai.appendChild(replyBar(lastA || null));
     } catch (e) { console.warn(e); }
     setRunning(false); saveSession();
     if (abortReq) { jadeMood('idle'); jadeBubble('Stopped.', 'Jade', 2500); }
@@ -9973,6 +9980,53 @@ function renderTplSettings() { $('#sTplOn').checked = S.tplOn !== false; $('#sTp
 function tplReadFields() { TplState.cache.clear(); return { tplOn: $('#sTplOn').checked, tplTools: $('#sTplTools').checked, tplDir: $('#sTplDir').value.trim() || '/Templates' }; }
 
 /* =====================================================================
+   REPLY BAR — under each of Jade's replies: Copy · 👍 · 👎 · Retry
+   Copy takes everything she said in that turn (Markdown, without thinking or tool output).
+   👍 / 👎 rate the reply (kept with the chat; also used by the trajectory log when it is on).
+   Retry is on the latest reply only: it runs your last message again and replaces her answer.
+   ===================================================================== */
+// is message i the last assistant message of its turn?
+function replyTurnEnd(msgs, i) { for (let j = i + 1; j < msgs.length; j++) { if (msgs[j].role === 'tool') continue; return msgs[j].role !== 'assistant'; } return true; }
+// the turn around assistant message m: [index of the user message that started it, index of its last message]
+function replyTurn(m) {
+  const msgs = cur?.messages || []; const k = msgs.indexOf(m); if (k < 0) return null;
+  let u = k; while (u >= 0 && msgs[u].role !== 'user') u--;
+  let e = k; while (e + 1 < msgs.length && msgs[e + 1].role !== 'user' && msgs[e + 1].role !== 'compaction') e++;
+  return { user: u, end: e };
+}
+function replyText(m) {
+  const t = replyTurn(m); if (!t) return String(m?.content || '');
+  return cur.messages.slice(t.user + 1, t.end + 1).filter(x => x.role === 'assistant' && String(x.content || '').trim())
+    .map(x => String(x.content).replace(/<think>[\s\S]*?<\/think>/g, '').trim()).filter(Boolean).join('\n\n');
+}
+function replyBar(m) {
+  const d = document.createElement('div'); d.className = 'rate-bar reply-bar';
+  d.innerHTML = `<button type="button" data-ract="copy" title="Copy what Jade said (Markdown)">Copy</button><button type="button" data-rate="1" title="Good reply">👍</button><button type="button" data-rate="-1" title="Bad reply">👎</button><button type="button" data-ract="retry" title="Run your last message again">Retry</button>`;
+  d._msg = m;
+  const paint = () => d.querySelectorAll('[data-rate]').forEach(b => b.classList.toggle('on', +b.dataset.rate === m?.rating));
+  if (!m) d.querySelectorAll('[data-rate],[data-ract="copy"]').forEach(b => { b.hidden = true; });
+  else if (!replyText(m)) d.querySelectorAll('[data-rate],[data-ract="copy"]').forEach(b => { b.hidden = true; });   // an error with no text: only Retry
+  d.onclick = e => {
+    const b = e.target.closest('button'); if (!b) return;
+    if (b.dataset.rate && m) { const v = +b.dataset.rate; m.rating = m.rating === v ? null : v; paint(); saveSession(); trajRate(m.trajId, m.rating); return; }
+    if (b.dataset.ract === 'copy' && m) return copyText(replyText(m), b);
+    if (b.dataset.ract === 'retry') return replyRetry(m);
+  };
+  paint(); queueMicrotask(replyRetrySync); return d;
+}
+// only the newest reply in the chat offers Retry
+function replyRetrySync() { const all = [...chatEl.querySelectorAll('.reply-bar [data-ract="retry"]')]; all.forEach((b, i) => { b.hidden = i !== all.length - 1; }); }
+async function replyRetry(m) {
+  if (running) return toast('Jade is still working. Abort her first.', 'err');
+  const msgs = cur?.messages || [];
+  let u = m ? replyTurn(m)?.user ?? -1 : -1;
+  if (u < 0) for (let j = msgs.length - 1; j >= 0; j--) if (msgs[j].role === 'user') { u = j; break; }
+  const um = msgs[u]; if (!um) return toast('There is no message of yours to run again.', 'err');
+  if (msgs.slice(u + 1).some(x => x.role === 'user')) return toast('Only the latest reply can be retried. Use Edit on an earlier message instead.', 'err');
+  await resendFrom(u, um.display || um.content);
+}
+
+/* =====================================================================
    BOOT
    ===================================================================== */
 (async function boot() {
@@ -9998,7 +10052,7 @@ function tplReadFields() { TplState.cache.clear(); return { tplOn: $('#sTplOn').
   setTab('chat');
 })();
 // console/test hook
-Object.defineProperty(window, 'cur', { get: () => cur }); Object.defineProperty(window, 'sessions', { get: () => sessions }); Object.assign(window, { setNoteMode, renderNotePreview, openSettings, scheduleTool, addSchedule, saveSchedules, renderSchedules, TOOL_DEFS, flowRecordsLoad, flowDelete, flowHelp, cronLog, SchedBusy, crontabShell, jadeShell, flowShell, tplBlock, tplExec, renderTplSettings, schedKindFill, flowRun, flowRunByName, flowList, flowFind, flowSave, flowValidate, flowTool, flowClean, FlowRuns, FlowTrig, flowsRender, FUI, flowNoteCheck, flowTick, flowsArm, runNodeScript, jadeBridge, decideData, askOnce, runShellLine, kvOp, jvDialog, tplHydrate, tplRender, tplCompile, tplPages, TplState, tplInsertFlow, jvDate, addScheduleKind, runScheduleKind, Sched, schedTick, saveSettings, VEC, vecConnect, vecStop, vecPoll, vecIncoming, vectorTool, notifyOwnerTool, vecWake, vecScope, vecFilterTools, vecInboxAdd, VEC_INBOX, XWAKE, xdcPump, seedJadeLink, xdcSendUpdate, XDC_JADE, setNoteMode, XDC, XdcDB, unzip, zipStore, xdcInstall, xdcInstallBytes, xdcInstallFromVault, xdcRefresh, openApp, closeApp, appsTool, xdcPage, setTab, httpRequest, fillSecrets, redactSecrets, secretsMap, resolveFile, vaultBlobUrl, addImagesToNote, saveImageFile, md, openSettings, TrajDB, exportTrajectories, trajRecorder, trajToOpenAI, trajToShareGPT, trajStats, fmtStamp, renderChat, buildApiMessages, newSession, chatEl, CTX, fitContext, contextReport, ctxLimit, estRequest, shrinkMessages, ctxLearn, isCtxError, sqliteModule, runSqliteCli, isSqliteBytes, idb, mpyAssets, runPython, MCP, mcpReload, mcpToolDefs, mcpAllTools, runCodemode, toolSearch, activeTools, systemPrompt, ls, inActiveHours, hbTick, openSession, runHeartbeat, hbIsAck, heartbeatBody, addAttachments, ATT, HB, buildBackup, importBackup, bgSync, providerChain, connect, toOpenAIMessages, getProv: () => ({ activeProv, models, client: client?.constructor?.name }), listSkills, steering, resendFrom, openFile2: openFile, vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell }); Object.defineProperty(window, 'editing', { get: () => editing }); Object.defineProperty(window, 'running', { get: () => running });
+Object.defineProperty(window, 'cur', { get: () => cur }); Object.defineProperty(window, 'sessions', { get: () => sessions }); Object.assign(window, { replyBar, replyText, replyRetry, replyRetrySync, setNoteMode, renderNotePreview, openSettings, scheduleTool, addSchedule, saveSchedules, renderSchedules, TOOL_DEFS, flowRecordsLoad, flowDelete, flowHelp, cronLog, SchedBusy, crontabShell, jadeShell, flowShell, tplBlock, tplExec, renderTplSettings, schedKindFill, flowRun, flowRunByName, flowList, flowFind, flowSave, flowValidate, flowTool, flowClean, FlowRuns, FlowTrig, flowsRender, FUI, flowNoteCheck, flowTick, flowsArm, runNodeScript, jadeBridge, decideData, askOnce, runShellLine, kvOp, jvDialog, tplHydrate, tplRender, tplCompile, tplPages, TplState, tplInsertFlow, jvDate, addScheduleKind, runScheduleKind, Sched, schedTick, saveSettings, VEC, vecConnect, vecStop, vecPoll, vecIncoming, vectorTool, notifyOwnerTool, vecWake, vecScope, vecFilterTools, vecInboxAdd, VEC_INBOX, XWAKE, xdcPump, seedJadeLink, xdcSendUpdate, XDC_JADE, setNoteMode, XDC, XdcDB, unzip, zipStore, xdcInstall, xdcInstallBytes, xdcInstallFromVault, xdcRefresh, openApp, closeApp, appsTool, xdcPage, setTab, httpRequest, fillSecrets, redactSecrets, secretsMap, resolveFile, vaultBlobUrl, addImagesToNote, saveImageFile, md, openSettings, TrajDB, exportTrajectories, trajRecorder, trajToOpenAI, trajToShareGPT, trajStats, fmtStamp, renderChat, buildApiMessages, newSession, chatEl, CTX, fitContext, contextReport, ctxLimit, estRequest, shrinkMessages, ctxLearn, isCtxError, sqliteModule, runSqliteCli, isSqliteBytes, idb, mpyAssets, runPython, MCP, mcpReload, mcpToolDefs, mcpAllTools, runCodemode, toolSearch, activeTools, systemPrompt, ls, inActiveHours, hbTick, openSession, runHeartbeat, hbIsAck, heartbeatBody, addAttachments, ATT, HB, buildBackup, importBackup, bgSync, providerChain, connect, toOpenAIMessages, getProv: () => ({ activeProv, models, client: client?.constructor?.name }), listSkills, steering, resendFrom, openFile2: openFile, vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell }); Object.defineProperty(window, 'editing', { get: () => editing }); Object.defineProperty(window, 'running', { get: () => running });
 </script>
 
 </html>

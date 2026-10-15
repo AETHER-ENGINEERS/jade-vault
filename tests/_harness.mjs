@@ -43,6 +43,9 @@ export async function start({ settings = {} } = {}) {
       model.chats.push(b.messages);
       if (model.hold) await model.hold;
       const userText = [...b.messages].reverse().find(m => m.role === 'user')?.content.replace(/^\[[^\]]*\]\s*/, '') || '';
+      const custom = model.chatReply ? model.chatReply(b.messages, userText) : null;   // a test can script the reply
+      if (custom?.status) return route.fulfill({ status: custom.status, headers: CORS, contentType: 'application/json', body: JSON.stringify({ error: custom.error || 'boom' }) });
+      if (custom) return route.fulfill({ headers: CORS, contentType: 'application/x-ndjson', body: JSON.stringify({ message: { role: 'assistant', content: custom.content || '', ...(custom.tool_calls ? { tool_calls: custom.tool_calls } : {}) }, done: false }) + '\n' + JSON.stringify({ message: { role: 'assistant', content: '' }, done: true, prompt_eval_count: 10, eval_count: 5 }) + '\n' });
       return route.fulfill({ headers: CORS, contentType: 'application/x-ndjson', body: JSON.stringify({ message: { role: 'assistant', content: 'Agent says: ' + userText }, done: false }) + '\n' + JSON.stringify({ message: { role: 'assistant', content: '' }, done: true, prompt_eval_count: 10, eval_count: 5 }) + '\n' });
     }
     if (url.startsWith('http://localhost:9911/')) {

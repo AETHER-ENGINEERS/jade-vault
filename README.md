@@ -26,6 +26,7 @@ llama.cpp or any OpenAI-compatible endpoint.
   - She reacts, replies, sends and receives files, and sees images.
   - She joins and leaves communities and plays Mini Apps.
   - Secretary: messages for you land in an inbox, or reach you at once.
+- **Chat:** Copy · 👍 · 👎 · Retry under each reply; copy and edit your own messages; copy code blocks or the whole chat.
 - **Avatar:** Live2D Jade, with voice (TTS).
 
 ## Flows

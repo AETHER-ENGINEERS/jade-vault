@@ -1282,6 +1282,20 @@ rep("  const pv = $('#notePrev'); const st = pv.scrollTop; pv.replaceChildren(el
 rep("  apiApply();\n  bgSync();", "  flowsInit();\n  apiApply();\n  bgSync();")
 s = s.replace('/* =====================================================================\n   BOOT', rd('bridge.js') + '\n' + rd('cron.js') + '\n' + rd('flows.js') + '\n' + rd('templates.js') + '\n/* =====================================================================\n   BOOT', 1)
 rep("Object.assign(window, { saveSettings, VEC,", "Object.assign(window, { setNoteMode, renderNotePreview, openSettings, scheduleTool, addSchedule, saveSchedules, renderSchedules, TOOL_DEFS, flowRecordsLoad, flowDelete, flowHelp, cronLog, SchedBusy, crontabShell, jadeShell, flowShell, tplBlock, tplExec, renderTplSettings, schedKindFill, flowRun, flowRunByName, flowList, flowFind, flowSave, flowValidate, flowTool, flowClean, FlowRuns, FlowTrig, flowsRender, FUI, flowNoteCheck, flowTick, flowsArm, runNodeScript, jadeBridge, decideData, askOnce, runShellLine, kvOp, jvDialog, tplHydrate, tplRender, tplCompile, tplPages, TplState, tplInsertFlow, jvDate, addScheduleKind, runScheduleKind, Sched, schedTick, saveSettings, VEC,")
+
+# ---------- v19: reply bar under Jade's replies: Copy · 👍 · 👎 · Retry ----------
+rep("      if (m.trajId) { const w = ai.querySelector('[data-when]'); if (m.dur && w.textContent) w.textContent += ' · ' + fmtDur(m.dur); ai.appendChild(rateBar(m)); }",
+    "      if (m.dur) { const w = ai.querySelector('[data-when]'); if (w.textContent && !w.textContent.includes(' · ')) w.textContent += ' · ' + fmtDur(m.dur); }\n      if (replyTurnEnd(msgs, i)) ai.appendChild(replyBar(m));")
+rep("      if (lastA) { lastA.dur = Date.now() - runT0; if (tid) { lastA.trajId = tid; ai.appendChild(rateBar(lastA)); } }",
+    "      if (lastA) { lastA.dur = Date.now() - runT0; if (tid) lastA.trajId = tid; }\n      if (ai && !ai.querySelector(':scope > .reply-bar')) ai.appendChild(replyBar(lastA || null));")
+rep("  running = v; const b = $('#btnSend');", "  running = v; document.body.classList.toggle('jv-running', !!v); const b = $('#btnSend');")
+rep('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """.reply-bar{align-items:center;flex-wrap:wrap}
+.reply-bar [data-ract]{font-family:var(--f-mono);font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--dim);opacity:.9;filter:none;min-height:30px}
+.reply-bar [data-ract]:hover,.reply-bar [data-ract]:active{color:var(--cy);border-color:var(--line-hot)}
+body.jv-running .reply-bar [data-ract="retry"]{display:none}
+""")
+s = s.replace('/* =====================================================================\n   BOOT', rd('replybar.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("Object.assign(window, { setNoteMode,", "Object.assign(window, { replyBar, replyText, replyRetry, replyRetrySync, setNoteMode,")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

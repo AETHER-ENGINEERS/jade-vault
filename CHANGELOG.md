@@ -1,5 +1,10 @@
 # Changelog
 
+## 2.7.1
+- **Reply bar** under each of Jade's replies: **Copy** (everything she said in that turn, as Markdown, without tool
+  output), **👍 / 👎** (now always there, not only with the trajectory log on) and **Retry** on the newest reply, which
+  runs your last message again and replaces her answer (also after an error).
+
 ## 2.7.0
 - **Flows**, a small n8n in its own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers,
   full Jade chat turns, notes, if / switch / for-each, wait, notify and other flows, with `{{ expressions }}`, retries,

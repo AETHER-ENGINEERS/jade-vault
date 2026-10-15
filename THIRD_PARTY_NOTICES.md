@@ -22,6 +22,12 @@ requirement; add it under `third_party/busybox/` (the `.config` plus the build c
 distributing builds. Until then, a written offer: the maintainers will provide the complete
 corresponding source on request for three years from each release.
 
+## Embedded for scripts
+
+| Component | Version | License | Notes |
+| --- | --- | --- | --- |
+| TensorFlow.js (`@tensorflow/tfjs`, the `tf.min.js` bundle: core, layers, converter, CPU and WebGL backends) | 4.22.0 | Apache-2.0 | `app/vendor/tf.min.js`, unmodified apart from the removed source-map comment; Google's license header is kept. Loaded only into scripts that use `tf`. License: https://www.apache.org/licenses/LICENSE-2.0 |
+
 ## Built here
 
 | Component | Version | License | Notes |

@@ -60,6 +60,10 @@ In `node` (the shell, a flow's JavaScript step, or Jade's own bash): `await jade
 `jade.tools.read({path})`, `jade.decide({state, question, type, options})`, `jade.ask(prompt, {json, system})`,
 `jade.agent(message)`, `jade.flow(name, input)`, `jade.shell('ls | wc -l')`, `jade.notify(title, body)`, `jade.kv.get/set`.
 Files the script writes are visible to the tools it calls and the other way round.
+**TensorFlow.js 4.22** is built in for scripts: `tf` (or `import * as tf from '@tensorflow/tfjs'`) in `node`, flow
+JavaScript steps and Jade's bash. It uses the GPU (WebGL) when the WebView offers it in a worker, else the CPU. Keep a
+trained model with `await model.save('indexeddb://name')` and `tf.loadLayersModel('indexeddb://name')`. It is loaded only
+into scripts that use it (not note scripts), and needs no download.
 Shell commands: `jade tool <name> [json | key=value …]`, `jade decide`, `jade ask`, `jade agent`, `jade notify`, `jade kv`;
 `flow list | run | show | runs | enable | disable | import | export`; `crontab -l | add '<when>' '<command>' | -r <id> | <file>`.
 

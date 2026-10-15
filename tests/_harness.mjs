@@ -10,7 +10,7 @@ export async function start({ settings = {} } = {}) {
   const URL_ = process.argv[2] || 'file://' + process.env.JV_WEB;
   const css = fs.readFileSync('tw.css', 'utf8');
   const log = [], fail = []; const ok = (c, m) => (c ? log : fail).push((c ? 'PASS ' : 'FAIL ') + m);
-  const browser = await chromium.launch();
+  const browser = await chromium.launch({ args: process.env.JV_GPU ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript((settings) => {
     try { if (window !== window.top) return; } catch {}

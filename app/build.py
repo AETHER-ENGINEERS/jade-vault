@@ -38,7 +38,7 @@ rep("out.push('## Netrunner', '', m.content, '')", "out.push('## Jade', '', m.co
 rep('placeholder="Read TODO.md and summarise what is left, then suggest the next step."', 'placeholder="Read Inbox.md and file each item into its own linked note."')
 
 # ---------- Jade's gemstone color themes ----------
-rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade', jadeSpectrum: '#bd72f3', jadeGradientStart: '#f34b68', jadeGradientEnd: '#62a4ff', jadeGradientDirection: 'vertical',")
+rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade', jadeSpectrum: '#bd72f3', jadeGradientStart: '#f34b68', jadeGradientEnd: '#62a4ff', jadeGradientDirection: 'vertical', jadeHairMode: 'original', jadeHairColor: '#342c3c', jadeHairEnd: '#b58af4', jadeHairDirection: 'vertical', jadeClothesMode: 'original', jadeClothesColor: '#382f47', jadeClothesEnd: '#62a4ff', jadeClothesDirection: 'vertical', jadeStockingsMode: 'original', jadeStockingsColor: '#252330', jadeStockingsEnd: '#9c86bc', jadeStockingsDirection: 'vertical', jadeBootsMode: 'original', jadeBootsColor: '#20212a', jadeBootsEnd: '#f4c95d', jadeBootsDirection: 'vertical', jadeSkinMode: 'original', jadeSkinTone: 'fair', jadeSkinColor: '#d29b7c', jadeSkinEnd: '#f1d0c5', jadeSkinDirection: 'vertical',")
 JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
   jade:      { name: 'Jade',      accent: '#1fe5a5', rgb: [31, 229, 165],  highlight: '#ffb8c6', highlightRgb: [255, 184, 198], line: '#1d6b52', ink: '#00140c' },
   ruby:      { name: 'Ruby',      accent: '#f34b68', rgb: [243, 75, 104], highlight: '#ffb7c2', highlightRgb: [255, 183, 194], line: '#792a3d', ink: '#25050b' },
@@ -53,7 +53,21 @@ JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
   spectrum:  { name: 'Spectrum', accent: '#bd72f3', rgb: [189, 114, 243], highlight: '#e1c0fa', highlightRgb: [225, 192, 250], line: '#57366f', ink: '#160d1c' },
   'custom-gradient': { name: 'Custom Gradient', accent: '#f34b68', rgb: [243, 75, 104], highlight: '#62a4ff', highlightRgb: [98, 164, 255], line: '#792a3d', ink: '#160a1d' },
 });'''
-JADE_THEME_UTILS_JS = r'''function jadeHexRgb(hex, fallback = '#1fe5a5') {
+JADE_THEME_UTILS_JS = r'''const JADE_APPEARANCE_PARTS = Object.freeze([
+  { id: 'hair', label: 'Hair' }, { id: 'clothes', label: 'Clothes' }, { id: 'stockings', label: 'Stockings' }, { id: 'boots', label: 'Boots' }, { id: 'skin', label: 'Skin' },
+]);
+const JADE_SKIN_TONES = Object.freeze({
+  porcelain: { label: 'Porcelain', color: '#f2d6d1' }, fair: { label: 'Fair', color: '#e9c1ac' }, light: { label: 'Light', color: '#d8a181' },
+  medium: { label: 'Medium', color: '#bd805f' }, tan: { label: 'Tan', color: '#9b654a' }, deep: { label: 'Deep', color: '#704533' },
+});
+// Source-texture rectangles for the bundled 2048×2048 atlas; keep these in sync with l2d-tex.
+const JADE_APPEARANCE_REGIONS = Object.freeze({
+  skin: [[0, 0, 220, 280], [0, 270, 320, 510], [600, 250, 850, 500], [560, 560, 820, 700], [850, 600, 1180, 1060], [0, 730, 920, 1120], [0, 1080, 700, 1400]],
+  hair: [[0, 460, 520, 750], [900, 0, 1200, 570], [1140, 240, 1340, 850]],
+  clothes: [[240, 0, 700, 650], [650, 0, 950, 760], [0, 280, 300, 510], [870, 620, 1160, 1040], [0, 1080, 700, 1370]],
+  stockings: [[160, 740, 920, 1110]], boots: [[0, 740, 180, 1110]],
+});
+function jadeHexRgb(hex, fallback = '#1fe5a5') {
   const m = /^#?([\da-f]{6})$/i.exec(String(hex || ''));
   const h = m ? m[1] : fallback.slice(1);
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
@@ -85,9 +99,9 @@ function resolveJadeTheme(name) {
   return { ...preset, avatarStartRgb: preset.rgb, avatarEndRgb: preset.rgb, isGradient: false, direction: 'vertical', cssGradient: `linear-gradient(90deg, ${preset.accent}, ${preset.highlight})` };
 }'''
 rep('const Jade = (() => {', JADE_THEMES_JS + '\n' + JADE_THEME_UTILS_JS + '\nconst Jade = (() => {')
-rep("    cur: {}, frame: 'portrait', onStatus: () => {}, onSpeak: () => {},", "    cur: {}, frame: 'portrait', theme: 'jade', tintFilter: null, onStatus: () => {}, onSpeak: () => {},")
+rep("    cur: {}, frame: 'portrait', onStatus: () => {}, onSpeak: () => {},", "    cur: {}, frame: 'portrait', theme: 'jade', tintFilter: null, appearanceCanvas: null, appearanceContext: null, appearanceData: null, appearanceOriginal: null, appearanceMasks: null, appearanceTexture: null, onStatus: () => {}, onSpeak: () => {},")
 rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];", """  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];
-  // Recolor Jade's emerald accent pixels; skin tones and dark fabric stay unchanged.
+  // Theme filter recolors emerald accents; the canvas texture handles separate appearance modes.
   const GEM_TINT_FRAGMENT = `
     varying vec2 vTextureCoord;
     uniform sampler2D uSampler;
@@ -120,6 +134,95 @@ rep("    app.stage.addChild(model);\n    const core = model.internalModel.coreMo
     } catch (e) { state.tintFilter = null; console.warn('Jade gem-color filter unavailable', e); }
     setTheme(S.jadeTheme);
     const core = model.internalModel.coreModel;""")
+rep("  async function init({ host, onStatus, onSpeak } = {}) {", r"""  const JADE_APPEARANCE_ORDER = ['boots', 'stockings', 'hair', 'clothes'];
+  const JADE_APPEARANCE_FALLBACKS = { hair: '#342c3c', clothes: '#382f47', stockings: '#252330', boots: '#20212a', skin: '#d29b7c' };
+  function jadeIsSkinPixel(r, g, b) {
+    const rg = r - g, rb = r - b;
+    return r > 90 && rg > 4 && rg < 105 && rb > 12 && rb < 112 && g > b * 0.88;
+  }
+  function jadeBuildAppearanceMasks(width, height, source) {
+    const sx = width / 2048, sy = height / 2048, masks = {}, claimed = new Uint8Array(width * height);
+    for (const [part, boxes] of Object.entries(JADE_APPEARANCE_REGIONS)) {
+      masks[part] = boxes.map(([x0, y0, x1, y1]) => ({ box: [x0 * sx, y0 * sy, x1 * sx, y1 * sy], indices: [] }));
+    }
+    const collect = (part, skinOnly) => {
+      for (const region of masks[part]) {
+        const [x0, y0, x1, y1] = region.box;
+        for (let y = Math.max(0, Math.floor(y0)); y < Math.min(height, Math.ceil(y1)); y++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(width, Math.ceil(x1)); x++) {
+          const pixel = y * width + x;
+          if (claimed[pixel]) continue;
+          const offset = pixel * 4;
+          if (source[offset + 3] < 16) continue;
+          const skin = jadeIsSkinPixel(source[offset], source[offset + 1], source[offset + 2]);
+          if (skinOnly ? !skin : skin) continue;
+          claimed[pixel] = 1; region.indices.push(offset);
+        }
+      }
+    };
+    collect('skin', true);
+    for (const part of JADE_APPEARANCE_ORDER) collect(part, false);
+    for (const regions of Object.values(masks)) for (const region of regions) region.indices = new Uint32Array(region.indices);
+    return masks;
+  }
+  function jadeAppearanceSettings(part) {
+    const cap = part[0].toUpperCase() + part.slice(1), modeKey = `jade${cap}Mode`;
+    let mode = S[modeKey] || 'original';
+    const validModes = part === 'skin' ? ['original', 'natural', 'spectrum', 'gradient'] : ['original', 'spectrum', 'gradient'];
+    if (!validModes.includes(mode)) mode = 'original';
+    let start = S[`jade${cap}Color`], end = S[`jade${cap}End`];
+    if (part === 'skin' && mode === 'natural') start = JADE_SKIN_TONES[S.jadeSkinTone]?.color || JADE_SKIN_TONES.fair.color;
+    const fallback = JADE_APPEARANCE_FALLBACKS[part];
+    if (!/^#[\da-f]{6}$/i.test(String(start || ''))) start = fallback;
+    if (!/^#[\da-f]{6}$/i.test(String(end || ''))) end = fallback;
+    const direction = ['vertical', 'horizontal', 'diagonal'].includes(S[`jade${cap}Direction`]) ? S[`jade${cap}Direction`] : 'vertical';
+    return { mode, start, end, direction };
+  }
+  function jadeGradientAmount(x, y, box, direction) {
+    const nx = Math.max(0, Math.min(1, (x - box[0]) / Math.max(1, box[2] - box[0])));
+    const ny = Math.max(0, Math.min(1, (y - box[1]) / Math.max(1, box[3] - box[1])));
+    return direction === 'horizontal' ? nx : direction === 'diagonal' ? (nx + ny) * 0.5 : ny;
+  }
+  function setAppearance() {
+    if (!state.appearanceData || !state.appearanceContext) return;
+    const configs = Object.fromEntries(JADE_APPEARANCE_PARTS.map(({ id }) => [id, jadeAppearanceSettings(id)]));
+    if (Object.values(configs).every(config => config.mode === 'original') && !state.appearanceMasks) return;
+    if (!state.appearanceMasks) state.appearanceMasks = jadeBuildAppearanceMasks(state.appearanceCanvas.width, state.appearanceCanvas.height, state.appearanceOriginal);
+    const data = state.appearanceData.data, original = state.appearanceOriginal, width = state.appearanceCanvas.width;
+    data.set(original);
+    for (const [part, config] of Object.entries(configs)) {
+      if (config.mode === 'original') continue;
+      const start = jadeHexRgb(config.start), end = jadeHexRgb(config.end), skin = part === 'skin';
+      for (const { box, indices } of state.appearanceMasks[part]) for (const offset of indices) {
+        const pixel = offset >>> 2, x = pixel % width, y = (pixel / width) | 0;
+        const t = config.mode === 'gradient' ? jadeGradientAmount(x, y, box, config.direction) : 0;
+        const tr = start[0] * (1 - t) + end[0] * t, tg = start[1] * (1 - t) + end[1] * t, tb = start[2] * (1 - t) + end[2] * t;
+        const sourceLuma = (original[offset] * 0.2126 + original[offset + 1] * 0.7152 + original[offset + 2] * 0.0722) / 255;
+        const targetLuma = Math.max((tr * 0.2126 + tg * 0.7152 + tb * 0.0722) / 255, 0.08);
+        const shade = skin ? Math.max(0.48, Math.min(1.3, sourceLuma / 0.78)) : Math.max(0.08, Math.min(1.35, sourceLuma / targetLuma));
+        data[offset] = Math.max(0, Math.min(255, Math.round(tr * shade)));
+        data[offset + 1] = Math.max(0, Math.min(255, Math.round(tg * shade)));
+        data[offset + 2] = Math.max(0, Math.min(255, Math.round(tb * shade)));
+      }
+    }
+    state.appearanceContext.putImageData(state.appearanceData, 0, 0);
+    state.appearanceTexture?.baseTexture?.update();
+  }
+  function prepareAppearanceTexture(img, url) {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width; canvas.height = img.naturalHeight || img.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('Canvas support is required for Jade appearance colors');
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    state.appearanceData = context.getImageData(0, 0, canvas.width, canvas.height);
+    state.appearanceOriginal = new Uint8ClampedArray(state.appearanceData.data);
+    state.appearanceCanvas = canvas; state.appearanceContext = context;
+    state.appearanceTexture = PIXI.Texture.from(canvas);
+    PIXI.Texture.addToCache(state.appearanceTexture, url);
+    setAppearance();
+  }
+
+  async function init({ host, onStatus, onSpeak } = {}) {""")
+rep("    if (!PIXI.utils.TextureCache[texUrl]) PIXI.Texture.addToCache(PIXI.Texture.from(img), texUrl);", "    try { prepareAppearanceTexture(img, texUrl); } catch (e) { console.warn('Jade appearance color setup unavailable', e); if (!PIXI.utils.TextureCache[texUrl]) PIXI.Texture.addToCache(PIXI.Texture.from(img), texUrl); }")
 rep("  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }", """  function setTheme(name) {
     state.theme = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
     const config = resolveJadeTheme(state.theme), uniforms = state.tintFilter?.uniforms;
@@ -135,7 +238,7 @@ rep("  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; 
     set('uDirection', config.direction === 'horizontal' ? 1 : config.direction === 'diagonal' ? 2 : 0);
   }
   function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }""")
-rep("const api = { init, setMood, nod, setFrame, speak, stop,", "const api = { init, setMood, nod, setFrame, setTheme, speak, stop,")
+rep("const api = { init, setMood, nod, setFrame, speak, stop,", "const api = { init, setMood, nod, setFrame, setTheme, setAppearance, speak, stop,")
 rep("$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnHideJade').onclick", "$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnTheme').onclick = () => { openSettings(); setTimeout(() => showSettingsSection('#jadeThemePicker'), 60); };\n$('#btnHideJade').onclick")
 
 JADE_THEME_UI_JS = r'''function renderJadeThemePicker() {
@@ -180,8 +283,45 @@ function applyJadeTheme(name, persist = false) {
   Jade.setTheme(id);
   if (persist) saveSettings();
 }
+function renderJadeAppearancePicker() {
+  const host = $('#jadeAppearancePicker'); if (!host) return;
+  const modes = [['original', 'Original'], ['spectrum', 'Spectrum color'], ['gradient', 'Gradient']];
+  host.innerHTML = JADE_APPEARANCE_PARTS.map(({ id, label }) => {
+    const cap = id[0].toUpperCase() + id.slice(1), skin = id === 'skin';
+    const options = skin ? [['original', 'Original'], ['natural', 'Natural tone'], ...modes.slice(1)] : modes;
+    return `<fieldset class="jade-appearance-card" data-appearance-card="${id}"><legend>${label}</legend>
+      <label class="appearance-field" for="jadeAppearance${cap}Mode"><span class="lbl">Color mode</span><select class="field" id="jadeAppearance${cap}Mode" data-appearance-mode="${id}">${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select></label>
+      ${skin ? `<label class="appearance-field" data-appearance-natural hidden for="jadeSkinTone"><span class="lbl">Natural tone</span><select class="field" id="jadeSkinTone" data-appearance-tone>${Object.entries(JADE_SKIN_TONES).map(([value, tone]) => `<option value="${value}">${tone.label}</option>`).join('')}</select></label>` : ''}
+      <label class="appearance-field" data-appearance-start hidden for="jadeAppearance${cap}Color"><span class="lbl">Spectrum color</span><input type="color" class="theme-color-input" id="jadeAppearance${cap}Color" data-appearance-input="jade${cap}Color"></label>
+      <div class="appearance-gradient-fields" data-appearance-gradient hidden><label class="appearance-field" for="jadeAppearance${cap}End"><span class="lbl">Gradient end</span><input type="color" class="theme-color-input" id="jadeAppearance${cap}End" data-appearance-input="jade${cap}End"></label><label class="appearance-field" for="jadeAppearance${cap}Direction"><span class="lbl">Direction</span><select class="field" id="jadeAppearance${cap}Direction" data-appearance-direction="${id}"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></label></div>
+      <p class="hint appearance-help">Shading and texture detail are preserved.</p></fieldset>`;
+  }).join('');
+  const sync = card => {
+    const part = card.dataset.appearanceCard, mode = card.querySelector('[data-appearance-mode]').value;
+    const natural = card.querySelector('[data-appearance-natural]'), start = card.querySelector('[data-appearance-start]'), gradient = card.querySelector('[data-appearance-gradient]');
+    if (natural) natural.hidden = mode !== 'natural';
+    if (start) { start.hidden = mode !== 'spectrum' && mode !== 'gradient'; start.querySelector('.lbl').textContent = mode === 'gradient' ? 'Gradient start' : 'Spectrum color'; }
+    if (gradient) gradient.hidden = mode !== 'gradient';
+  };
+  host.querySelectorAll('[data-appearance-card]').forEach(card => {
+    const part = card.dataset.appearanceCard, cap = part[0].toUpperCase() + part.slice(1), mode = card.querySelector('[data-appearance-mode]');
+    mode.value = S[`jade${cap}Mode`] || 'original';
+    card.querySelectorAll('[data-appearance-input]').forEach(input => { input.value = S[input.dataset.appearanceInput];
+      input.oninput = () => { S[input.dataset.appearanceInput] = input.value; if (mode.value === 'spectrum' || mode.value === 'gradient') Jade.setAppearance(); };
+      input.onchange = () => { S[input.dataset.appearanceInput] = input.value; Jade.setAppearance(); saveSettings(); };
+    });
+    const tone = card.querySelector('[data-appearance-tone]');
+    if (tone) { tone.value = S.jadeSkinTone || 'fair'; tone.onchange = () => { S.jadeSkinTone = tone.value; if (mode.value === 'natural') Jade.setAppearance(); saveSettings(); }; }
+    const direction = card.querySelector('[data-appearance-direction]');
+    if (direction) { direction.value = S[`jade${cap}Direction`] || 'vertical'; direction.onchange = () => { S[`jade${cap}Direction`] = direction.value; if (mode.value === 'gradient') Jade.setAppearance(); saveSettings(); }; }
+    mode.onchange = () => { S[`jade${cap}Mode`] = mode.value; sync(card); Jade.setAppearance(); saveSettings(); };
+    sync(card);
+  });
+}
 renderJadeThemePicker();
-applyJadeTheme(S.jadeTheme);'''
+renderJadeAppearancePicker();
+applyJadeTheme(S.jadeTheme);
+Jade.setAppearance();'''
 rep("})();\n\n/* =====================================================================\n   CRON —", "})();\n\n" + JADE_THEME_UI_JS + "\n\n/* =====================================================================\n   CRON —")
 
 # ---------- markup ----------
@@ -189,7 +329,7 @@ rep('<div class="jade-label"><span class="dot busy" id="jadeDot"></span><span cl
 rep('<div class="pane-h">Jade companion</div>\n        <div class="grid gap-3"', '<div class="pane-h">Jade companion</div>\n        <div><div class="lbl">Jade\'s gemstone theme</div><p class="hint leading-relaxed mt-1">Choose a color for Jade\'s outfit accents and the app highlights.</p><div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade\'s gemstone theme"></div></div>\n        <div class="grid gap-3"')
 rep("""<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div></div>""", """<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div>
           <div class="theme-custom-controls mt-2" id="jadeSpectrumControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeSpectrumColor"><span class="lbl">Spectrum color</span><input type="color" id="jadeSpectrumColor" class="theme-color-input" value="#bd72f3" aria-describedby="jadeSpectrumHint"></label></div><p class="hint mt-2" id="jadeSpectrumHint">Choose any hue with the full spectrum color picker.</p></div>
-          <div class="theme-custom-controls mt-2" id="jadeGradientControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeGradientStart"><span class="lbl">Gradient start</span><input type="color" id="jadeGradientStart" class="theme-color-input" value="#f34b68"></label><label class="theme-color-field" for="jadeGradientEnd"><span class="lbl">Gradient end</span><input type="color" id="jadeGradientEnd" class="theme-color-input" value="#62a4ff"></label><div><label class="lbl" for="jadeGradientDirection">Direction</label><select id="jadeGradientDirection" class="field mt-1"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></div></div><p class="hint mt-2">Blend Jade's accents between your two colors.</p></div></div>""")
+          <div class="theme-custom-controls mt-2" id="jadeGradientControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeGradientStart"><span class="lbl">Gradient start</span><input type="color" id="jadeGradientStart" class="theme-color-input" value="#f34b68"></label><label class="theme-color-field" for="jadeGradientEnd"><span class="lbl">Gradient end</span><input type="color" id="jadeGradientEnd" class="theme-color-input" value="#62a4ff"></label><div><label class="lbl" for="jadeGradientDirection">Direction</label><select id="jadeGradientDirection" class="field mt-1"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></div></div><p class="hint mt-2">Blend Jade's accents between your two colors.</p></div><div class="jade-appearance-panel mt-3"><div class="lbl">Customize Jade's appearance</div><p class="hint leading-relaxed mt-1">Choose independent colors for hair, clothes, stockings, boots, and skin.</p><div id="jadeAppearancePicker" class="jade-appearance-grid mt-2"></div></div></div>""")
 NOTES_MARKUP = r'''<!-- NOTES (vault) -->
     <section class="m-screen" data-panel="files" hidden>
       <div class="m-sub">
@@ -355,6 +495,14 @@ body::before{background:
 .gem-theme-swatch.custom-gradient{background:linear-gradient(135deg,#f34b68,#62a4ff);box-shadow:0 0 9px rgba(154,116,239,.55)}
 body[data-jade-theme="custom-gradient"] .gem-theme-swatch.custom-gradient{background:var(--theme-gradient)}
 .theme-custom-controls{padding:9px 10px;border:1px solid var(--line);background:rgba(5,10,8,.45)}
+.jade-appearance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.jade-appearance-card{min-width:0;padding:8px 9px;border:1px solid var(--line);background:rgba(3,8,6,.55)}
+.jade-appearance-card legend{padding:0 5px;color:var(--yl);font-family:var(--f-disp);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.appearance-field{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.appearance-field .field{width:112px;min-width:0;flex:none}
+.appearance-gradient-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.appearance-gradient-fields .appearance-field{align-items:flex-start;flex-direction:column}
+.appearance-help{margin-top:8px;font-size:10px;line-height:1.4}
 .theme-color-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;align-items:end}
 .theme-color-field{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px}
 .theme-color-input{width:48px;height:36px;flex:none;padding:3px;border:1px solid var(--line-hot);background:var(--panel);cursor:pointer}

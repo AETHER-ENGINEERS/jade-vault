@@ -51,9 +51,11 @@ jobs:
           V=$(cat VERSION)
           mkdir -p kit/jade-vector && cp jade-vector/*.py jade-vector/*.sh jade-vector/Dockerfile jade-vector/docker-compose.yml jade-vector/.dockerignore jade-vector/README.md kit/jade-vector/
           tar -C kit -czf dist/jade-vector-$V.tar.gz jade-vector
-          cd dist && sha256sum $(ls *.apk 2>/dev/null) jade-vault.html jade-link.xdc jade-vector-$V.tar.gz > SHA256SUMS
+          mkdir -p kit/jade-discord && cp jade-discord/*.py jade-discord/*.sh jade-discord/*.txt jade-discord/Dockerfile jade-discord/docker-compose.yml jade-discord/.dockerignore jade-discord/README.md kit/jade-discord/
+          tar -C kit -czf dist/jade-discord-$V.tar.gz jade-discord
+          cd dist && sha256sum $(ls *.apk 2>/dev/null) jade-vault.html jade-link.xdc jade-vector-$V.tar.gz jade-discord-$V.tar.gz > SHA256SUMS
       - name: Attach to the release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release upload "$TAG" --clobber $(ls dist/*.apk 2>/dev/null) dist/jade-vault.html dist/jade-link.xdc dist/jade-vector-*.tar.gz dist/SHA256SUMS
+          gh release upload "$TAG" --clobber $(ls dist/*.apk 2>/dev/null) dist/jade-vault.html dist/jade-link.xdc dist/jade-vector-*.tar.gz dist/jade-discord-*.tar.gz dist/SHA256SUMS

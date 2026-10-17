@@ -128,7 +128,7 @@ async function jadeBridge(op, a, ctx = {}) {
       const name = String(a.name || '');
       if (!name) throw new Error('jade.tool needs a tool name');
       if (name === 'flow' && (ctx.depth || 0) >= FLOW_MAX_DEPTH) throw new Error('flows call each other too deeply');
-      vecGuard(name);
+      vecGuard(name); if (typeof dcGuard === 'function') dcGuard(name);
       if (!activeTools().some(t => t.function.name === name) && !/^mcp__/.test(name)) throw new Error(`no tool named ${name}. jade.list() shows them`);
       return await runTool(name, a.args && typeof a.args === 'object' ? a.args : {}, null);
     }

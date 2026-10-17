@@ -69,7 +69,7 @@ function flowSave(f, oldPath) {
   flowsChanged(); return { ...clean, _path: p };
 }
 function flowDelete(f) { if (vfs.isFile(f._path)) vfs.rm(f._path); flowsChanged(); }
-function flowToolNames() { return [...new Set([...TOOL_DEFS.map(t => t.name), ...(typeof VEC_TOOL_DEFS !== 'undefined' ? VEC_TOOL_DEFS.map(t => t.name) : []), ...mcpToolDefs().map(t => t.function.name)])].filter(n => n !== 'flow').sort(); }
+function flowToolNames() { return [...new Set([...TOOL_DEFS.map(t => t.name), ...(typeof VEC_TOOL_DEFS !== 'undefined' ? VEC_TOOL_DEFS.map(t => t.name) : []), ...(typeof DC_TOOL_DEFS !== 'undefined' ? DC_TOOL_DEFS.map(t => t.name) : []), ...mcpToolDefs().map(t => t.function.name)])].filter(n => n !== 'flow').sort(); }
 
 /* ---------- validation ---------- */
 function flowValidate(f) {
@@ -594,7 +594,7 @@ function flowFieldHtml(st, sp, [k, label, kind, ph]) {
   else input = `<input id="${id}" class="field mt-1${kind === 'expr' ? ' mono' : ''}" data-f="${k}" value="${esc(v ?? '')}" placeholder="${esc(ph || '')}" autocapitalize="off" spellcheck="false">`;
   return `<div class="${tip}"><label class="lbl" for="${id}">${esc(label)}</label>${input}</div>`;
 }
-function flowToolDesc(name) { const t = TOOL_DEFS.find(x => x.name === name) || (typeof VEC_TOOL_DEFS !== 'undefined' ? VEC_TOOL_DEFS.find(x => x.name === name) : null); if (!t) return name ? '' : 'Any of Jade\'s tools, with its arguments as JSON.'; const req = t.parameters?.required || []; return `${String(t.description || '').split(/(?<=\.)\s/)[0].slice(0, 160)}${Object.keys(t.parameters?.properties || {}).length ? ` Arguments: ${Object.keys(t.parameters.properties).map(p => req.includes(p) ? p + '*' : p).join(', ')}.` : ''}`; }
+function flowToolDesc(name) { const t = TOOL_DEFS.find(x => x.name === name) || (typeof VEC_TOOL_DEFS !== 'undefined' ? VEC_TOOL_DEFS.find(x => x.name === name) : null) || (typeof DC_TOOL_DEFS !== 'undefined' ? DC_TOOL_DEFS.find(x => x.name === name) : null); if (!t) return name ? '' : 'Any of Jade\'s tools, with its arguments as JSON.'; const req = t.parameters?.required || []; return `${String(t.description || '').split(/(?<=\.)\s/)[0].slice(0, 160)}${Object.keys(t.parameters?.properties || {}).length ? ` Arguments: ${Object.keys(t.parameters.properties).map(p => req.includes(p) ? p + '*' : p).join(', ')}.` : ''}`; }
 function flowStepHtml(st, sp, i, n) {
   const T = FLOW_TYPES[st?.type]; const open = FUI.open.has(sp);
   if (!T) return `<div class="fl-step bad" data-sp="${sp}"><div class="fl-step-h"><span class="fl-ico">?</span><span class="fl-sname">unknown step type "${esc(st?.type)}"</span><span class="fl-acts"><button type="button" data-fa="rm" aria-label="Remove">✕</button></span></div></div>`;

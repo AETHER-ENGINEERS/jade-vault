@@ -1046,6 +1046,32 @@ VEC_HTML = """      <section class="flex flex-col gap-3" id="vecSection">
 
 """
 rep("""      <section class="flex flex-col gap-3" id="secretSection">""", VEC_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+DC_HTML = """      <section class="flex flex-col gap-3" id="dcSection">
+        <div class="pane-h">Discord (Jade as a bot)</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade lives on <span class="text-cy">Discord</span> as a bot: she answers DMs and channels, reacts, sends files, sees images, and takes messages for you. It works at the same time as Vector. The bot runs in the <b>Jade Discord bridge</b> (<span class="mono">jade-discord/</span>, built on discord.py) on a computer you keep on; paste its URL and token here. Create the bot at discord.com/developers/applications → <b>Bot</b>, give its token to the bridge (<span class="mono">--set-token</span>), and turn on <b>Message Content Intent</b>. Then use <b>Copy invite link</b> and open it to add her to your server.</p>
+        <label class="flex items-center gap-2 text-sm" for="sDcOn"><input type="checkbox" id="sDcOn" class="accent-emerald-400 w-4 h-4"> Run Jade on Discord</label>
+        <div id="dcStatus" class="text-sm"></div>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <div><label class="lbl" for="sDcUrl">Bridge URL</label><input id="sDcUrl" class="field mt-1" placeholder="http://192.168.1.20:8788/mcp" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sDcToken">Bridge token</label><input id="sDcToken" type="password" class="field mt-1" placeholder="printed by the bridge (--print-token)" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sDcPoll">Check for messages every (seconds)</label><input id="sDcPoll" type="number" min="1" max="120" class="field mt-1" placeholder="3"></div>
+          <div><label class="lbl" for="sDcOwner">Owner user id (absolute power)</label><input id="sDcOwner" class="field mt-1" placeholder="your Discord user id (Developer Mode → Copy User ID)" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sDcOwnerName">Your name (what Jade calls you to others)</label><input id="sDcOwnerName" class="field mt-1" placeholder="e.g. Sam"></div>
+          <div><label class="lbl" for="sDcAdmins">Admin whitelist (user ids)</label><textarea id="sDcAdmins" class="field mt-1" rows="2" placeholder="one per line: they can have Jade message people, kick, ban and leave servers" spellcheck="false"></textarea></div>
+          <div><label class="lbl" for="sDcChannels">Channel whitelist</label><textarea id="sDcChannels" class="field mt-1" rows="2" placeholder="channel ids, server ids or names, #channel-names where Jade takes part" spellcheck="false"></textarea></div>
+          <div><label class="lbl" for="sDcDm">Who can DM her</label><select id="sDcDm" class="field mt-1"><option value="anyone">Anyone (general chat)</option><option value="known">Only owner + admins</option><option value="owner">Only me</option></select></div>
+          <div><label class="lbl" for="sDcTrigger">In channels she answers</label><select id="sDcTrigger" class="field mt-1"><option value="mention">When @mentioned, named or replied to</option><option value="all">Every message</option></select></div>
+          <div><label class="lbl" for="sDcWords">Trigger words</label><input id="sDcWords" class="field mt-1" placeholder="jade, hey jade"></div>
+          <div><label class="lbl" for="sDcNotify">Messages for you</label><select id="sDcNotify" class="field mt-1"><option value="inbox">Go to the inbox</option><option value="urgent">Inbox; urgent ones right away</option><option value="now">Tell me right away</option></select></div>
+        </div>
+        <label class="flex items-center gap-2 text-sm" for="sDcImages"><input type="checkbox" id="sDcImages" class="accent-emerald-400 w-4 h-4"> Let her see images people send</label>
+        <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-solid" id="btnDcTest">Connect</button><button type="button" class="btn" id="btnDcInbox">Open inbox</button><button type="button" class="btn" id="btnDcInvite">Copy invite link</button></div>
+        <p class="hint leading-relaxed">You (the owner) get the same Jade as in this app, with every tool. Admins get Discord powers but never your notes, memory or files. Everyone else can chat and leave you messages. Each Discord chat has its own chat here (🎮). Jade never pings @everyone or roles, and ignores other bots. Vector and Discord share one Jade: she answers one conversation at a time. Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
+      </section>
+
+"""
+rep("""      <section class="flex flex-col gap-3" id="secretSection">""", DC_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+s = s.replace('/* =====================================================================\n   BOOT', rd('discord.js') + '\n/* =====================================================================\n   BOOT', 1)
 rep("const activeTools = () => [...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...mcpToolDefs()];",
     "const activeTools = () => vecFilterTools([...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...VEC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);")
 rep("        try { result = await runTool(name, args, card); }", "        try { vecGuard(name); result = await runTool(name, args, card); }")
@@ -1133,7 +1159,7 @@ TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect'
 TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
           'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
           'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
-          'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect',
+          'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect', 'Discord (Jade as a bot)': 'connect',
           'Heartbeat': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
 a = s.index('<div class="modal-bg" id="settings" hidden>'); b = s.index('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', a)
 blk = s[a:b]; seen = set()
@@ -1320,6 +1346,24 @@ _i = s.index('<script type="application/octet-stream" id="sqlite-wasm">'); _j = 
 s = s[:_j] + '\n<script type="application/octet-stream" id="tfjs-src">' + _tfb + '</script>' + s[_j:]
 rep(r"jade.shell(cmd) and jade.notify(title, body) call your tools, decisions, model and flows.\n", r"jade.shell(cmd) and jade.notify(title, body) call your tools, decisions, model and flows. TensorFlow.js 4.22 is built in: use tf (or require('@tensorflow/tfjs')) in node for tensors and small models; keep a trained model with await model.save('indexeddb://name') and tf.loadLayersModel('indexeddb://name').\n")
 rep("Object.assign(window, { replyBar,", "Object.assign(window, { tfjsSource, replyBar,")
+# ---------- v21: Discord bot (next to Vector, one shared turn queue) ----------
+rep("const activeTools = () => vecFilterTools([", "const activeTools = () => dcFilterTools(vecFilterTools([")
+rep("...FLOW_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);", "...FLOW_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]));")
+rep("try { vecGuard(name); result = await runTool(name, args, card); }", "try { vecGuard(name); dcGuard(name); result = await runTool(name, args, card); }")
+rep("    case 'vector': return await vectorTool(args);", "    case 'vector': return await vectorTool(args);\n    case 'discord': return await discordTool(args);")
+rep("const systemPrompt = () => { if (vecScope()) return vecScopedPrompt();", "const systemPrompt = () => { if (vecScope()) return vecScopedPrompt(); if (dcScope()) return dcScopedPrompt();")
+rep("by their setting)\\n` : ''}", "by their setting)\\n` : ''}${S.dcOn ? `- discord: you are also a bot on Discord${DC.user ? ' (' + DC.user.username + ')' : ''}: message people (DM by user id) or channels, reply, react, send files from the vault, download what people send, read channels, list servers and channels. Use it whenever the user asks you to message, send or share something on Discord.\\n` : ''}")
+rep("  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));", "  const dcOnline = typeof DC !== 'undefined' && S.dcOn && DC.connected;\n  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline || dcOnline));")
+rep("vecOnline ? 'Jade is online on Vector' :", "vecOnline ? 'Jade is online on Vector' : dcOnline ? 'Jade is online on Discord' :")
+rep("!cur || cur.vec) return;", "!cur || cur.vec || cur.dc) return;")
+rep("notify_owner: a => (a.urgent ? '⚡ ' : '') + String(a.message || '').slice(0, 60),", "notify_owner: a => (a.urgent ? '⚡ ' : '') + String(a.message || '').slice(0, 60), discord: a => `${a.action || ''}${a.to ? ' → ' + a.to : ''}${a.text ? ' “' + String(a.text).slice(0, 40) + '”' : ''}${a.emoji || ''}`,")
+rep("notify_owner: () => 'Passing a message on',", "notify_owner: () => 'Passing a message on', discord: () => `Discord: ${a.action || ''}`,")
+rep("  if (cmd === 'context' || cmd === 'ctx') {", "  if (cmd === 'discord') { openSettings(); setTimeout(() => showSettingsSection('#dcSection'), 60); return; }\n  if (cmd === 'context' || cmd === 'ctx') {")
+rep("['/vector', 'Vector messenger settings'],", "['/vector', 'Vector messenger settings'], ['/discord', 'Discord bot settings'],")
+rep("<b>/vector</b> bot settings ·", "<b>/vector</b> bot settings · <b>/discord</b> Discord bot settings ·")
+rep("window.__vecSync?.();", "window.__vecSync?.(); window.__dcSync?.();")
+rep("'secrets', 'vecToken', 'aicKey'];", "'secrets', 'vecToken', 'aicKey', 'dcToken'];")
+rep("Object.assign(window, { tfjsSource,", "Object.assign(window, { DC, dcInviteUrl, dcConnect, dcStop, dcIncoming, dcPoll, dcCall, dcWake, dcScope, dcFilterTools, discordTool, dcInboxAdd, DC_INBOX, tfjsSource,")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

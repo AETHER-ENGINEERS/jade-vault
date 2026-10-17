@@ -127,10 +127,10 @@ function vecEnqueue(item) {
 }
 async function vecPump() {
   if (VEC.busy || !VEC.q.length) return;
-  if (running || compacting || (typeof XWAKE !== 'undefined' && XWAKE.busy)) { setTimeout(vecPump, 1200); return; }
+  if (running || compacting || (typeof XWAKE !== 'undefined' && XWAKE.busy) || (typeof DC !== 'undefined' && DC.busy)) { setTimeout(vecPump, 1200); return; }   // one conversation at a time, shared with Discord
   VEC.busy = true; const item = VEC.q.shift();
   try { await vecWake(item); } catch (e) { console.warn('vector turn failed', e); }
-  finally { VEC.busy = false; if (VEC.q.length) setTimeout(vecPump, 200); }
+  finally { VEC.busy = false; if (VEC.q.length) setTimeout(vecPump, 200); if (typeof DC !== 'undefined' && DC.q.length) setTimeout(dcPump, 250); }
 }
 // ---- events: invites, removals ----
 async function vecEvent(e) {
@@ -165,6 +165,7 @@ async function vecTellOwner(text, urgent) {
   return false;
 }
 async function notifyOwnerTool(args) {
+  if (cur?.dc && typeof dcNotifyOwner === 'function') return dcNotifyOwner(args);   // asked from a Discord chat: Discord's inbox and DM
   const msg = String(args.message || args.text || '').trim(); if (!msg) throw new Error('notify_owner needs message');
   const from = cur?.vec?.sender || args.from || ''; const chat = cur?.vec?.chat_id || '';
   const urgent = !!args.urgent; const mode = S.vecNotify || 'inbox';
@@ -240,7 +241,7 @@ const VEC_SCOPE_TOOLS = { public: new Set(['vector', 'notify_owner', 'web_search
 function vecScope() { return cur?.vecScope && cur.vecScope !== 'owner' ? cur.vecScope : null; }
 function vecFilterTools(list) {
   const sc = vecScope(); let out = list;
-  if (!S.vecOn) out = out.filter(t => !['vector', 'notify_owner'].includes(t.function.name));
+  if (!S.vecOn) out = out.filter(t => t.function.name !== 'vector' && (t.function.name !== 'notify_owner' || S.dcOn));
   if (sc) out = out.filter(t => VEC_SCOPE_TOOLS[sc].has(t.function.name));
   return out;
 }

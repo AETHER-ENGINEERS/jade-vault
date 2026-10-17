@@ -38,7 +38,7 @@ rep("out.push('## Netrunner', '', m.content, '')", "out.push('## Jade', '', m.co
 rep('placeholder="Read TODO.md and summarise what is left, then suggest the next step."', 'placeholder="Read Inbox.md and file each item into its own linked note."')
 
 # ---------- Jade's gemstone color themes ----------
-rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade',")
+rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade', jadeSpectrum: '#bd72f3', jadeGradientStart: '#f34b68', jadeGradientEnd: '#62a4ff', jadeGradientDirection: 'vertical',")
 JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
   jade:      { name: 'Jade',      accent: '#1fe5a5', rgb: [31, 229, 165],  highlight: '#ffb8c6', highlightRgb: [255, 184, 198], line: '#1d6b52', ink: '#00140c' },
   ruby:      { name: 'Ruby',      accent: '#f34b68', rgb: [243, 75, 104], highlight: '#ffb7c2', highlightRgb: [255, 183, 194], line: '#792a3d', ink: '#25050b' },
@@ -50,8 +50,41 @@ JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
   emerald:   { name: 'Emerald',   accent: '#24d18b', rgb: [36, 209, 139], highlight: '#a6f1d1', highlightRgb: [166, 241, 209], line: '#176d4b', ink: '#001a10' },
   obsidian:  { name: 'Obsidian',  accent: '#aebbd0', rgb: [174, 187, 208], highlight: '#d6dfec', highlightRgb: [214, 223, 236], line: '#515e72', ink: '#111722' },
   quartz:    { name: 'Quartz',    accent: '#e3b5ed', rgb: [227, 181, 237], highlight: '#f5dcfb', highlightRgb: [245, 220, 251], line: '#705478', ink: '#211224' },
+  spectrum:  { name: 'Spectrum', accent: '#bd72f3', rgb: [189, 114, 243], highlight: '#e1c0fa', highlightRgb: [225, 192, 250], line: '#57366f', ink: '#160d1c' },
+  'custom-gradient': { name: 'Custom Gradient', accent: '#f34b68', rgb: [243, 75, 104], highlight: '#62a4ff', highlightRgb: [98, 164, 255], line: '#792a3d', ink: '#160a1d' },
 });'''
-rep('const Jade = (() => {', JADE_THEMES_JS + '\nconst Jade = (() => {')
+JADE_THEME_UTILS_JS = r'''function jadeHexRgb(hex, fallback = '#1fe5a5') {
+  const m = /^#?([\da-f]{6})$/i.exec(String(hex || ''));
+  const h = m ? m[1] : fallback.slice(1);
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function jadeRgbHex(rgb) { return '#' + rgb.map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join(''); }
+function jadeMixHex(a, b, amount) {
+  const x = jadeHexRgb(a), y = jadeHexRgb(b);
+  return jadeRgbHex(x.map((c, i) => c * (1 - amount) + y[i] * amount));
+}
+function jadeContrastInk(rgb) {
+  const luminance = rgb.reduce((sum, c, i) => sum + (c / 255) * [0.2126, 0.7152, 0.0722][i], 0);
+  return luminance > 0.48 ? '#07100d' : '#f5f7ff';
+}
+function resolveJadeTheme(name) {
+  const preset = JADE_THEMES[name] || JADE_THEMES.jade;
+  if (name === 'spectrum') {
+    const accent = /^#[\da-f]{6}$/i.test(String(S.jadeSpectrum)) ? S.jadeSpectrum : JADE_THEMES.spectrum.accent;
+    const rgb = jadeHexRgb(accent), highlight = jadeMixHex(accent, '#ffffff', 0.48), highlightRgb = jadeHexRgb(highlight);
+    return { ...preset, accent, rgb, highlight, highlightRgb, line: jadeMixHex(accent, '#000000', 0.58), ink: jadeContrastInk(rgb), avatarStartRgb: rgb, avatarEndRgb: rgb, isGradient: false, direction: 'vertical', cssGradient: `linear-gradient(90deg, ${accent}, ${highlight})` };
+  }
+  if (name === 'custom-gradient') {
+    const start = /^#[\da-f]{6}$/i.test(String(S.jadeGradientStart)) ? S.jadeGradientStart : JADE_THEMES['custom-gradient'].accent;
+    const end = /^#[\da-f]{6}$/i.test(String(S.jadeGradientEnd)) ? S.jadeGradientEnd : JADE_THEMES['custom-gradient'].highlight;
+    const direction = ['vertical', 'horizontal', 'diagonal'].includes(S.jadeGradientDirection) ? S.jadeGradientDirection : 'vertical';
+    const rgb = jadeHexRgb(start), highlightRgb = jadeHexRgb(end), midpoint = rgb.map((c, i) => (c + highlightRgb[i]) / 2);
+    const angle = direction === 'vertical' ? '180deg' : direction === 'horizontal' ? '90deg' : '135deg';
+    return { ...preset, accent: start, rgb, highlight: end, highlightRgb, line: jadeMixHex(start, '#000000', 0.58), ink: jadeContrastInk(midpoint), avatarStartRgb: rgb, avatarEndRgb: highlightRgb, isGradient: true, direction, cssGradient: `linear-gradient(${angle}, ${start}, ${end})` };
+  }
+  return { ...preset, avatarStartRgb: preset.rgb, avatarEndRgb: preset.rgb, isGradient: false, direction: 'vertical', cssGradient: `linear-gradient(90deg, ${preset.accent}, ${preset.highlight})` };
+}'''
+rep('const Jade = (() => {', JADE_THEMES_JS + '\n' + JADE_THEME_UTILS_JS + '\nconst Jade = (() => {')
 rep("    cur: {}, frame: 'portrait', onStatus: () => {}, onSpeak: () => {},", "    cur: {}, frame: 'portrait', theme: 'jade', tintFilter: null, onStatus: () => {}, onSpeak: () => {},")
 rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];", """  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];
   // Recolor Jade's emerald accent pixels; skin tones and dark fabric stay unchanged.
@@ -59,6 +92,9 @@ rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF,
     varying vec2 vTextureCoord;
     uniform sampler2D uSampler;
     uniform vec3 uColor;
+    uniform vec3 uColor2;
+    uniform float uGradient;
+    uniform float uDirection;
     void main(void) {
       vec4 source = texture2D(uSampler, vTextureCoord);
       vec3 rgb = source.rgb;
@@ -68,22 +104,35 @@ rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF,
       float saturation = smoothstep(0.04, 0.25, high - low);
       float mask = green * saturation;
       float luminance = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
-      float gemLuminance = max(dot(uColor, vec3(0.2126, 0.7152, 0.0722)), 0.08);
-      vec3 gem = uColor * clamp(luminance / gemLuminance, 0.08, 1.35);
+      float gradientT = vTextureCoord.y;
+      if (uDirection > 0.5) gradientT = vTextureCoord.x;
+      if (uDirection > 1.5) gradientT = clamp((vTextureCoord.x + 1.0 - vTextureCoord.y) * 0.5, 0.0, 1.0);
+      vec3 targetColor = mix(uColor, uColor2, gradientT * uGradient);
+      float gemLuminance = max(dot(targetColor, vec3(0.2126, 0.7152, 0.0722)), 0.08);
+      vec3 gem = targetColor * clamp(luminance / gemLuminance, 0.08, 1.35);
       gl_FragColor = vec4(mix(rgb, gem, mask), source.a);
     }
   `;""")
 rep("    app.stage.addChild(model);\n    const core = model.internalModel.coreModel;", """    app.stage.addChild(model);
     try {
-      state.tintFilter = new PIXI.Filter(undefined, GEM_TINT_FRAGMENT, { uColor: JADE_THEMES.jade.rgb.map(c => c / 255) });
+      state.tintFilter = new PIXI.Filter(undefined, GEM_TINT_FRAGMENT, { uColor: JADE_THEMES.jade.rgb.map(c => c / 255), uColor2: JADE_THEMES.jade.rgb.map(c => c / 255), uGradient: 0, uDirection: 0 });
       state.tintFilter.padding = 2; model.filters = [state.tintFilter];
     } catch (e) { state.tintFilter = null; console.warn('Jade gem-color filter unavailable', e); }
     setTheme(S.jadeTheme);
     const core = model.internalModel.coreModel;""")
 rep("  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }", """  function setTheme(name) {
     state.theme = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
-    const tint = state.tintFilter?.uniforms?.uColor, color = JADE_THEMES[state.theme].rgb.map(c => c / 255);
-    if (tint?.set) tint.set(color); else if (tint) state.tintFilter.uniforms.uColor = color;
+    const config = resolveJadeTheme(state.theme), uniforms = state.tintFilter?.uniforms;
+    if (!uniforms) return;
+    const set = (key, value) => {
+      const current = uniforms[key];
+      if (current?.set && Array.isArray(value)) current.set(value);
+      else uniforms[key] = Array.isArray(value) ? new Float32Array(value) : value;
+    };
+    set('uColor', config.avatarStartRgb.map(c => c / 255));
+    set('uColor2', config.avatarEndRgb.map(c => c / 255));
+    set('uGradient', config.isGradient ? 1 : 0);
+    set('uDirection', config.direction === 'horizontal' ? 1 : config.direction === 'diagonal' ? 2 : 0);
   }
   function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }""")
 rep("const api = { init, setMood, nod, setFrame, speak, stop,", "const api = { init, setMood, nod, setFrame, setTheme, speak, stop,")
@@ -91,23 +140,39 @@ rep("$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'po
 
 JADE_THEME_UI_JS = r'''function renderJadeThemePicker() {
   const host = $('#jadeThemePicker'); if (!host) return;
-  host.innerHTML = Object.entries(JADE_THEMES).map(([id, theme]) =>
-    `<button type="button" class="gem-theme" data-jade-theme="${esc(id)}" aria-pressed="${String(id === S.jadeTheme)}" title="Use the ${esc(theme.name)} theme"><span class="gem-theme-swatch" style="--swatch:${theme.accent}" aria-hidden="true"></span><span>${esc(theme.name)}</span></button>`).join('');
+  host.innerHTML = Object.entries(JADE_THEMES).map(([id, theme]) => {
+    const kind = id === 'spectrum' ? ' spectrum' : id === 'custom-gradient' ? ' custom-gradient' : '';
+    return `<button type="button" class="gem-theme" data-jade-theme="${esc(id)}" aria-pressed="${String(id === S.jadeTheme)}" title="Use the ${esc(theme.name)} theme"><span class="gem-theme-swatch${kind}" style="--swatch:${theme.accent}" aria-hidden="true"></span><span>${esc(theme.name)}</span></button>`;
+  }).join('');
   host.querySelectorAll('[data-jade-theme]').forEach(button => {
     button.onclick = () => applyJadeTheme(button.dataset.jadeTheme, true);
   });
+  const bindColor = (selector, key, mode) => {
+    const input = $(selector); if (!input) return;
+    input.value = S[key];
+    input.oninput = () => { S[key] = input.value; if (S.jadeTheme === mode) applyJadeTheme(mode); };
+    input.onchange = () => { S[key] = input.value; if (S.jadeTheme === mode) applyJadeTheme(mode, true); else saveSettings(); };
+  };
+  bindColor('#jadeSpectrumColor', 'jadeSpectrum', 'spectrum');
+  bindColor('#jadeGradientStart', 'jadeGradientStart', 'custom-gradient');
+  bindColor('#jadeGradientEnd', 'jadeGradientEnd', 'custom-gradient');
+  const direction = $('#jadeGradientDirection');
+  if (direction) { direction.value = S.jadeGradientDirection || 'vertical'; direction.onchange = () => { S.jadeGradientDirection = direction.value; applyJadeTheme('custom-gradient', true); }; }
 }
 function applyJadeTheme(name, persist = false) {
   const id = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
-  const theme = JADE_THEMES[id]; S.jadeTheme = id;
-  const root = document.documentElement;
+  S.jadeTheme = id;
+  const theme = resolveJadeTheme(id), root = document.documentElement;
   root.style.setProperty('--yl', theme.accent);
   root.style.setProperty('--cy', theme.highlight);
   root.style.setProperty('--line-hot', theme.line);
   root.style.setProperty('--theme-rgb', theme.rgb.join(','));
   root.style.setProperty('--theme-highlight-rgb', theme.highlightRgb.join(','));
   root.style.setProperty('--theme-ink', theme.ink);
+  root.style.setProperty('--theme-gradient', theme.cssGradient);
   document.body.dataset.jadeTheme = id;
+  $('#jadeSpectrumControls').hidden = id !== 'spectrum';
+  $('#jadeGradientControls').hidden = id !== 'custom-gradient';
   const label = $('#btnTheme'); if (label) label.textContent = theme.name;
   $('#jadeThemePicker')?.querySelectorAll('[data-jade-theme]').forEach(button => {
     button.setAttribute('aria-pressed', String(button.dataset.jadeTheme === id));
@@ -115,13 +180,16 @@ function applyJadeTheme(name, persist = false) {
   Jade.setTheme(id);
   if (persist) saveSettings();
 }
-applyJadeTheme(S.jadeTheme);
-renderJadeThemePicker();'''
+renderJadeThemePicker();
+applyJadeTheme(S.jadeTheme);'''
 rep("})();\n\n/* =====================================================================\n   CRON —", "})();\n\n" + JADE_THEME_UI_JS + "\n\n/* =====================================================================\n   CRON —")
 
 # ---------- markup ----------
 rep('<div class="jade-label"><span class="dot busy" id="jadeDot"></span><span class="jade-mood" id="jadeMood">booting</span></div>', '<div class="jade-label"><span class="dot busy" id="jadeDot"></span><button type="button" class="jade-theme-label" id="btnTheme" aria-label="Choose Jade\'s gemstone theme" title="Choose Jade\'s gemstone colors">Jade</button><span class="jade-mood" id="jadeMood">booting</span></div>')
 rep('<div class="pane-h">Jade companion</div>\n        <div class="grid gap-3"', '<div class="pane-h">Jade companion</div>\n        <div><div class="lbl">Jade\'s gemstone theme</div><p class="hint leading-relaxed mt-1">Choose a color for Jade\'s outfit accents and the app highlights.</p><div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade\'s gemstone theme"></div></div>\n        <div class="grid gap-3"')
+rep("""<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div></div>""", """<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div>
+          <div class="theme-custom-controls mt-2" id="jadeSpectrumControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeSpectrumColor"><span class="lbl">Spectrum color</span><input type="color" id="jadeSpectrumColor" class="theme-color-input" value="#bd72f3" aria-describedby="jadeSpectrumHint"></label></div><p class="hint mt-2" id="jadeSpectrumHint">Choose any hue with the full spectrum color picker.</p></div>
+          <div class="theme-custom-controls mt-2" id="jadeGradientControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeGradientStart"><span class="lbl">Gradient start</span><input type="color" id="jadeGradientStart" class="theme-color-input" value="#f34b68"></label><label class="theme-color-field" for="jadeGradientEnd"><span class="lbl">Gradient end</span><input type="color" id="jadeGradientEnd" class="theme-color-input" value="#62a4ff"></label><div><label class="lbl" for="jadeGradientDirection">Direction</label><select id="jadeGradientDirection" class="field mt-1"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></div></div><p class="hint mt-2">Blend Jade's accents between your two colors.</p></div></div>""")
 NOTES_MARKUP = r'''<!-- NOTES (vault) -->
     <section class="m-screen" data-panel="files" hidden>
       <div class="m-sub">
@@ -255,7 +323,7 @@ body.kb .note-body[data-mode="split"] .note-prev{display:none}
 .md a.tag-chip{padding:0 6px;font-size:.85em;vertical-align:1px}
 #graphCv{background:radial-gradient(circle at 50% 45%,rgba(31,229,165,.06),transparent 70%)}
 /* ---------- gemstone themes ---------- */
-:root{--theme-rgb:31,229,165;--theme-highlight-rgb:255,184,198;--theme-ink:#00140c}
+:root{--theme-rgb:31,229,165;--theme-highlight-rgb:255,184,198;--theme-ink:#00140c;--theme-gradient:linear-gradient(90deg,#1fe5a5,#ffb8c6)}
 body::before{background:
   linear-gradient(transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/100% 32px,
   linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/32px 100%,
@@ -283,6 +351,16 @@ body::before{background:
 .gem-theme[aria-pressed="true"]{border-color:var(--yl);color:var(--fg);background:rgba(var(--theme-rgb),.12);box-shadow:inset 0 0 0 1px rgba(var(--theme-rgb),.3)}
 .gem-theme:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
 .gem-theme-swatch{width:14px;height:14px;flex:none;border-radius:50%;background:var(--swatch);box-shadow:0 0 9px var(--swatch);border:1px solid rgba(255,255,255,.38)}
+.gem-theme-swatch.spectrum{background:conic-gradient(#f34b68,#ffd15c,#54d78b,#54c8e8,#607df1,#b46bed,#f34b68);box-shadow:0 0 9px rgba(189,114,243,.55)}
+.gem-theme-swatch.custom-gradient{background:linear-gradient(135deg,#f34b68,#62a4ff);box-shadow:0 0 9px rgba(154,116,239,.55)}
+body[data-jade-theme="custom-gradient"] .gem-theme-swatch.custom-gradient{background:var(--theme-gradient)}
+.theme-custom-controls{padding:9px 10px;border:1px solid var(--line);background:rgba(5,10,8,.45)}
+.theme-color-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;align-items:end}
+.theme-color-field{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px}
+.theme-color-input{width:48px;height:36px;flex:none;padding:3px;border:1px solid var(--line-hot);background:var(--panel);cursor:pointer}
+.theme-color-input:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+body[data-jade-theme="custom-gradient"] .btn-solid{background:var(--theme-gradient);border-color:transparent;color:var(--theme-ink)}
+body[data-jade-theme="custom-gradient"] .jade-theme-label{background:var(--theme-gradient);border-color:transparent;color:var(--theme-ink)}
 '''
 rep('@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }',
     '@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }' + CSS)

@@ -38,7 +38,7 @@ The configured primary provider is tried first, then the fallback providers in o
 
 ## Jade's gemstone themes
 
-Open Config → App → Jade companion, or click the gemstone label above the avatar. Jade has ten palettes: Jade, Ruby, Amethyst, Gold, Sapphire, Diamond, Rose Gold, Emerald, Obsidian, and Quartz. A palette recolors her green accents and coordinates the app's highlight colors; her skin tones and dark outfit details are left intact. The selected theme is saved with the app settings.
+Open Config → App → Jade companion, or click the gemstone label above the avatar. Choose from ten gemstone palettes—Jade, Ruby, Amethyst, Gold, Sapphire, Diamond, Rose Gold, Emerald, Obsidian, and Quartz—or use **Spectrum** to pick any accent color. **Custom Gradient** lets you choose two colors and a vertical, horizontal, or diagonal blend. Themes recolor Jade's green accents and coordinate the app highlights; her skin tones and dark outfit details are left intact. Custom colors and the selected theme are saved with app settings.
 
 ## Other model settings
 

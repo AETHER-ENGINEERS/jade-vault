@@ -4,7 +4,7 @@
 // migrate the single fallback from v1.3 to the ordered list
 if (!Array.isArray(S.fallbacks)) S.fallbacks = [];
 if (S.fallback && !S.fallbacks.length) { S.fallbacks = [S.fallback]; delete S.fallback; }
-S.fallbackOrder = [...new Set([...(Array.isArray(S.fallbackOrder) ? S.fallbackOrder : []), ...S.fallbacks, 'local', 'llamacpp', 'cloud', 'groq', 'openai'])].filter(p => PROVIDERS[p]);
+S.fallbackOrder = [...new Set([...(Array.isArray(S.fallbackOrder) ? S.fallbackOrder : []), ...S.fallbacks, 'local', 'llamacpp', 'cloud', 'groq', 'openai', 'aicord'])].filter(p => PROVIDERS[p]);
 
 /* ---------- fallback list editor (Config → Model provider) ---------- */
 const fbDraft = { order: [], on: new Set() };
@@ -22,7 +22,7 @@ $('#fbList').addEventListener('click', e => {
   const vis = fbDraft.order.filter(q => q !== prim); const i = vis.indexOf(p), j = i + +b.dataset.mv; if (j < 0 || j >= vis.length) return;
   [vis[i], vis[j]] = [vis[j], vis[i]]; fbDraft.order = [prim, ...vis].filter((q, k, a) => a.indexOf(q) === k); renderFbList();
 });
-for (const id of ['#sCloudKey', '#sGroqKey', '#sOaiHost', '#sLcppHost']) $(id).addEventListener('input', () => renderFbList());
+for (const id of ['#sCloudKey', '#sGroqKey', '#sOaiHost', '#sLcppHost', '#sAicKey']) $(id).addEventListener('input', () => renderFbList());
 
 /* ---------- compaction / journal model ---------- */
 async function fillAuxModels(scan) {

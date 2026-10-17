@@ -629,6 +629,21 @@ rep("  renderSkillsSettings(); renderBgSettings();\n  $('#sAuxProv').value = S.a
 rep("  $('#settings').hidden = false; $('#sHost').focus();", "  $('#settings').hidden = false; $('#sHost').focus();\n  renderHbSettings(); $('#sAuxProv').value = S.auxProv || ''; $('#sAuxModel').dataset.want = S.auxModel || ''; fillAuxModels(false);")
 rep("  readProvFields();\n  Object.assign(S, { auxProv:", "  readProvFields(); readHbSettings();\n  Object.assign(S, { auxProv:")
 s = s.replace('<option value="local">Ollama on my computer</option><option value="cloud">Ollama Cloud</option><option value="groq">Groq</option><option value="openai">OpenAI-compatible</option></select></div>\n          <div id="sAuxModelWrap"', '<option value="local">Ollama on my computer</option><option value="llamacpp">llama.cpp server</option><option value="cloud">Ollama Cloud</option><option value="groq">Groq</option><option value="openai">OpenAI-compatible</option></select></div>\n          <div id="sAuxModelWrap"')
+
+# ================= AICord: character chat provider (docs.aicordapp.com/api/aicord-chat-api) =================
+rep("lcppKey: '', hbOn: false,", "lcppKey: '', aicKey: '', hbOn: false,")
+rep("fallbackOrder: ['local', 'llamacpp', 'cloud', 'groq', 'openai'],", "fallbackOrder: ['local', 'llamacpp', 'cloud', 'groq', 'openai', 'aicord'],")
+for _o in ('<option value="openai">OpenAI-compatible endpoint</option>', '<option value="openai">OpenAI-compatible</option>'):
+    assert s.count(_o) >= 1, _o
+    s = s.replace(_o, _o + '<option value="aicord">AICord (character chat)</option>')
+rep("""          <div data-prov="openai"><label class="lbl" for="sOaiKey">API key</label><input id="sOaiKey" type="password" class="field mt-1" autocomplete="off"></div>""",
+    """          <div data-prov="openai"><label class="lbl" for="sOaiKey">API key</label><input id="sOaiKey" type="password" class="field mt-1" autocomplete="off"></div>
+          <div data-prov="aicord"><label class="lbl" for="sAicKey">AICord API key</label><input id="sAicKey" type="password" class="field mt-1" autocomplete="off" placeholder="your AICord authorization token" autocapitalize="off" autocorrect="off" spellcheck="false"></div>""")
+rep("  openai: 'Any server that speaks", "  aicord: 'Chat with your AICord characters (pick one under Model). AICord answers as the character: there is no tool calling, so Jade cannot read or edit the vault through it. Best as a chat model or a fallback. Replies arrive whole, not streamed. Uses your AICord credits. The key stays on this device.',\n  openai: 'Any server that speaks")
+rep("S.lcppKey = $('#sLcppKey').value.trim();", "S.lcppKey = $('#sLcppKey').value.trim(); S.aicKey = $('#sAicKey').value.trim();")
+rep("$('#sLcppKey').value = S.lcppKey || '';", "$('#sLcppKey').value = S.lcppKey || ''; $('#sAicKey').value = S.aicKey || '';")
+rep("lcppKey: $('#sLcppKey')?.value.trim() || '',", "lcppKey: $('#sLcppKey')?.value.trim() || '', aicKey: $('#sAicKey')?.value.trim() || '',")
+
 rep("const saveSettings = () => { if (window.__restoring) return;", "const saveSettings = () => { if (window.__restoring || window.__modelOverride) return;")
 rep("  if (!S.journalOn || !sess || !S.model) return;", "  if (!S.journalOn || !sess || !S.model || sess._hb) return;")
 rep("- Daily notes live at /daily/YYYY-MM-DD.md.", "- Your heartbeat checklist is /Jade/HEARTBEAT.md: when the user wants you to keep an eye on something regularly, add a short line under its Check heading (use schedule instead for exact times).\\n- Files the user attaches in chat are saved under /attachments/YYYY-MM-DD/; PDFs get a .pdf.md text note next to them.\\n- Daily notes live at /daily/YYYY-MM-DD.md.")
@@ -1038,6 +1053,7 @@ rep("    case 'apps': return await appsTool(args);", "    case 'apps': return aw
 rep("const systemPrompt = () => { const vi = vaultIndex();", "const systemPrompt = () => { if (vecScope()) return vecScopedPrompt(); const vi = vaultIndex();")
 rep("- web_search / web_fetch: look things up on the web\\n", "- web_search / web_fetch: look things up on the web\\n${S.vecOn ? `- vector: you are also a bot on Vector messenger${VEC.npub ? ' (' + VEC.npub + ')' : ''}: message people or channels, reply, react, send files from the vault, download what people send, read chats, join or leave communities, invite, moderate, play Mini Apps. Use it whenever the user asks you to message, send or share something on Vector.\\n- notify_owner: file a message in the user's Vector inbox (or tell them at once, by their setting)\\n` : ''}")
 rep("const SECRET_KEYS = ['ollamaKey', 'groqKey', 'oaiKey', 'lcppKey', 'ollayaKey', 'mcpSecrets', 'secrets'];", "const SECRET_KEYS = ['ollamaKey', 'groqKey', 'oaiKey', 'lcppKey', 'ollayaKey', 'mcpSecrets', 'secrets', 'vecToken'];")
+rep("'secrets', 'vecToken'];", "'secrets', 'vecToken', 'aicKey'];")
 rep("  const want = S.bgMode === 'always' || (S.bgMode !== 'off' && running);\n  const t = text || (running ? 'Jade is working…' :", "  const vecOnline = typeof VEC !== 'undefined' && S.vecOn && VEC.connected;\n  const want = S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));\n  const t = text || (running ? 'Jade is working…' : vecOnline ? 'Jade is online on Vector' :")
 rep("  if (!document.hidden || !S.bgNotify || !cur) return;", "  if (!document.hidden || !S.bgNotify || !cur || cur.vec) return;")
 rep("  if (running || compacting) { setTimeout(xdcPump, 1500); return; }", "  if (running || compacting || (typeof VEC !== 'undefined' && VEC.busy)) { setTimeout(xdcPump, 1500); return; }")

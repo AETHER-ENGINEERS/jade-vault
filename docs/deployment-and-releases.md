@@ -4,7 +4,7 @@
 
 ## Browser deployment
 
-Use the **2.8.0 source checkout** in the [version baseline](README-docs.md#version-baseline). Build with `npm install` followed by `npm run build`. There are two relevant generated pages:
+From the root of the Jade Vault 2.8.0 source directory, build with `npm install` followed by `npm run build`. There are two relevant generated pages:
 
 - `dist/jade-vault.html`: browser/release page; some dependencies are externally loaded.
 - `android/proj/assets/index.html`: core rendering dependencies inlined, also suitable as a static-hosted page.
@@ -15,14 +15,14 @@ Serve the chosen page from a static host. No Jade application backend is require
 
 The checked-in `docs/index.html` is the browser app; `docs/.nojekyll` is already present. The prose documentation index is [README-docs.md](README-docs.md), intentionally separate from the hosted app and the existing short README.
 
-For a maintainer intentionally updating the hosted app in a future release, the existing workflow is:
+To update the hosted browser app:
 
 ```sh
 npm run build
 cp android/proj/assets/index.html docs/index.html
 ```
 
-That command **replaces the hosted app**; it is not needed for prose documentation changes and was not performed as part of adding these guides. GitHub Pages repository settings must point at the intended source; no dedicated Pages workflow is defined here. Plain Markdown files are primarily browsable through the repository unless your host adds Markdown rendering.
+The copy command **replaces the hosted app**. Run it when deploying a new app build, not when updating Markdown documentation. GitHub Pages repository settings must point at the intended source; no dedicated Pages workflow is defined here. Plain Markdown files are primarily browsable through the repository unless your host adds Markdown rendering.
 
 Keep the hosted origin stable to preserve users' browser storage access. Changing the host/path deployment does not migrate data between origins; provide backup/export instructions before a move.
 

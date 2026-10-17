@@ -6,7 +6,7 @@ These instructions create Jade Vault's Android app from this repository. The cur
 
 ## 1. Prepare the build environment
 
-Use Linux or WSL for the closest match to CI. macOS may need GNU-compatible utilities or a Linux environment because the script uses tools such as `sha256sum` and GNU-style `sed`. Use a **2.8.0 source checkout**, not just these documentation files; verify `VERSION` is `2.8.0` and `android/VERSION_CODE` is `22`. Run all following commands from that repository root unless stated otherwise.
+Use Linux or WSL for the closest match to CI. macOS may need GNU-compatible utilities or a Linux environment because the script uses tools such as `sha256sum` and GNU-style `sed`. Use the Jade Vault **2.8.0 source**, with `VERSION` set to `2.8.0` and `android/VERSION_CODE` set to `22`. Run all following commands from that repository root unless stated otherwise.
 
 Required:
 
@@ -70,7 +70,7 @@ bash android/build-apk.sh
 | `android/build/` | Temporary classes, dex, APK assembly/signing output |
 | `dist/jade-vault-<version>.apk` | Final signed APK |
 
-The APK filename/version comes from `VERSION` (**2.8.0** for this baseline). The Android version code comes from `android/VERSION_CODE` (**22**). The expected final artifact is `dist/jade-vault-2.8.0.apk`. The script patches the copied manifest/apktool metadata during assembly; it does not require manually patching those templates for each local build.
+The APK filename/version comes from `VERSION` (**2.8.0**). The Android version code comes from `android/VERSION_CODE` (**22**). The expected final artifact is `dist/jade-vault-2.8.0.apk`. The script patches the copied manifest/apktool metadata during assembly; it does not require manually patching those templates for each local build.
 
 Without release-signing variables, the script creates/reuses `android/.tools/debug.jks` and signs with a local **debug key**. That file's continued existence matters: a new debug key cannot update an app installed with an older one. Debug APKs are for development, not production distribution.
 

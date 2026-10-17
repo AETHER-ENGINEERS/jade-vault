@@ -1,8 +1,8 @@
 # Discord bridge and connector
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md) · [Verification record](repository-comparison.md)
+**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
 
-> Use the **2.8.0 app/source** identified in the [version baseline](README-docs.md#version-baseline). This guide is part of the main 2.8.0 documentation, not an optional version supplement. An older APK/browser page will not gain Discord support merely by installing the separate bridge.
+Connect Jade to Discord to answer DMs and channel messages, react, share files, and take messages for you. Discord support requires Jade Vault **2.8.0** and a bridge running on a separate computer.
 
 ## Architecture and credentials
 
@@ -122,9 +122,9 @@ The `discord` tool provides send/reply, typing, reaction, edit/delete, read/prof
 - `notify_owner` in a Discord chat uses `/Jade/Discord Inbox.md`, not Vector's inbox.
 - Notification settings control inbox-only versus immediate owner notification/DM behavior; urgent requests are handled according to that policy.
 - Attachments saved to the vault use `/attachments/discord/<date>/...` by default. Image interpretation depends on a vision-capable model and image settings.
-- Current app code limits outgoing vault file sends to **8 MiB**. This is an implementation limit, not a claim that Discord's platform limit can never change.
+- Jade Vault 2.8.0 limits outgoing vault file sends to **8 MiB**.
 
-**Known limitation:** the bridge advertises member listing, but `intents.members` is not enabled by the compared source and has no CLI setting. Portal configuration alone may not make that action work; a bridge implementation change may be required. Do not grant broad permissions merely to work around this.
+**Member-listing limitation:** the 2.8.0 bridge does not enable Server Members Intent and has no setting to turn it on. Enabling the intent in the Developer Portal alone is insufficient for member listing. Use individual user profiles instead; granting broader Discord permissions does not resolve this limitation.
 
 ## 5. Running alongside Vector
 
@@ -157,11 +157,11 @@ This bridge uses HTTP MCP at `/mcp` (POST for requests), **not** Android's GET-o
 - Plain HTTP exposes bearer tokens/messages in transit. Use a trusted LAN/private VPN or configured TLS; do not port-forward to the internet.
 - Outgoing messages use empty allowed mentions, preventing @everyone/@here/role notification pings. This does not prevent prompt injection or all undesirable speech.
 - Discord messages, images, and tool outputs may be sent to the selected model/fallback provider. Review its data policy.
-- With Include keys off, 2.8.0 includes `dcToken` to the app's known-secret backup exclusion list. The bot token is stored separately on the bridge host, not in the normal app settings.
+- With **Include keys** off, app backups omit the Discord bridge token (`dcToken`) from exported settings. The bot token is stored separately on the bridge host, not in the normal app settings.
 - Full app backups cover ordinary Discord session/inbox/vault attachment data through the main store. Back up the bridge state separately and securely; app exports are not bridge recovery archives.
 - The [backup caveats](backup-and-storage.md) still apply, including plaintext exports and the inbound Android API token exclusion gap.
 
-## Troubleshooting and testing
+## Troubleshooting
 
 | Symptom | Check |
 | --- | --- |
@@ -175,10 +175,10 @@ This bridge uses HTTP MCP at `/mcp` (POST for requests), **not** Android's GET-o
 | Member listing fails | Bridge's member-intent implementation limitation described above |
 | Files rejected | Current app 8 MiB send limit and Discord permissions |
 
-For source tests, install the requirements in a Python environment available to the test runner, build web assets, and run `node tests/run.mjs discord_test`. The suite uses the real discord.py bridge against a fake Discord REST/Gateway service plus Vector and a scripted model; it does not require a production bot token. It exercises roles, triggers, chunking, reconnection/resume, intent fallback, token exclusion, and shared queue behavior. See the [verification record](repository-comparison.md#verification-performed) for checks performed; the live Discord/Vector integration suites were not run during this documentation review.
+For general connection and model problems, see [Troubleshooting](troubleshooting.md). For automated bridge tests, see [Development → Tests](development.md#tests).
 
-## Pinned source references
+## Related guides
 
-- [Bridge README](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/README.md), [bridge source](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/jade_discord_bridge.py), [setup script](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/setup.sh).
-- [Dockerfile](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/Dockerfile), [Compose file](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/docker-compose.yml), [Python requirements](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/jade-discord/requirements.txt).
-- [App connector and permission checks](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/app/modules/discord.js), [build/settings integration](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/app/build.py), [Discord test suite](https://github.com/AETHER-ENGINEERS/jade-vault/blob/cdf68ef883a3ebef81c4df6e1e9a51ad8248f629/tests/discord_test.mjs).
+- [Vector messenger](vector.md) for the other supported messenger connector.
+- [Backups and storage](backup-and-storage.md) for preserving chat and bridge data.
+- [Security and privacy](security-and-privacy.md) for credential and data-sharing precautions.

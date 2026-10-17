@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.7.3
 - **AICord provider** (Config → Model provider, also in the fallback list and the compaction / heartbeat model menus). Your
   AICord characters appear as the model list; chat goes to `POST /chat` with the character UUID and the history. Replies
   arrive whole (the API does not stream) and AICord has no tool calling, so Jade cannot use the vault through it: best as a

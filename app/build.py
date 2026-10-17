@@ -37,7 +37,91 @@ rep("<span>π Netrunner</span>", "<span>◆ Jade</span>")
 rep("out.push('## Netrunner', '', m.content, '')", "out.push('## Jade', '', m.content, '')")
 rep('placeholder="Read TODO.md and summarise what is left, then suggest the next step."', 'placeholder="Read Inbox.md and file each item into its own linked note."')
 
+# ---------- Jade's gemstone color themes ----------
+rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade',")
+JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
+  jade:      { name: 'Jade',      accent: '#1fe5a5', rgb: [31, 229, 165],  highlight: '#ffb8c6', highlightRgb: [255, 184, 198], line: '#1d6b52', ink: '#00140c' },
+  ruby:      { name: 'Ruby',      accent: '#f34b68', rgb: [243, 75, 104], highlight: '#ffb7c2', highlightRgb: [255, 183, 194], line: '#792a3d', ink: '#25050b' },
+  amethyst:  { name: 'Amethyst',  accent: '#b58af4', rgb: [181, 138, 244], highlight: '#e5c9ff', highlightRgb: [229, 201, 255], line: '#5e477d', ink: '#160b25' },
+  gold:      { name: 'Gold',      accent: '#f4c95d', rgb: [244, 201, 93], highlight: '#ffe3a3', highlightRgb: [255, 227, 163], line: '#79602c', ink: '#211800' },
+  sapphire:  { name: 'Sapphire',  accent: '#62a4ff', rgb: [98, 164, 255], highlight: '#b9d6ff', highlightRgb: [185, 214, 255], line: '#365a89', ink: '#061426' },
+  diamond:   { name: 'Diamond',   accent: '#9cecf4', rgb: [156, 236, 244], highlight: '#d9fbff', highlightRgb: [217, 251, 255], line: '#3f747d', ink: '#061619' },
+  'rose-gold': { name: 'Rose Gold', accent: '#e7a0a5', rgb: [231, 160, 165], highlight: '#ffd0c7', highlightRgb: [255, 208, 199], line: '#785052', ink: '#261011' },
+  emerald:   { name: 'Emerald',   accent: '#24d18b', rgb: [36, 209, 139], highlight: '#a6f1d1', highlightRgb: [166, 241, 209], line: '#176d4b', ink: '#001a10' },
+  obsidian:  { name: 'Obsidian',  accent: '#aebbd0', rgb: [174, 187, 208], highlight: '#d6dfec', highlightRgb: [214, 223, 236], line: '#515e72', ink: '#111722' },
+  quartz:    { name: 'Quartz',    accent: '#e3b5ed', rgb: [227, 181, 237], highlight: '#f5dcfb', highlightRgb: [245, 220, 251], line: '#705478', ink: '#211224' },
+});'''
+rep('const Jade = (() => {', JADE_THEMES_JS + '\nconst Jade = (() => {')
+rep("    cur: {}, frame: 'portrait', onStatus: () => {}, onSpeak: () => {},", "    cur: {}, frame: 'portrait', theme: 'jade', tintFilter: null, onStatus: () => {}, onSpeak: () => {},")
+rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];", """  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];
+  // Recolor Jade's emerald accent pixels; skin tones and dark fabric stay unchanged.
+  const GEM_TINT_FRAGMENT = `
+    varying vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    uniform vec3 uColor;
+    void main(void) {
+      vec4 source = texture2D(uSampler, vTextureCoord);
+      vec3 rgb = source.rgb;
+      float high = max(rgb.r, max(rgb.g, rgb.b));
+      float low = min(rgb.r, min(rgb.g, rgb.b));
+      float green = smoothstep(0.02, 0.18, rgb.g - max(rgb.r, rgb.b));
+      float saturation = smoothstep(0.04, 0.25, high - low);
+      float mask = green * saturation;
+      float luminance = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+      float gemLuminance = max(dot(uColor, vec3(0.2126, 0.7152, 0.0722)), 0.08);
+      vec3 gem = uColor * clamp(luminance / gemLuminance, 0.08, 1.35);
+      gl_FragColor = vec4(mix(rgb, gem, mask), source.a);
+    }
+  `;""")
+rep("    app.stage.addChild(model);\n    const core = model.internalModel.coreModel;", """    app.stage.addChild(model);
+    try {
+      state.tintFilter = new PIXI.Filter(undefined, GEM_TINT_FRAGMENT, { uColor: JADE_THEMES.jade.rgb.map(c => c / 255) });
+      state.tintFilter.padding = 2; model.filters = [state.tintFilter];
+    } catch (e) { state.tintFilter = null; console.warn('Jade gem-color filter unavailable', e); }
+    setTheme(S.jadeTheme);
+    const core = model.internalModel.coreModel;""")
+rep("  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }", """  function setTheme(name) {
+    state.theme = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
+    const tint = state.tintFilter?.uniforms?.uColor, color = JADE_THEMES[state.theme].rgb.map(c => c / 255);
+    if (tint?.set) tint.set(color); else if (tint) state.tintFilter.uniforms.uColor = color;
+  }
+  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }""")
+rep("const api = { init, setMood, nod, setFrame, speak, stop,", "const api = { init, setMood, nod, setFrame, setTheme, speak, stop,")
+rep("$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnHideJade').onclick", "$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnTheme').onclick = () => { openSettings(); setTimeout(() => showSettingsSection('#jadeThemePicker'), 60); };\n$('#btnHideJade').onclick")
+
+JADE_THEME_UI_JS = r'''function renderJadeThemePicker() {
+  const host = $('#jadeThemePicker'); if (!host) return;
+  host.innerHTML = Object.entries(JADE_THEMES).map(([id, theme]) =>
+    `<button type="button" class="gem-theme" data-jade-theme="${esc(id)}" aria-pressed="${String(id === S.jadeTheme)}" title="Use the ${esc(theme.name)} theme"><span class="gem-theme-swatch" style="--swatch:${theme.accent}" aria-hidden="true"></span><span>${esc(theme.name)}</span></button>`).join('');
+  host.querySelectorAll('[data-jade-theme]').forEach(button => {
+    button.onclick = () => applyJadeTheme(button.dataset.jadeTheme, true);
+  });
+}
+function applyJadeTheme(name, persist = false) {
+  const id = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
+  const theme = JADE_THEMES[id]; S.jadeTheme = id;
+  const root = document.documentElement;
+  root.style.setProperty('--yl', theme.accent);
+  root.style.setProperty('--cy', theme.highlight);
+  root.style.setProperty('--line-hot', theme.line);
+  root.style.setProperty('--theme-rgb', theme.rgb.join(','));
+  root.style.setProperty('--theme-highlight-rgb', theme.highlightRgb.join(','));
+  root.style.setProperty('--theme-ink', theme.ink);
+  document.body.dataset.jadeTheme = id;
+  const label = $('#btnTheme'); if (label) label.textContent = theme.name;
+  $('#jadeThemePicker')?.querySelectorAll('[data-jade-theme]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.jadeTheme === id));
+  });
+  Jade.setTheme(id);
+  if (persist) saveSettings();
+}
+applyJadeTheme(S.jadeTheme);
+renderJadeThemePicker();'''
+rep("})();\n\n/* =====================================================================\n   CRON —", "})();\n\n" + JADE_THEME_UI_JS + "\n\n/* =====================================================================\n   CRON —")
+
 # ---------- markup ----------
+rep('<div class="jade-label"><span class="dot busy" id="jadeDot"></span><span class="jade-mood" id="jadeMood">booting</span></div>', '<div class="jade-label"><span class="dot busy" id="jadeDot"></span><button type="button" class="jade-theme-label" id="btnTheme" aria-label="Choose Jade\'s gemstone theme" title="Choose Jade\'s gemstone colors">Jade</button><span class="jade-mood" id="jadeMood">booting</span></div>')
+rep('<div class="pane-h">Jade companion</div>\n        <div class="grid gap-3"', '<div class="pane-h">Jade companion</div>\n        <div><div class="lbl">Jade\'s gemstone theme</div><p class="hint leading-relaxed mt-1">Choose a color for Jade\'s outfit accents and the app highlights.</p><div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade\'s gemstone theme"></div></div>\n        <div class="grid gap-3"')
 NOTES_MARKUP = r'''<!-- NOTES (vault) -->
     <section class="m-screen" data-panel="files" hidden>
       <div class="m-sub">
@@ -170,6 +254,35 @@ body.kb .note-body[data-mode="split"] .note-prev{display:none}
 .md a.wiki-link.missing{color:var(--cy);border-bottom-color:rgba(255,61,79,.7);opacity:.85}
 .md a.tag-chip{padding:0 6px;font-size:.85em;vertical-align:1px}
 #graphCv{background:radial-gradient(circle at 50% 45%,rgba(31,229,165,.06),transparent 70%)}
+/* ---------- gemstone themes ---------- */
+:root{--theme-rgb:31,229,165;--theme-highlight-rgb:255,184,198;--theme-ink:#00140c}
+body::before{background:
+  linear-gradient(transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/100% 32px,
+  linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/32px 100%,
+  radial-gradient(1200px 600px at 85% -10%,rgba(var(--theme-rgb),.10),transparent 60%),
+  radial-gradient(900px 500px at -10% 110%,rgba(var(--theme-highlight-rgb),.06),transparent 60%)}
+.jade-stage{background:radial-gradient(ellipse 70% 62% at 50% 30%,rgba(var(--theme-rgb),.20),transparent 70%),linear-gradient(180deg,#07150f 0%,#030806 100%)}
+.jade-stage::before{background:linear-gradient(transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.16) 0) 0 0/100% 18px,linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.12) 0) 0 0/36px 100%}
+.jade-label{text-shadow:0 0 10px rgba(var(--theme-rgb),.5)}
+.jade-theme-label{display:inline-flex;align-items:center;justify-content:center;min-height:27px;pointer-events:auto;cursor:pointer;font-family:var(--f-disp);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.2;color:var(--cy);border:1px solid rgba(var(--theme-highlight-rgb),.35);padding:2px 7px;background:rgba(3,7,5,.52)}
+.jade-theme-label::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;margin-right:5px;background:var(--yl);box-shadow:0 0 7px var(--yl)}
+.jade-theme-label:hover{color:var(--yl);border-color:var(--yl);background:rgba(var(--theme-rgb),.08)}
+.jade-theme-label:focus-visible{outline:2px solid var(--yl);outline-offset:2px}
+@media(max-width:360px){.jade-mood{display:none}}
+.jade-bubble{border-color:rgba(var(--theme-rgb),.42)}
+.jade-bubble .who{color:var(--yl)}
+.text-yl{color:var(--yl)!important}.bg-yl{background-color:var(--yl)!important}.border-yl{border-color:var(--yl)!important}
+.text-cy{color:var(--cy)!important}.bg-cy{background-color:var(--cy)!important}.border-cy{border-color:var(--cy)!important}
+.accent-emerald-400,.accent-emerald-500{accent-color:var(--yl)!important}
+.btn-solid{color:var(--theme-ink)}
+.seg button[aria-pressed="true"]{color:var(--theme-ink)}
+.tag-chip.on{color:var(--theme-ink);background:var(--cy);border-color:var(--cy)}
+.gem-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
+.gem-theme{display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 9px;border:1px solid var(--line);background:rgba(5,10,8,.55);color:var(--dim);font-family:var(--f-disp);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:left;transition:background .15s,border-color .15s,color .15s}
+.gem-theme:hover{border-color:var(--yl);color:var(--fg);background:rgba(var(--theme-rgb),.07)}
+.gem-theme[aria-pressed="true"]{border-color:var(--yl);color:var(--fg);background:rgba(var(--theme-rgb),.12);box-shadow:inset 0 0 0 1px rgba(var(--theme-rgb),.3)}
+.gem-theme:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.gem-theme-swatch{width:14px;height:14px;flex:none;border-radius:50%;background:var(--swatch);box-shadow:0 0 9px var(--swatch);border:1px solid rgba(255,255,255,.38)}
 '''
 rep('@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }',
     '@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }' + CSS)

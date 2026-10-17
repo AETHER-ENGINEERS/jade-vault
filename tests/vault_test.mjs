@@ -55,6 +55,13 @@ await page.waitForFunction(() => /BUSYBOX|JS APPLETS/.test(document.querySelecto
 await page.waitForTimeout(1500);
 ok(await page.title() === 'Jade Vault', 'title');
 ok(/second brain/.test(await page.textContent('#chat')), 'empty state hero');
+// Jade's gem palette changes the companion accents and app colors, and persists like other settings.
+await page.tap('#btnTheme'); await page.waitForTimeout(250);
+ok(await page.locator('#jadeThemePicker .gem-theme').count() === 10, 'all ten gemstone themes are available');
+await page.tap('#jadeThemePicker [data-jade-theme="ruby"]');
+const ruby = await page.evaluate(() => ({ setting: S.jadeTheme, avatar: Jade.state.theme, accent: getComputedStyle(document.documentElement).getPropertyValue('--yl').trim(), label: document.querySelector('#btnTheme')?.textContent, selected: document.querySelector('#jadeThemePicker [data-jade-theme="ruby"]')?.getAttribute('aria-pressed'), saved: JSON.parse(localStorage.getItem('jvault:settings') || '{}').jadeTheme }));
+ok(ruby.setting === 'ruby' && ruby.avatar === 'ruby' && ruby.accent === '#f34b68' && ruby.label === 'Ruby' && ruby.selected === 'true' && ruby.saved === 'ruby', 'Ruby theme updates Jade, app accent, picker, and saved settings: ' + JSON.stringify(ruby));
+await page.tap('#btnCancel'); await page.waitForTimeout(150);
 ok(/\d+ notes, \d+ links/.test(await page.textContent('#chat')), 'vault boot row');
 await shot('1_chat'); await overflow('chat');
 
@@ -282,6 +289,7 @@ await shot('18_after_edit');
 // persistence across reload
 await page.reload(); await page.waitForFunction(() => typeof vfs !== 'undefined' && vfs.isFile('/Map of Content.md'), null, { timeout: 30000 }).catch(() => {});
 ok(await page.evaluate(() => vfs.isFile('/Map of Content.md') && /\[x\] Write/.test(vfs.read('/Todo List.md'))), 'vault persists across reload');
+ok(await page.evaluate(() => S.jadeTheme === 'ruby' && getComputedStyle(document.documentElement).getPropertyValue('--yl').trim() === '#f34b68' && document.querySelector('#btnTheme').textContent === 'Ruby'), 'gem theme persists after reload');
 ok(await page.evaluate(() => Object.keys(localStorage).every(k => !k.startsWith('pinet:'))), 'separate storage prefix');
 
 console.log(log.join('\n')); console.log('\n' + (fail.length ? fail.join('\n') : 'ALL PASS'));

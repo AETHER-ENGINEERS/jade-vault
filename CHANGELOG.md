@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+- **Discord archive** (`--archive`, off by default): the Discord bridge keeps every message the bot can see on the
+  computer it runs on, whether or not the app is open, as append-only JSON lines per channel and thread. People, bots,
+  webhooks and Jade herself, edits, deletions, replies, embeds, reactions, and attachments downloaded before Discord's
+  links expire. DMs only with `--archive-dms`. The reply queue is unchanged: it still drops what is older than
+  10 minutes and never carries bots.
+- **Backfill** (`--backfill`, or the `archive_backfill` tool): the whole history of every channel, active and archived
+  thread and forum post, oldest first, resuming where it stopped.
+- **Render** (`--render OUT_DIR --name … --description …`): the archive as an Obsidian-style vault under a name you
+  choose, a note per channel and month and per thread, replies linked to the message they answer, images embedded.
+- `archive_status` and `archive_search` tools; `./setup.sh --archive`; `JADE_DISCORD_ARCHIVE` for Docker.
+
 ## 2.8.0
 - **Discord bridge** (`jade-discord/`, built on discord.py) and a **Discord** section in Config. Jade lives on Discord as a bot:
   she answers DMs and channels, reacts, replies in threads, sends and receives files, sees images, reads channels, and takes

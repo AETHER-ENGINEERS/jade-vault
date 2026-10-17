@@ -5,6 +5,7 @@
 #   ./setup.sh                 install + ask for the bot token + start the service
 #   ./setup.sh --no-service    install only (run ./run.sh yourself)
 #   ./setup.sh --uninstall     stop and remove the service (keeps ~/.jade-discord)
+#   ./setup.sh --archive       also keep every message the bot sees in ~/.jade-discord/archive (see README.md)
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="${JADE_DISCORD_HOME:-$HOME/.jade-discord}"
@@ -24,6 +25,8 @@ uninstall() {
   say "Service removed. Your tokens are still in $HOME_DIR."
 }
 [ "${1:-}" = --uninstall ] && { uninstall; exit 0; }
+ARCHIVE=""; NO_SERVICE=""
+for a in "$@"; do case "$a" in --archive) ARCHIVE="--archive" ;; --no-service) NO_SERVICE=1 ;; esac; done
 
 command -v python3 >/dev/null || die "python3 is missing (Python 3.9 or newer)."
 python3 -c 'import sys; sys.exit(0 if sys.version_info >= (3, 9) else 1)' || die "Python 3.9 or newer is needed."
@@ -35,7 +38,7 @@ python3 -m venv "$HOME_DIR/venv" || die "python3 -m venv failed (on Debian/Ubunt
 cp "$HERE/jade_discord_bridge.py" "$HOME_DIR/jade_discord_bridge.py"
 cat > "$HOME_DIR/run.sh" <<RUN
 #!/usr/bin/env bash
-exec "$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --port "$PORT" "\$@"
+exec "$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --port "$PORT" $ARCHIVE "\$@"
 RUN
 chmod +x "$HOME_DIR/run.sh"
 
@@ -44,7 +47,7 @@ if [ ! -s "$HOME_DIR/bot_token" ] && [ -z "${DISCORD_BOT_TOKEN:-}" ]; then
   say "Also switch on Message Content Intent (Bot → Privileged Gateway Intents)."
   "$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --set-token
 fi
-[ "${1:-}" = --no-service ] && { say "Done. Start it with: $HOME_DIR/run.sh"; exit 0; }
+[ -n "$NO_SERVICE" ] && { say "Done. Start it with: $HOME_DIR/run.sh"; exit 0; }
 
 if [ "$OS" = Darwin ]; then
   PLIST="$HOME/Library/LaunchAgents/io.jadevault.discord.plist"; mkdir -p "$(dirname "$PLIST")"
@@ -78,7 +81,7 @@ else
   die "Unsupported system $OS. Use the Docker variant (see README.md)."
 fi
 sleep 2
-say "Running on port $PORT."
+say "Running on port $PORT.${ARCHIVE:+ Archiving every message into $HOME_DIR/archive.}"
 echo
 echo "  Bridge URL:   http://$(hostname):$PORT/mcp   (use this computer's LAN or Tailscale address from your phone)"
 echo "  Bridge token: $("$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --print-token)"

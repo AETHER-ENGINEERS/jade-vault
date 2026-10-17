@@ -55,11 +55,376 @@ def chunks(text, limit=1900):
     return out
 
 
+# ---------- the archive (optional: --archive) ----------
+# Every message the bot can see, kept on this computer as append-only JSON lines, one file per channel or thread:
+#   <archive>/<guild_id>/<channel_id>.jsonl     {"ev": "create" | "edit" | "delete", ...}
+#   <archive>/<guild_id>/channels.json          names, types, topics and parents of the channels seen
+#   <archive>/<guild_id>/files/<msg>-<n>-<name> attachments, downloaded when seen (Discord's links expire)
+#   <archive>/dm/...                            DMs, only with --archive-dms
+#   <archive>/state.json                        how far the backfill got in each channel
+# Unlike the reply queue, the archive keeps everything: bots, webhooks, the bot's own messages, edits and deletions.
+# It never decides what matters; it is the floor that later passes (distillation, search) dig in.
+def iso(dt):
+    return dt.isoformat() if dt else None
+
+
+def local(stamp):
+    """An archived ISO time in this computer's time zone, as 'YYYY-MM-DD HH:MM'."""
+    import datetime
+    try:
+        return datetime.datetime.fromisoformat(stamp).astimezone().strftime('%Y-%m-%d %H:%M')
+    except Exception:
+        return (stamp or '0000-00-00 00:00')[:16].replace('T', ' ')
+
+
+def safe_name(s, limit=80):
+    s = ''.join('_' if c in '/\\:*?"<>|\0' or ord(c) < 32 else c for c in str(s or '')).strip().lstrip('.')
+    return (s or '_')[:limit]
+
+
+def msg_record(m):
+    """A Discord message as a plain dict: everything worth keeping, nothing that needs discord.py to read back."""
+    ref = None
+    if m.reference and m.reference.message_id:
+        ref = {'message_id': str(m.reference.message_id), 'channel_id': str(m.reference.channel_id or m.channel.id),
+               'guild_id': str(getattr(m.reference, 'guild_id', None) or '')}
+    a = m.author
+    rec = {
+        'id': str(m.id), 'channel_id': str(m.channel.id), 'guild_id': str(m.guild.id) if m.guild else '',
+        'author': {'id': str(a.id), 'name': getattr(a, 'display_name', None) or a.name, 'username': a.name, 'bot': bool(a.bot)},
+        'created': iso(m.created_at), 'edited': iso(m.edited_at),
+        'type': getattr(m.type, 'name', str(m.type)), 'content': m.content, 'text': m.clean_content,
+        'reply_to': ref, 'pinned': bool(m.pinned),
+        'attachments': [{'id': str(x.id), 'filename': x.filename, 'size': x.size, 'content_type': x.content_type or '', 'url': x.url} for x in m.attachments],
+        'embeds': [e.to_dict() for e in m.embeds],
+        'stickers': [s.name for s in getattr(m, 'stickers', [])],
+        'reactions': [{'emoji': str(r.emoji), 'count': r.count} for r in m.reactions],
+        'mentions': [str(u.id) for u in m.mentions],
+    }
+    if m.webhook_id:
+        rec['webhook_id'] = str(m.webhook_id)
+    th = getattr(m, 'thread', None)
+    if th:
+        rec['thread_id'] = str(th.id)
+    return rec
+
+
+def channel_meta(ch):
+    parent = getattr(ch, 'parent', None)
+    return {'id': str(ch.id), 'name': getattr(ch, 'name', '') or '', 'type': getattr(getattr(ch, 'type', None), 'name', ''),
+            'topic': getattr(ch, 'topic', None) or '', 'parent_id': str(getattr(ch, 'parent_id', '') or ''),
+            'parent_name': getattr(parent, 'name', '') or '', 'thread': getattr(getattr(ch, 'type', None), 'name', '').endswith('thread')}
+
+
+class Archive:
+    def __init__(self, root, dms=False, files_mb=25):
+        self.root = pathlib.Path(root)
+        self.dms = dms
+        self.max_file = int(files_mb * 1048576)
+        self.lock = threading.Lock()
+        self.counts = collections.Counter()
+        self.progress = {'running': False}
+        self.known = {}  # channel id -> the metadata last written, so channels.json is only touched when something changes
+        self.root.mkdir(parents=True, exist_ok=True)
+        try:
+            os.chmod(self.root, 0o700)
+        except OSError:
+            pass
+
+    def scope(self, guild_id):
+        return str(guild_id) if guild_id else 'dm'
+
+    def keeps(self, guild_id):
+        return bool(guild_id) or self.dms
+
+    def _append(self, scope, channel_id, obj):
+        p = self.root / scope / f'{channel_id}.jsonl'
+        line = json.dumps(obj, ensure_ascii=False) + '\n'
+        with self.lock:
+            p.parent.mkdir(parents=True, exist_ok=True)
+            with open(p, 'a', encoding='utf-8') as f:
+                f.write(line)
+            self.counts[obj['ev']] += 1
+
+    def note_channel(self, ch):
+        g = getattr(ch, 'guild', None)
+        if not g:
+            return
+        meta = channel_meta(ch)
+        if self.known.get(meta['id']) == (g.name, meta):
+            return
+        p = self.root / str(g.id) / 'channels.json'
+        with self.lock:
+            self.known[meta['id']] = (g.name, meta)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                data = json.loads(p.read_text(encoding='utf-8'))
+            except Exception:
+                data = {'guild': {}, 'channels': {}}
+            changed = data['guild'].get('name') != g.name
+            data['guild'] = {'id': str(g.id), 'name': g.name}
+            if changed or data['channels'].get(meta['id']) != meta:
+                data['channels'][meta['id']] = meta
+                tmp = p.with_suffix('.tmp')
+                tmp.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding='utf-8')
+                os.replace(tmp, p)
+
+    async def record(self, ev, m, src='live'):
+        """Keep a message (ev 'create' or 'edit'), downloading its attachments. Never raises."""
+        try:
+            gid = m.guild.id if m.guild else None
+            if not self.keeps(gid):
+                return
+            scope = self.scope(gid)
+            if gid:
+                self.note_channel(m.channel)
+            rec = msg_record(m)
+            if ev == 'create' and self.max_file > 0:
+                for i, att in enumerate(m.attachments):
+                    rec['attachments'][i]['file'] = await self._save(scope, m, i, att)
+            self._append(scope, rec['channel_id'], {'ev': ev, 'src': src, 'seen': time.time(), **rec})
+        except Exception as e:
+            log(f'archive: could not keep message {getattr(m, "id", "?")}: {type(e).__name__}: {e}')
+
+    async def _save(self, scope, m, i, att):
+        rel = f'{scope}/files/{m.id}-{i}-{safe_name(att.filename)}'
+        p = self.root / rel
+        if p.exists():
+            return rel
+        if att.size > self.max_file:
+            return None
+        try:
+            data = await att.read()
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_bytes(data)
+            return rel
+        except Exception as e:
+            log(f'archive: attachment {att.filename} of {m.id} not saved: {type(e).__name__}: {e}')
+            return None
+
+    def deleted(self, message_id, channel_id, guild_id):
+        if self.keeps(guild_id):
+            self._append(self.scope(guild_id), str(channel_id), {'ev': 'delete', 'id': str(message_id), 'channel_id': str(channel_id),
+                                                                  'guild_id': str(guild_id or ''), 'seen': time.time()})
+
+    # --- backfill: the whole history of every channel and thread the bot can read
+    def _state(self):
+        try:
+            return json.loads((self.root / 'state.json').read_text(encoding='utf-8'))
+        except Exception:
+            return {}
+
+    def _save_state(self, st):
+        with self.lock:
+            tmp = self.root / 'state.tmp'
+            tmp.write_text(json.dumps(st, indent=1), encoding='utf-8')
+            os.replace(tmp, self.root / 'state.json')
+
+    async def backfill(self, client, discord, guild_ids=None):
+        if self.progress.get('running'):
+            raise RuntimeError('a backfill is already running')
+        P = self.progress = {'running': True, 'started': time.time(), 'channels_done': 0, 'messages': 0, 'skipped': [], 'channel': ''}
+        st = self._state()
+        try:
+            for g in list(client.guilds):
+                if guild_ids and str(g.id) not in guild_ids:
+                    continue
+                P['guild'] = g.name
+                targets = [c for c in g.channels if isinstance(c, discord.abc.Messageable)]
+                containers = [c for c in g.channels if isinstance(c, (discord.TextChannel, discord.ForumChannel))]
+                seen = {c.id for c in targets}
+                try:
+                    threads = list(await g.active_threads())
+                except Exception as e:
+                    threads = []
+                    P['skipped'].append(f'active threads of {g.name}: {type(e).__name__}')
+                for c in containers:
+                    for private in (False, True):
+                        if private and isinstance(c, discord.ForumChannel):
+                            continue
+                        try:
+                            async for t in c.archived_threads(limit=None, private=private):
+                                threads.append(t)
+                        except discord.Forbidden:
+                            if not private:
+                                P['skipped'].append(f'archived threads of #{c.name}: no access')
+                        except Exception as e:
+                            P['skipped'].append(f'archived threads of #{c.name}: {type(e).__name__}')
+                for t in threads:
+                    if t.id not in seen:
+                        seen.add(t.id)
+                        targets.append(t)
+                for c in targets:
+                    await self._backfill_channel(c, st, P, discord)
+            P['finished'] = time.time()
+        finally:
+            P['running'] = False
+            P['channel'] = ''
+            self._save_state(st)
+        return P
+
+    async def _backfill_channel(self, c, st, P, discord):
+        P['channel'] = getattr(c, 'name', str(c.id))
+        self.note_channel(c)
+        key = str(c.id)
+        after = st.get(key)
+        n = 0
+        try:
+            async for m in c.history(limit=None, after=discord.Object(id=int(after)) if after else None, oldest_first=True):
+                await self.record('create', m, src='backfill')
+                st[key] = str(m.id)
+                n += 1
+                P['messages'] += 1
+                if n % 250 == 0:
+                    self._save_state(st)
+        except discord.Forbidden:
+            P['skipped'].append(f'#{P["channel"]}: no access (Read Message History)')
+        except Exception as e:
+            P['skipped'].append(f'#{P["channel"]}: {type(e).__name__}: {e}')
+        P['channels_done'] += 1
+        self._save_state(st)
+
+    # --- reading back
+    def iter_messages(self, scope=None):
+        """Every kept message, folded: edits applied, deletions removed. Yields (scope, record)."""
+        for d in sorted(p for p in self.root.iterdir() if p.is_dir()):
+            if scope and d.name != scope:
+                continue
+            for f in sorted(d.glob('*.jsonl')):
+                yield from ((d.name, r) for r in fold(f))
+
+    def search(self, query, limit=20, chat_id=None):
+        q = str(query or '').lower()
+        if not q:
+            raise ValueError('query is empty')
+        hits = []
+        for scope, r in self.iter_messages():
+            if chat_id and r['channel_id'] != str(chat_id):
+                continue
+            if q in (r.get('text') or r.get('content') or '').lower() or q in r['author']['name'].lower():
+                hits.append(r)
+        hits.sort(key=lambda r: r.get('created') or '')
+        return [{'id': r['id'], 'chat_id': r['channel_id'], 'guild_id': r['guild_id'], 'author': r['author']['name'], 'created': r['created'],
+                 'text': (r.get('text') or '')[:500], 'reply_to': (r.get('reply_to') or {}).get('message_id', '')} for r in hits[-limit:]]
+
+    def status(self):
+        size = files = 0
+        for p in self.root.rglob('*'):
+            if p.is_file():
+                size += p.stat().st_size
+                files += 1
+        return {'dir': str(self.root), 'dms': self.dms, 'files_mb': self.max_file // 1048576, 'bytes': size, 'files': files,
+                'this_run': dict(self.counts), 'backfill': self.progress}
+
+
+def fold(path):
+    """Read one channel's JSON lines: the last version of each message, deleted ones left out, oldest first."""
+    msgs, gone = {}, set()
+    with open(path, encoding='utf-8') as f:
+        for line in f:
+            try:
+                e = json.loads(line)
+            except Exception:
+                continue
+            mid = e.get('id')
+            if e.get('ev') == 'delete':
+                gone.add(mid)
+            elif mid in msgs:
+                old = msgs[mid]
+                for i, a in enumerate(e.get('attachments') or []):  # an edit carries no saved files: keep the earlier ones
+                    if i < len(old.get('attachments') or []) and not a.get('file'):
+                        a['file'] = old['attachments'][i].get('file')
+                msgs[mid] = {**old, **{k: v for k, v in e.items() if k not in ('ev', 'src', 'seen')}}
+            else:
+                msgs[mid] = e
+    return sorted((m for k, m in msgs.items() if k not in gone), key=lambda m: int(m['id']))
+
+
+# ---------- rendering the archive as an Obsidian-style vault (--render) ----------
+def render(archive_dir, out_dir, name='Discord Archive', description='', with_files=True):
+    """Markdown notes from the archive: <name>/<server>/<channel>/<YYYY-MM>.md, threads in <channel>/threads/,
+    replies as links to the message they answer (^m<id> block ids), attachments copied to <name>/_files/."""
+    import shutil
+    root, out = pathlib.Path(archive_dir), pathlib.Path(out_dir) / safe_name(name)
+    out.mkdir(parents=True, exist_ok=True)
+    notes, where, index = {}, {}, []
+    for d in sorted(p for p in root.iterdir() if p.is_dir()):
+        try:
+            meta = json.loads((d / 'channels.json').read_text(encoding='utf-8'))
+        except Exception:
+            meta = {'guild': {'name': 'Direct messages' if d.name == 'dm' else d.name}, 'channels': {}}
+        gname = safe_name(meta['guild'].get('name') or d.name)
+        chans = meta['channels']
+        for f in sorted(d.glob('*.jsonl')):
+            cid = f.stem
+            c = chans.get(cid) or {'name': cid, 'thread': False}
+            cname = safe_name(c.get('name') or cid)
+            for m in fold(f):
+                if c.get('thread'):
+                    parent = safe_name(c.get('parent_name') or (chans.get(c.get('parent_id')) or {}).get('name') or 'threads')
+                    rel = f'{gname}/{parent}/threads/{cname} ({cid})'
+                else:
+                    rel = f'{gname}/{cname}/{local(m.get("created"))[:7]}'
+                notes.setdefault(rel, {'channel': c, 'guild': meta['guild'].get('name') or d.name, 'msgs': []})['msgs'].append((d.name, m))
+                where[m['id']] = rel
+    for rel, n in notes.items():
+        c = n['channel']
+        lines = ['---', f'server: {json.dumps(n["guild"], ensure_ascii=False)}', f'channel: {json.dumps(c.get("name") or "", ensure_ascii=False)}',
+                 f'channel_id: "{c.get("id") or ""}"', f'thread: {"true" if c.get("thread") else "false"}']
+        if c.get('topic'):
+            lines.append(f'topic: {json.dumps(c["topic"], ensure_ascii=False)}')
+        lines += [f'messages: {len(n["msgs"])}', '---', '']
+        for scope, m in n['msgs']:
+            block = []
+            who = m['author']['name'] + (' (bot)' if m['author'].get('bot') else '')
+            block.append(f'**{who}** · {local(m.get("created"))}{" · edited" if m.get("edited") else ""}')
+            rt = (m.get('reply_to') or {}).get('message_id')
+            if rt:
+                block.append(f'↪ [[{where[rt]}#^m{rt}|reply]]' if rt in where else '↪ reply to a message not in the archive')
+            body = (m.get('text') or m.get('content') or '').strip()
+            if body:
+                block.append(body)
+            for a in m.get('attachments') or []:
+                if with_files and a.get('file') and (root / a['file']).exists():
+                    dest = out / '_files' / a['file']
+                    if not dest.exists():
+                        dest.parent.mkdir(parents=True, exist_ok=True)
+                        try:
+                            os.link(root / a['file'], dest)
+                        except OSError:
+                            shutil.copy2(root / a['file'], dest)
+                    img = (a.get('content_type') or '').startswith('image/')
+                    block.append(f'{"!" if img else ""}[[{dest.name}]]')
+                else:
+                    block.append(f'📎 {a.get("filename")} (not downloaded)')
+            for e in m.get('embeds') or []:
+                if e.get('url') or e.get('title'):
+                    block.append(f'> {e.get("title") or ""} {e.get("url") or ""}'.rstrip())
+            if m.get('reactions'):
+                block.append(' '.join(f'{r["emoji"]} {r["count"]}' for r in m['reactions']))
+            block[-1] += f' ^m{m["id"]}'  # Obsidian block id: the end of the message's paragraph, so replies can link here
+            lines += block + ['']
+        p = out / (rel + '.md')
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text('\n'.join(lines), encoding='utf-8')
+        index.append((rel, len(n['msgs'])))
+    head = ['---', f'name: {json.dumps(name, ensure_ascii=False)}']
+    if description:
+        head.append(f'description: {json.dumps(description, ensure_ascii=False)}')
+    head += [f'rendered: {time.strftime("%Y-%m-%d %H:%M")}', f'messages: {sum(c for _, c in index)}', '---', '', f'# {name}', '']
+    if description:
+        head += [description, '']
+    head += [f'- [[{rel}]] ({cnt})' for rel, cnt in sorted(index)]
+    (out / f'{safe_name(name)}.md').write_text('\n'.join(head) + '\n', encoding='utf-8')
+    return {'notes': len(index), 'messages': sum(c for _, c in index), 'dir': str(out)}
+
+
 # ---------- the bot (discord.py) ----------
 class Bridge:
-    def __init__(self, bot_token, max_age=600, queue_max=500):
+    def __init__(self, bot_token, max_age=600, queue_max=500, archive=None):
         import discord  # imported here so --help and --set-token work without it
         self.discord = discord
+        self.archive = archive
         self.token = bot_token
         self.max_age = max_age
         self.queue = collections.deque(maxlen=queue_max)
@@ -101,6 +466,34 @@ class Bridge:
 
             async def on_message(self, message):
                 bridge.enqueue(message)
+                if bridge.archive:
+                    await bridge.archive.record('create', message)
+
+            async def on_raw_message_edit(self, payload):
+                m = getattr(payload, 'message', None)
+                if bridge.archive and m is not None:
+                    await bridge.archive.record('edit', m)
+
+            async def on_raw_message_delete(self, payload):
+                if bridge.archive:
+                    bridge.archive.deleted(payload.message_id, payload.channel_id, payload.guild_id)
+
+            async def on_raw_bulk_message_delete(self, payload):
+                if bridge.archive:
+                    for mid in payload.message_ids:
+                        bridge.archive.deleted(mid, payload.channel_id, payload.guild_id)
+
+            async def on_thread_create(self, thread):
+                if bridge.archive:
+                    bridge.archive.note_channel(thread)
+
+            async def on_thread_update(self, before, after):
+                if bridge.archive:
+                    bridge.archive.note_channel(after)
+
+            async def on_guild_channel_update(self, before, after):
+                if bridge.archive:
+                    bridge.archive.note_channel(after)
 
         return JadeClient(intents=intents, allowed_mentions=discord.AllowedMentions.none(), max_messages=None)
 
@@ -334,6 +727,36 @@ class Bridge:
         await g.leave()
         return 'ok'
 
+    # --- the archive
+    def _archive(self):
+        if not self.archive:
+            raise RuntimeError('the archive is off: start the bridge with --archive (or JADE_DISCORD_ARCHIVE=1)')
+        return self.archive
+
+    async def t_archive_status(self, a):
+        return self._archive().status()
+
+    async def t_archive_backfill(self, a):
+        arc = self._archive()
+        if arc.progress.get('running'):
+            return {'started': False, 'backfill': arc.progress}
+        ids = [str(a['guild_id'])] if a.get('guild_id') else None
+
+        async def run():
+            try:
+                p = await arc.backfill(self.client, self.discord, ids)
+                log(f"archive: backfill done, {p['messages']} message(s) in {p['channels_done']} channel(s)")
+            except Exception as e:
+                log(f'archive: backfill failed: {type(e).__name__}: {e}')
+        self.loop.create_task(run())
+        await asyncio.sleep(0)
+        return {'started': True, 'note': 'runs in the background; archive_status shows progress'}
+
+    async def t_archive_search(self, a):
+        arc = self._archive()
+        lim = max(1, min(int(a.get('limit') or 20), 200))
+        return await asyncio.get_running_loop().run_in_executor(None, lambda: arc.search(a.get('query'), lim, a.get('chat_id')))
+
 
 TOOLS = {
     'status': 'Is the bot online? Returns the bot user, warnings and server count.',
@@ -355,6 +778,9 @@ TOOLS = {
     'ban': 'Ban user_id from guild_id.',
     'unban': 'Unban user_id from guild_id.',
     'leave_guild': 'Leave guild_id.',
+    'archive_status': 'The archive (--archive): where it is, its size, and how a running backfill is doing.',
+    'archive_backfill': 'Archive the whole history of every channel and thread the bot can read (or only guild_id), in the background. Resumes where it stopped.',
+    'archive_search': 'Search the archive for query (text or author name); optional chat_id, limit (20). Oldest first. Deleted messages are left out.',
 }
 TOOL_DEFS = [{'name': n, 'description': d, 'inputSchema': {'type': 'object', 'properties': {}, 'additionalProperties': True}} for n, d in TOOLS.items()]
 
@@ -483,7 +909,28 @@ def main():
     ap.add_argument('--tls-key', default=os.environ.get('JADE_DISCORD_TLS_KEY'), help='private key (PEM) for --tls-cert')
     ap.add_argument('--print-token', action='store_true', help='print the bridge token and exit')
     ap.add_argument('--new-token', action='store_true', help='make a new bridge token (the old one stops working)')
+    env = os.environ.get
+    ap.add_argument('--archive', action='store_true', default=env('JADE_DISCORD_ARCHIVE', '') not in ('', '0', 'false'),
+                    help='keep every message the bot sees (servers; DMs with --archive-dms) on this computer')
+    ap.add_argument('--archive-dir', default=env('JADE_DISCORD_ARCHIVE_DIR'), help='where the archive lives (default ~/.jade-discord/archive)')
+    ap.add_argument('--archive-dms', action='store_true', default=env('JADE_DISCORD_ARCHIVE_DMS', '') not in ('', '0', 'false'), help="also keep the bot's DMs")
+    ap.add_argument('--archive-files-mb', type=float, default=float(env('JADE_DISCORD_ARCHIVE_FILES_MB', '25')),
+                    help='download attachments up to this size (MB) into the archive; 0 keeps links only (default 25)')
+    ap.add_argument('--backfill', nargs='*', metavar='GUILD_ID', default=None,
+                    help='archive the full history of every server the bot is in (or these), then exit. Resumes where it stopped')
+    ap.add_argument('--render', metavar='OUT_DIR', help='write the archive as markdown notes (an Obsidian-style vault) into OUT_DIR, then exit')
+    ap.add_argument('--name', default=env('JADE_DISCORD_ARCHIVE_NAME', 'Discord Archive'), help='what you call the archive; the vault folder and index note get this name')
+    ap.add_argument('--description', default=env('JADE_DISCORD_ARCHIVE_DESCRIPTION', ''), help='a line or two about it, for the index note')
     args = ap.parse_args()
+    if args.backfill is not None:
+        args.archive = True
+    arc_dir = pathlib.Path(args.archive_dir) if args.archive_dir else HOME / 'archive'
+    if args.render:
+        if not arc_dir.exists():
+            sys.exit(f'no archive at {arc_dir}')
+        r = render(arc_dir, args.render, args.name, args.description, with_files=args.archive_files_mb > 0)
+        print(f"{r['messages']} message(s) in {r['notes']} note(s): {r['dir']}")
+        return
     import logging
     logging.basicConfig(level=logging.WARNING, format='%(asctime)s %(name)s %(message)s', datefmt='%H:%M:%S')
 
@@ -522,8 +969,21 @@ def main():
         discord.http.Route.BASE = base.rstrip('/')
         discord.gateway.DiscordWebSocket.DEFAULT_GATEWAY = yarl.URL(os.environ.get('JADE_DISCORD_TEST_GATEWAY', base.replace('http', 'ws').rsplit('/api', 1)[0] + '/gateway'))
 
-    bridge = Bridge(bot_token, max_age=args.max_age)
+    archive = Archive(arc_dir, dms=args.archive_dms, files_mb=args.archive_files_mb) if args.archive else None
+    bridge = Bridge(bot_token, max_age=args.max_age, archive=archive)
     bridge.start()
+    if args.backfill is not None:
+        if not bridge.ready.wait(timeout=120):
+            sys.exit(bridge.error or 'the bot did not come online')
+        log(f'backfilling into {arc_dir} …')
+        p = asyncio.run_coroutine_threadsafe(archive.backfill(bridge.client, bridge.discord, [str(g) for g in args.backfill] or None), bridge.loop).result()
+        for s in p['skipped']:
+            log('skipped:', s)
+        log(f"done: {p['messages']} new message(s) in {p['channels_done']} channel(s)")
+        bridge.stop()
+        return
+    if archive:
+        log(f'archive: keeping every message in {arc_dir}{" (DMs too)" if args.archive_dms else ""}')
     srv = Server((args.host, args.port), make_handler(bridge, token, args.allow_origin))
     scheme = 'http'
     if args.tls_cert:

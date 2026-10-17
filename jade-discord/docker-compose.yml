@@ -1,0 +1,14 @@
+services:
+  jade-discord:
+    build: .
+    image: jade-discord:latest
+    restart: unless-stopped
+    ports:
+      - "8788:8788"
+    volumes:
+      - jade-discord-data:/data          # bot token and bridge token
+    environment:
+      # DISCORD_BOT_TOKEN: ...           # alternative to `--set-token`: the bot's token as an environment variable
+      JADE_DISCORD_MAX_AGE: "600"
+volumes:
+  jade-discord-data:

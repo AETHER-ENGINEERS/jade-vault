@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.8.0
+- **Discord bridge** (`jade-discord/`, built on discord.py) and a **Discord** section in Config. Jade lives on Discord as a bot:
+  she answers DMs and channels, reacts, replies in threads, sends and receives files, sees images, reads channels, and takes
+  messages for you, with the same roles as Vector (owner = the full Jade, admins = Discord powers only, everyone else =
+  chat and leave a message), a channel whitelist, trigger words and a DM policy. The bot runs in a small discord.py program
+  on a computer you keep on (Gateway, resume and rate limits are discord.py's job) and is served over HTTP with a bearer
+  token, exactly like the Vector bridge; the app polls it. Setup script, Docker image and a README are included.
+- **Runs at the same time as Vector.** Each bridge has its own port, token and chats (🎮 Discord, 💬 Vector), and the two
+  share one conversation queue: Jade only ever answers one chat at a time, then wakes the other queue.
+- Safety: every message the bridge sends has empty `allowed_mentions` (no @everyone, @here or roles), bots are never queued
+  (no loops), stale messages (older than 10 minutes) are dropped, and the bridge token is left out of backups.
+- The Message Content Intent is optional: if it is off in the Developer Portal the bridge carries on (DMs and @mentions) and
+  the app says how to switch it on.
+- `notify_owner` and the Discord inbox (`/Jade/Discord Inbox.md`) work like Vector's; `/discord` opens the settings.
+
 ## 2.7.3
 - **AICord provider** (Config → Model provider, also in the fallback list and the compaction / heartbeat model menus). Your
   AICord characters appear as the model list; chat goes to `POST /chat` with the character UUID and the history. Replies

@@ -21,6 +21,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 17
+      - run: pip install -r jade-discord/requirements.txt
       - run: npm install --no-audit --no-fund
       - run: npx playwright install --with-deps chromium
       - name: Build web app
@@ -31,8 +32,9 @@ jobs:
         run: bash android/build-apk.sh
       - name: Bridge checks
         run: |
-          python3 -m py_compile jade-vector/*.py jade-vector/test/*.py
+          python3 -m py_compile jade-vector/*.py jade-vector/test/*.py jade-discord/*.py jade-discord/test/*.py
           bash -n jade-vector/setup.sh
+          bash -n jade-discord/setup.sh
       - uses: actions/upload-artifact@v4
         if: always()
         with:

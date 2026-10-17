@@ -7,6 +7,7 @@ const PROVIDERS = {
   groq: { label: 'Groq', chip: 'GROQ' },
   llamacpp: { label: 'llama.cpp', chip: 'LLAMA.CPP' },
   openai: { label: 'OpenAI-compatible', chip: 'API' },
+  aicord: { label: 'AICord', chip: 'AICORD' },
 };
 class FetchOllama { // minimal ollama-js compatible surface (also used for ollama.com with an API key)
   constructor({ host, headers = {} }) { this.host = host.replace(/\/+$/, ''); this.headers = headers; this.ctrls = new Set(); this._base = this.host; }
@@ -94,10 +95,74 @@ class OpenAICompat {
     } };
   }
 }
+// AICord (https://docs.aicordapp.com/api/aicord-chat-api): character chat, one JSON reply per call, no streaming and no tool
+// calling. The "model" list is the account's characters (GET /characters); a chat goes to POST /chat with the character's UUID
+// and the history as {role: user|character, content: [{type: text|image_url, ...}]}. The key goes in Authorization as given.
+class AICordClient {
+  constructor({ key, base }) { this.key = (key || '').trim(); this.base = (base || 'https://aicordapp.com/api/v1').replace(/\/+$/, ''); this.ctrls = new Set(); this.chars = new Map(); }
+  get headers() { return { 'Content-Type': 'application/json', Authorization: this.key }; }
+  abort() { for (const c of this.ctrls) c.abort(); this.ctrls.clear(); }
+  async err(r) {
+    const m = { 401: 'AICord rejected the API key (401)', 402: 'AICord: no credits left (402)', 403: 'AICord: this account is banned (403)', 404: 'AICord: character not found (404)' }[r.status];
+    if (m) return new Error(m);
+    let t = `HTTP ${r.status}`; try { const j = await r.json(); t = j.error?.message || j.error || j.message || t; } catch {}
+    return new Error('AICord: ' + t);
+  }
+  async list() {
+    const r = await fetch(this.base + '/characters', { headers: this.headers }); if (!r.ok) throw await this.err(r);
+    const j = await r.json(); this.chars = new Map(); const seen = new Set();
+    for (const c of Array.isArray(j) ? j : []) {
+      if (!c?.id) continue; let n = String(c.name || c.id), k = 2; while (seen.has(n)) n = `${c.name} (${k++})`; seen.add(n); this.chars.set(n, c.id);
+    }
+    return { models: [...this.chars.keys()].map(name => ({ name })) };
+  }
+  // Jade's history (system prompt, tool turns) → AICord's user/character turns. Characters have a persona of their own, so the
+  // system prompt travels as context at the top of the first user turn; tool calls and results become plain user text.
+  messages(msgs) {
+    const out = []; let sys = '';
+    const push = (role, parts) => { const last = out[out.length - 1]; if (last && last.role === role) last.content.push(...parts); else out.push({ role, content: parts }); };
+    for (const m of msgs) {
+      const text = String(m.content ?? '');
+      if (m.role === 'system') { sys += (sys ? '\n\n' : '') + text; continue; }
+      if (m.role === 'tool') { push('user', [{ type: 'text', text: `[Result of ${m.tool_name || 'a tool'}]\n${text}` }]); continue; }
+      if (m.role === 'assistant') { if (text.trim()) push('character', [{ type: 'text', text }]); continue; }
+      const parts = [{ type: 'text', text }];
+      for (const b of m.images || []) parts.push({ type: 'image_url', image_url: { url: 'data:image/jpeg;base64,' + b } });
+      push('user', parts);
+    }
+    if (sys) { const first = out.find(x => x.role === 'user'); const note = { type: 'text', text: `[Context from Jade Vault]\n${sys}\n\n[Message]\n` }; if (first) { const t = first.content[0]; first.content[0] = { type: 'text', text: note.text + t.text }; } else out.unshift({ role: 'user', content: [note] }); }
+    if (!out.length) out.push({ role: 'user', content: [{ type: 'text', text: '' }] });
+    return out;
+  }
+  idFor(model) {
+    const id = this.chars.get(model) || (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(model || '') ? model : '');
+    if (!id) throw new Error('AICord: pick a character first (Config → Model provider)');
+    return id;
+  }
+  async send(req, signal) {
+    const r = await fetch(this.base + '/chat', { method: 'POST', headers: this.headers, body: JSON.stringify({ character: this.idFor(req.model), messages: this.messages(req.messages) }), signal });
+    if (!r.ok) throw await this.err(r);
+    return r.json();
+  }
+  async once(req) { const j = await this.send(req); return { message: { role: 'assistant', content: j.text || '' } }; }
+  async chat(req) {
+    const ctrl = new AbortController(); this.ctrls.add(ctrl); const self = this; const t0 = performance.now();
+    let j; try { j = await this.send(req, ctrl.signal); } catch (e) { this.ctrls.delete(ctrl); throw e; }
+    return { abort: () => ctrl.abort(), async *[Symbol.asyncIterator]() {
+      try {
+        if (j.text) yield { message: { role: 'assistant', content: j.text } };
+        yield { message: { role: 'assistant', content: '' }, done: true, prompt_eval_count: 0, eval_count: 0, eval_duration: Math.round((performance.now() - t0) * 1e6) };
+      } finally { self.ctrls.delete(ctrl); }
+    } };
+  }
+}
+var aicordClient = null; // kept so the character → UUID map survives re-creating the client
 function makeClientFor(p, c = S) {
+  const c0 = c;
   if (p === 'cloud') return new FetchOllama({ host: 'https://ollama.com', headers: c.ollamaKey ? { Authorization: 'Bearer ' + c.ollamaKey } : {} });
   if (p === 'groq') return new OpenAICompat({ base: 'https://api.groq.com/openai/v1', key: c.groqKey, name: 'Groq' });
   if (p === 'llamacpp') return new OpenAICompat({ base: (c.lcppHost || 'http://localhost:8080').replace(/\/+$/, '').replace(/(\/v1)?$/, '/v1'), key: c.lcppKey, name: 'llama.cpp' });
+  if (p === 'aicord') { const old = aicordClient; const c = new AICordClient({ key: c0.aicKey }); if (old && old.key === c.key) c.chars = old.chars; return aicordClient = c; }
   if (p === 'openai') return new OpenAICompat({ base: c.oaiHost, key: c.oaiKey, name: (() => { try { return new URL(c.oaiHost).host; } catch { return 'the API'; } })() });
   const host = c.host || DEFAULTS.host; const cl = OllamaLib ? new OllamaLib({ host }) : new FetchOllama({ host }); cl._lib = !!OllamaLib; cl._base = host.replace(/\/+$/, ''); cl.headers = {}; return cl;
 }
@@ -105,6 +170,7 @@ function providerMissing(p, c = S) {
   if (p === 'cloud' && !c.ollamaKey) return 'no Ollama API key set (Config → Model provider)';
   if (p === 'groq' && !c.groqKey) return 'no Groq API key set (Config → Model provider)';
   if (p === 'llamacpp' && c.lcppHost && !/^https?:\/\//.test(c.lcppHost)) return 'the llama.cpp address must start with http:// or https://';
+  if (p === 'aicord' && !c.aicKey) return 'no AICord API key set (Config → Model provider)';
   if (p === 'openai' && !/^https?:\/\//.test(c.oaiHost || '')) return 'no base URL set for the OpenAI-compatible endpoint';
   return '';
 }

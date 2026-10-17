@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+- **AICord provider** (Config → Model provider, also in the fallback list and the compaction / heartbeat model menus). Your
+  AICord characters appear as the model list; chat goes to `POST /chat` with the character UUID and the history. Replies
+  arrive whole (the API does not stream) and AICord has no tool calling, so Jade cannot use the vault through it: best as a
+  chat model or fallback. Jade's system prompt travels as context in the first user turn. 401 / 402 / 403 / 404 show readable
+  messages. The key is stored like the other keys and left out of backups.
+
 ## 2.7.2
 - **TensorFlow.js 4.22 in Jade's scripts**: `tf` and `require('@tensorflow/tfjs')` in `node` (shell, flow JavaScript steps,
   Jade's bash). Embedded (no download), unpacked only for scripts that use it. GPU (WebGL) when it works in the WebView's

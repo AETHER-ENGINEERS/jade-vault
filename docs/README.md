@@ -1,6 +1,9 @@
 # Jade Vault: browser version
 
-`index.html` is the whole app in one file. Serve it from any static host (GitHub Pages, Netlify, `python3 -m http.server`).
-Notes, memory and settings are stored in your browser (IndexedDB / localStorage). Nothing is uploaded anywhere
-except the model requests you configure (Ollama local or cloud, Groq, OpenAI-compatible).
-Rebuild with `npm run build` and copy `android/proj/assets/index.html` to `docs/index.html`.
+**Documentation baseline: Jade Vault 2.8.0.** Start with [README-docs.md](README-docs.md) for the full user, integration, development, and Android APK guides.
+
+`index.html` is the generated browser app, not the documentation index. Serve it from a static host; see [deployment instructions](deployment-and-releases.md). From a **2.8.0 source checkout**, rebuild with `npm install` and `npm run build`, then intentionally copy `android/proj/assets/index.html` to `docs/index.html` when updating the hosted app.
+
+> This documentation-only branch still contains the older 2.7.3 application source/hosted page. The 2.8.0 documentation baseline is verified against a separate source revision; see the [verification record](repository-comparison.md). Updating Markdown does not upgrade the browser app.
+
+Notes, memory, chats, and settings are stored locally in IndexedDB/localStorage, but model requests and enabled web/HTTP/MCP/messenger features can transmit data to their configured services. Some assets also load externally. Read [security and privacy](security-and-privacy.md) and [backups and storage](backup-and-storage.md) before deployment or migration.

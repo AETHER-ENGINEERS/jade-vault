@@ -50,16 +50,14 @@ Inspect `app/build.py` to determine which fragment is actually inserted. `app/mo
 
 ## Install and build
 
-Use the **2.8.0 source checkout** identified in the [version baseline](README-docs.md#version-baseline), and run from its repository root. Check `VERSION` is `2.8.0` and `android/VERSION_CODE` is `22` before expecting the 2.8.0 UI; editing documentation or changing a version string alone does not add Discord source.
-
-Run:
+Run the following commands from the root of the Jade Vault 2.8.0 source directory:
 
 ```sh
 npm install
 npm run build
 ```
 
-Use `npm install` for this checkout (no root package lockfile is supplied). The build needs the project's declared dependencies; do not substitute arbitrary globally installed versions.
+Use `npm install`; the repository does not include a root package lockfile. The build needs the project's declared dependencies; do not substitute arbitrary globally installed versions.
 
 ### Build pipeline
 

@@ -45,6 +45,10 @@ jobs:
           fi
           echo "$KS_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.jks" || { echo "::error::JADE_KEYSTORE_B64 is not valid base64: paste the whole text of the encoded keystore file."; exit 1; }
           KS="$RUNNER_TEMP/release.jks"; P="$JADE_KEYSTORE_PASSWORD"; A="${JADE_KEY_ALIAS:-netrunner}"
+          # Size and fingerprint of the decoded file (not secret), to compare with the keystore on your computer:
+          #   PowerShell: (Get-Item jade-release.jks).Length; (Get-FileHash jade-release.jks).Hash.Substring(0,16)
+          echo "::notice::Decoded keystore: $(stat -c %s "$KS") bytes, SHA-256 $(sha256sum "$KS" | cut -c1-16 | tr a-f A-F)…"
+          [ "$P" = "$(printf %s "$P" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" ] || echo "::warning::JADE_KEYSTORE_PASSWORD starts or ends with a space or line break; if that was not meant, re-enter it without one."
           # Check the three secrets against each other first, so a mismatch says which one (aliases are not secret).
           keytool -list -keystore "$KS" -storepass "$P" >/dev/null 2>&1 \
             || { echo "::error::The keystore did not open with JADE_KEYSTORE_PASSWORD (wrong password, or JADE_KEYSTORE_B64 is not the whole keystore file)."; exit 1; }

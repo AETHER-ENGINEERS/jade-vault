@@ -117,6 +117,7 @@ def main():
     fd('/_seed', {'channel_id': OFF, 'author': OWNER, 'content': 'old offtopic two', 'reply_to': o1})
     fd('/_seed', {'channel_id': TH, 'author': ALICE, 'content': 'a hole in the plot'})
     fd('/_seed', {'channel_id': OLD, 'author': OWNER, 'content': 'an archived pick'})
+    fd('/_seed', {'channel_id': '80000000000000821', 'author': ALICE, 'content': 'an old forum post'})
     st = tool(token, 'archive_backfill')
     ok(st.get('started') is True, 'archive_backfill starts in the background')
     for _ in range(80):
@@ -128,6 +129,8 @@ def main():
     ok(len([e for e in lines(G, OFF) if e['ev'] == 'create']) == 2, 'backfill: channel history is archived')
     ok(any(e['text'] == 'a hole in the plot' for e in lines(G, TH)), 'backfill: active threads are archived')
     ok(any(e['text'] == 'an archived pick' for e in lines(G, OLD)), 'backfill: archived threads are archived')
+    ok(any(e['text'] == 'an old forum post' for e in lines(G, '80000000000000821')), 'backfill: archived forum posts are archived')
+    ok(not any('TypeError' in x for x in b.get('skipped', [])), 'backfill: forum channels raise no TypeError')
     meta = json.loads((ARC / G / 'channels.json').read_text())
     ok(meta['channels'][TH]['thread'] and meta['channels'][TH]['parent_name'] == 'general', 'backfill: threads know their parent channel')
     state = json.loads((ARC / 'state.json').read_text())

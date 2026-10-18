@@ -9,7 +9,7 @@ Control:  POST /_inject {channel_id, author, content, mention_bot, reply_to, att
           POST /_file {name, base64}     (served at /cdn/<name>, for attachments)
           POST /_kill                    (drops the Gateway connection: the bot must resume)
           GET  /_state                   (what the bot sent, reacted, edited, deleted; REST calls; identifies; resumes)
-Server 70000000000000700 "Book Club" with channels ...800 #general and ...801 #offtopic, an active thread ...810
+Server 70000000000000700 "Book Club" with channels ...800 #general and ...801 #offtopic, a forum ...820 #book-forum with an archived post ...821, an active thread ...810
 "Plot holes" and an archived thread ...811 "Old picks" under #general. A DM with user N is channel 88N.
 """
 import argparse, asyncio, base64, json, time
@@ -30,11 +30,15 @@ def user(id, username, global_name=None):
 
 USERS = {'10000000000000100': user(10000000000000100, 'owner', 'Sam'), '10000000000000111': user(10000000000000111, 'alice', 'Alice'), '10000000000000120': user(10000000000000120, 'mod', 'Mod'), '10000000000000222': user(10000000000000222, 'bob', 'Bob')}
 CHANNELS = {'80000000000000800': {'id': '80000000000000800', 'type': 0, 'guild_id': '70000000000000700', 'name': 'general', 'position': 0, 'permission_overwrites': [], 'nsfw': False, 'parent_id': None},
-            '80000000000000801': {'id': '80000000000000801', 'type': 0, 'guild_id': '70000000000000700', 'name': 'offtopic', 'position': 1, 'permission_overwrites': [], 'nsfw': False, 'parent_id': None}}
+            '80000000000000801': {'id': '80000000000000801', 'type': 0, 'guild_id': '70000000000000700', 'name': 'offtopic', 'position': 1, 'permission_overwrites': [], 'nsfw': False, 'parent_id': None},
+            '80000000000000820': {'id': '80000000000000820', 'type': 15, 'guild_id': '70000000000000700', 'name': 'book-forum', 'position': 2, 'permission_overwrites': [], 'nsfw': False, 'parent_id': None, 'available_tags': [], 'flags': 0}}
 THREADS = {'80000000000000810': {'id': '80000000000000810', 'type': 11, 'guild_id': '70000000000000700', 'name': 'Plot holes', 'parent_id': '80000000000000800',
                                  'owner_id': '10000000000000111', 'message_count': 0, 'member_count': 1, 'rate_limit_per_user': 0, 'flags': 0,
                                  'thread_metadata': {'archived': False, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-01-01T00:00:00.000000+00:00', 'locked': False}},
            '80000000000000811': {'id': '80000000000000811', 'type': 11, 'guild_id': '70000000000000700', 'name': 'Old picks', 'parent_id': '80000000000000800',
+                                 'owner_id': '10000000000000111', 'message_count': 0, 'member_count': 1, 'rate_limit_per_user': 0, 'flags': 0,
+                                 'thread_metadata': {'archived': True, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-01-01T00:00:00.000000+00:00', 'locked': False}},
+           '80000000000000821': {'id': '80000000000000821', 'type': 11, 'guild_id': '70000000000000700', 'name': 'Archived post', 'parent_id': '80000000000000820',
                                  'owner_id': '10000000000000111', 'message_count': 0, 'member_count': 1, 'rate_limit_per_user': 0, 'flags': 0,
                                  'thread_metadata': {'archived': True, 'auto_archive_duration': 1440, 'archive_timestamp': '2026-01-01T00:00:00.000000+00:00', 'locked': False}}}
 GUILD = {'id': '70000000000000700', 'name': 'Book Club', 'owner_id': '10000000000000100', 'member_count': 4, 'unavailable': False, 'channels': list(CHANNELS.values()), 'roles': [], 'emojis': [], 'stickers': [],

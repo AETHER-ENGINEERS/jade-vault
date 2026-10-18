@@ -242,8 +242,9 @@ class Archive:
                     for private in (False, True):
                         if private and isinstance(c, discord.ForumChannel):
                             continue
-                        try:
-                            async for t in c.archived_threads(limit=None, private=private):
+                        try:  # forum channels take no `private` argument (their posts are always public threads)
+                            it = c.archived_threads(limit=None) if isinstance(c, discord.ForumChannel) else c.archived_threads(limit=None, private=private)
+                            async for t in it:
                                 threads.append(t)
                         except discord.Forbidden:
                             if not private:

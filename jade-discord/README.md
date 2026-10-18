@@ -47,6 +47,8 @@ and the **Bridge token**.
 
 - `./setup.sh --no-service` installs only; run `~/.jade-discord/run.sh` yourself.
 - `./setup.sh --uninstall` removes the service and keeps your tokens.
+- On a **public server** (a VPS), run `JADE_DISCORD_HOST=127.0.0.1 ./setup.sh` so the bridge listens on the server
+  itself only, and reach it through an SSH tunnel or Tailscale. The default (`0.0.0.0`) suits a computer at home.
 
 ### By hand
 

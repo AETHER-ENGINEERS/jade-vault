@@ -6,10 +6,12 @@
 #   ./setup.sh --no-service    install only (run ./run.sh yourself)
 #   ./setup.sh --uninstall     stop and remove the service (keeps ~/.jade-discord)
 #   ./setup.sh --archive       also keep every message the bot sees in ~/.jade-discord/archive (see README.md)
+#   JADE_DISCORD_HOST=127.0.0.1 ./setup.sh   on a public server: listen on the server itself only
 set -euo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
 HOME_DIR="${JADE_DISCORD_HOME:-$HOME/.jade-discord}"
 PORT="${JADE_DISCORD_PORT:-8788}"
+HOST="${JADE_DISCORD_HOST:-0.0.0.0}"   # 127.0.0.1 on a public server (a VPS): reach it through SSH or Tailscale
 OS="$(uname -s)"
 say() { printf '\033[1;32m==>\033[0m %s\n' "$*"; }
 die() { printf '\033[1;31mError:\033[0m %s\n' "$*" >&2; exit 1; }
@@ -38,7 +40,7 @@ python3 -m venv "$HOME_DIR/venv" || die "python3 -m venv failed (on Debian/Ubunt
 cp "$HERE/jade_discord_bridge.py" "$HOME_DIR/jade_discord_bridge.py"
 cat > "$HOME_DIR/run.sh" <<RUN
 #!/usr/bin/env bash
-exec "$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --port "$PORT" $ARCHIVE "\$@"
+exec "$HOME_DIR/venv/bin/python" "$HOME_DIR/jade_discord_bridge.py" --port "$PORT" --host "$HOST" $ARCHIVE "\$@"
 RUN
 chmod +x "$HOME_DIR/run.sh"
 

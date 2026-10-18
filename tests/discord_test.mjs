@@ -124,6 +124,8 @@ await settle();
 const c1 = calls.find(c => /tell your boss/.test(c.u));
 ok(c1 && JSON.stringify([...c1.tools].sort()) === '["discord","notify_owner","web_search"]', 'stranger gets only chat tools: ' + JSON.stringify(c1?.tools));
 ok(c1 && !/Vault conventions|Long-term memory/.test(c1.sys) && /not your owner|private/i.test(c1.sys) && /@Jade/.test(c1.u), 'scoped prompt without vault or memory; <@id> shown as @Jade: ' + c1?.u.slice(0, 120));
+ok(c1 && /channel topic: "Books we are reading this month"/.test(c1.u) && /Channels in Book Club/.test(c1.u) && /#offtopic/.test(c1.u), 'she sees the channel topic, and the server\'s channels at the start of a conversation: ' + c1?.u.slice(0, 400));
+ok(c1 && /keyholder/.test(c1.sys) && !/owned by/.test(c1.sys) && /Size it to the moment/.test(c1.sys), 'Discord rules: keyholder wording, reply length follows the persona');
 let S1 = await sent();
 const reply1 = S1.find(r => r.chat_id === C_GEN && /passed it on/.test(r.content || ''));
 ok(reply1 && reply1.reply_to == m1.id && JSON.stringify(reply1.allowed_mentions) === '{"parse":[],"replied_user":false}', 'answer is a threaded reply and never pings anyone: ' + JSON.stringify(reply1));

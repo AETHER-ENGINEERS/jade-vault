@@ -43,8 +43,16 @@ jobs:
             echo "::warning::No signing secrets: the APK is not built. Attach a release-signed APK by hand, or add JADE_KEYSTORE_B64 / JADE_KEYSTORE_PASSWORD / JADE_KEY_ALIAS and re-run."
             exit 0
           fi
-          echo "$KS_B64" | base64 -d > "$RUNNER_TEMP/release.jks"
-          JADE_KEYSTORE="$RUNNER_TEMP/release.jks" bash android/build-apk.sh
+          echo "$KS_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.jks" || { echo "::error::JADE_KEYSTORE_B64 is not valid base64: paste the whole text of the encoded keystore file."; exit 1; }
+          KS="$RUNNER_TEMP/release.jks"; P="$JADE_KEYSTORE_PASSWORD"; A="${JADE_KEY_ALIAS:-netrunner}"
+          # Check the three secrets against each other first, so a mismatch says which one (aliases are not secret).
+          keytool -list -keystore "$KS" -storepass "$P" >/dev/null 2>&1 \
+            || { echo "::error::The keystore did not open with JADE_KEYSTORE_PASSWORD (wrong password, or JADE_KEYSTORE_B64 is not the whole keystore file)."; exit 1; }
+          keytool -list -keystore "$KS" -storepass "$P" -alias "$A" >/dev/null 2>&1 \
+            || { echo "::error::No key named '$A' (JADE_KEY_ALIAS) in the keystore. Keys it holds: $(keytool -list -keystore "$KS" -storepass "$P" 2>/dev/null | grep -i 'PrivateKeyEntry' | cut -d, -f1 | paste -sd ';' -)"; exit 1; }
+          keytool -certreq -keystore "$KS" -storepass "$P" -alias "$A" -keypass "$P" -file /dev/null >/dev/null 2>&1 \
+            || { echo "::error::The key '$A' has a different password from the keystore. The build uses one password for both: set the key's password to JADE_KEYSTORE_PASSWORD (KeyStore Explorer: right-click the key, Set Password)."; exit 1; }
+          JADE_KEYSTORE="$KS" bash android/build-apk.sh || { echo "::error::The APK build failed after the key checks passed; see the step log."; exit 1; }
           rm -f "$RUNNER_TEMP/release.jks"
       - name: Bridge kit and checksums
         run: |

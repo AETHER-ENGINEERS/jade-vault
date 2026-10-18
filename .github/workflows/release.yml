@@ -45,6 +45,8 @@ jobs:
           fi
           echo "$KS_B64" | tr -d ' \r\n' | base64 -d > "$RUNNER_TEMP/release.jks" || { echo "::error::JADE_KEYSTORE_B64 is not valid base64: paste the whole text of the encoded keystore file."; exit 1; }
           KS="$RUNNER_TEMP/release.jks"; P="$JADE_KEYSTORE_PASSWORD"; A="${JADE_KEY_ALIAS:-netrunner}"
+          [ -n "$P" ] || { echo "::error::JADE_KEYSTORE_PASSWORD is empty here. Add it under Settings → Secrets and variables → Actions → Secrets → Repository secrets (not as an Environment secret or a Variable)."; exit 1; }
+          [ -n "${JADE_KEY_ALIAS:-}" ] || echo "::warning::JADE_KEY_ALIAS is not a repository secret here, so the alias 'netrunner' is tried."
           # Size and fingerprint of the decoded file (not secret), to compare with the keystore on your computer:
           #   PowerShell: (Get-Item jade-release.jks).Length; (Get-FileHash jade-release.jks).Hash.Substring(0,16)
           echo "::notice::Decoded keystore: $(stat -c %s "$KS") bytes, SHA-256 $(sha256sum "$KS" | cut -c1-16 | tr a-f A-F)…"

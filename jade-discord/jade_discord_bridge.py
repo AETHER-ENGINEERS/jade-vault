@@ -149,10 +149,10 @@ class Archive:
 
     @property
     def db(self):
-        """The Chalice database: the archive indexed for search (chalice_db.py next to this file)."""
+        """The archive database: the archive indexed for search (archive_db.py next to this file)."""
         if self._db is None:
-            from chalice_db import ChaliceDB
-            self._db = ChaliceDB(self.root)
+            from archive_db import ArchiveDB
+            self._db = ArchiveDB(self.root)
         return self._db
 
     def index_forever(self, every=60):
@@ -162,9 +162,9 @@ class Archive:
                 try:
                     n = self.db.sync()
                     if n:
-                        log(f'chalice: indexed {n} new message(s)')
+                        log(f'archive: indexed {n} new message(s)')
                 except Exception as e:
-                    log(f'chalice: indexing failed: {type(e).__name__}: {e}')
+                    log(f'archive: indexing failed: {type(e).__name__}: {e}')
                 time.sleep(every)
         threading.Thread(target=run, daemon=True).start()
 
@@ -804,7 +804,7 @@ class Bridge:
         lim = max(1, min(int(a.get('limit') or 20), 200))
         return await asyncio.get_running_loop().run_in_executor(None, lambda: arc.search(a.get('query'), lim, a.get('chat_id')))
 
-    async def t_chalice(self, a):
+    async def t_archive_query(self, a):
         """Search the archive's database: search / context / timeline / channels / status. scope 'public' (default) sees only
         channels everyone in the server can see; 'all' sees everything archived."""
         db = self._archive().db
@@ -853,7 +853,7 @@ TOOLS = {
     'archive_status': 'The archive (--archive): where it is, its size, and how a running backfill is doing.',
     'archive_backfill': 'Archive the whole history of every channel and thread the bot can read (or only guild_id), in the background. Resumes where it stopped.',
     'archive_search': 'Search the archive for query (text or author name); optional chat_id, limit (20). Oldest first. Deleted messages are left out.',
-    'chalice': ('The archive as a searchable database (no model cost). action: search (query in FTS5 syntax: words, "a phrase", OR, NOT, prefix*; '
+    'archive_query': ('The archive as a searchable database (no model cost). action: search (query in FTS5 syntax: words, "a phrase", OR, NOT, prefix*; '
                 'optional channel, author, since, until as YYYY-MM-DD, limit, include_noise), context (message_id, before, after), '
                 'timeline (channel, since, until, author, limit), channels, status. scope: public (default, channels everyone can see) or all. '
                 'One line per message: [id] date #channel author: text.'),
@@ -1064,7 +1064,7 @@ def main():
             archive.db  # noqa: B018 (opens the database)
             archive.index_forever()
         except Exception as e:
-            log(f'chalice: the search database is off ({type(e).__name__}: {e})')
+            log(f'archive: the search database is off ({type(e).__name__}: {e})')
     srv = Server((args.host, args.port), make_handler(bridge, token, args.allow_origin))
     scheme = 'http'
     if args.tls_cert:

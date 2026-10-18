@@ -1,7 +1,7 @@
-"""The Chalice database: the Discord archive, indexed for search.
+"""The archive database: the Discord archive, indexed for search.
 
 The archive (--archive) keeps every message as JSON lines, one file per channel. This module reads those files
-into one SQLite database (archive/chalice.db) with full-text search (FTS5), and keeps it up to date by reading
+into one SQLite database (archive/archive.db) with full-text search (FTS5), and keeps it up to date by reading
 only what was appended since last time. Searching it costs no model tokens: a character asks one question and
 gets back a handful of compact lines, instead of paging through channels.
 
@@ -13,7 +13,7 @@ looks at those channels: what a character may bring up with anyone. The "all" sc
 channel the archive kept, including DMs when they are archived.
 
 Standard library only. Used by the Discord bridge, and on its own:
-    python3 chalice_db.py ARCHIVE_DIR "search words"
+    python3 archive_db.py ARCHIVE_DIR "search words"
 """
 import json
 import pathlib
@@ -64,10 +64,10 @@ def is_noise(rec, text):
     return 0
 
 
-class ChaliceDB:
+class ArchiveDB:
     def __init__(self, archive_dir, db_path=None):
         self.root = pathlib.Path(archive_dir)
-        self.path = pathlib.Path(db_path) if db_path else self.root / 'chalice.db'
+        self.path = pathlib.Path(db_path) if db_path else self.root / 'archive.db'
         self.lock = threading.Lock()
         self.indexing = {'running': False, 'done_at': 0, 'added': 0}
         c = self._conn()
@@ -327,8 +327,8 @@ class ChaliceDB:
 
 def main():
     if len(sys.argv) < 2:
-        sys.exit('usage: chalice_db.py ARCHIVE_DIR [search words]')
-    db = ChaliceDB(sys.argv[1])
+        sys.exit('usage: archive_db.py ARCHIVE_DIR [search words]')
+    db = ArchiveDB(sys.argv[1])
     t = time.time()
     n = db.sync()
     print(f'indexed {n} new message(s) in {time.time() - t:.1f}s', file=sys.stderr)

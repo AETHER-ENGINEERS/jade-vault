@@ -90,7 +90,13 @@ await set('#sDcUrl', `http://127.0.0.1:${DBP}/mcp`); await set('#sDcToken', 'bad
 await page.selectOption('#sDcNotify', 'urgent');
 await page.check('#sDcOn'); await page.waitForTimeout(1500);
 ok(/Not connected/.test(await page.textContent('#dcStatus')) && /token/i.test(await page.textContent('#dcStatus')), 'wrong bridge token is refused: ' + (await page.textContent('#dcStatus')).slice(0, 90));
-await set('#sDcToken', DTOKEN); await page.waitForFunction(() => DC.connected, null, { timeout: 25000 });
+await set('#sDcToken', DTOKEN); await page.waitForFunction(() => DC.connected, null, { timeout: 25000 }).catch(async e => {
+  // Say why before failing: the app's status line and the bridge's own log (CI shows only the last lines of a failed suite).
+  console.log('dcStatus: ' + (await page.textContent('#dcStatus').catch(() => '?')).slice(0, 200));
+  console.log('bridge stderr: ' + dbridge.err.slice(-1200).replace(/\n/g, ' | '));
+  console.log('fake discord stderr: ' + fake.err.slice(-600).replace(/\n/g, ' | '));
+  throw e;
+});
 ok(/Online/.test(await page.textContent('#dcStatus')) && /JadeBot/.test(await page.textContent('#dcStatus')), 'connects with the token, shows her name');
 const ids = (await fd('/_state')).identifies;
 ok(ids.length === 2 && (ids[0] & 32768) && !(ids[1] & 32768), 'Message Content Intent off in the portal (close 4014): the bridge reconnects without it: ' + JSON.stringify(ids));

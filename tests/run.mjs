@@ -50,7 +50,7 @@ for (const s of suites) {
     bad++; const lines = r.fails.length ? r.fails : r.out.split('\n').slice(-15);
     console.log(lines.map(l => '    ' + l.slice(0, 300)).join('\n'));
     // On GitHub Actions, also as annotations, so the failure shows on the run's summary page without opening the log.
-    if (process.env.GITHUB_ACTIONS) console.log(`::error title=${s} failed::` + lines.slice(0, 8).map(l => l.slice(0, 200).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, ' ')).join('%0A'));
+    if (process.env.GITHUB_ACTIONS) console.log(`::error title=${s} failed::` + lines.slice(0, 15).map(l => l.slice(0, 1400).replace(/%/g, '%25').replace(/\r/g, '').replace(/\n/g, ' ')).join('%0A'));
   }
 }
 console.log(`\n${suites.length - bad}/${suites.length} suites passed`);

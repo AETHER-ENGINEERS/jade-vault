@@ -1,6 +1,6 @@
 # Backups, storage, and migration
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 ## Where data lives
 

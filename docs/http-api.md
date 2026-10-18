@@ -1,8 +1,8 @@
 # Android HTTP API
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
-This is the optional **inbound Android app API**, not a browser-hosting API, model-provider API, or Vector/Discord bridge. There is no dedicated `/v1/discord` route in 2.8.0. It runs the normal Jade chat/flows inside the app.
+This is the optional **inbound Android app API**, not a browser-hosting API, model-provider API, or Vector/Discord bridge. There is no dedicated `/v1/discord` route in 2.9.0. It runs the normal Jade chat/flows inside the app.
 
 ## Enable and secure
 

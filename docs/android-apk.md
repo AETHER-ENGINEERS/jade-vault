@@ -1,12 +1,12 @@
 # Build the Android APK
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md) · [Development guide](development.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md) · [Development guide](development.md)
 
 These instructions create Jade Vault's Android app from this repository. The current build does **not** use Gradle or require the Android SDK/Android Studio: it compiles Java against repository stubs, converts classes to dex, assembles with apktool, and signs the result.
 
 ## 1. Prepare the build environment
 
-Use Linux or WSL for the closest match to CI. macOS may need GNU-compatible utilities or a Linux environment because the script uses tools such as `sha256sum` and GNU-style `sed`. Use the Jade Vault **2.8.0 source**, with `VERSION` set to `2.8.0` and `android/VERSION_CODE` set to `22`. Run all following commands from that repository root unless stated otherwise.
+Use Linux or WSL for the closest match to CI. macOS may need GNU-compatible utilities or a Linux environment because the script uses tools such as `sha256sum` and GNU-style `sed`. Use the Jade Vault **2.9.0 source**, with `VERSION` set to `2.9.0` and `android/VERSION_CODE` set to `23`. Run all following commands from that repository root unless stated otherwise.
 
 Required:
 
@@ -70,7 +70,7 @@ bash android/build-apk.sh
 | `android/build/` | Temporary classes, dex, APK assembly/signing output |
 | `dist/jade-vault-<version>.apk` | Final signed APK |
 
-The APK filename/version comes from `VERSION` (**2.8.0**). The Android version code comes from `android/VERSION_CODE` (**22**). The expected final artifact is `dist/jade-vault-2.8.0.apk`. The script patches the copied manifest/apktool metadata during assembly; it does not require manually patching those templates for each local build.
+The APK filename/version comes from `VERSION` (**2.9.0**). The Android version code comes from `android/VERSION_CODE` (**23**). The expected final artifact is `dist/jade-vault-2.9.0.apk`. The script patches the copied manifest/apktool metadata during assembly; it does not require manually patching those templates for each local build.
 
 Without release-signing variables, the script creates/reuses `android/.tools/debug.jks` and signs with a local **debug key**. That file's continued existence matters: a new debug key cannot update an app installed with an older one. Debug APKs are for development, not production distribution.
 
@@ -89,7 +89,7 @@ Do not remove checksum verification to work around a download failure. Confirm n
 
 ## 3. Test before distribution
 
-The build does not automatically run tests. Discord Python dependencies are needed for the full 2.8.0 suite and the separately hosted bridge, **not** for compiling the APK UI itself. Rebuilding from 2.8.0 includes the Discord connector; it does not bundle or start the Python bridge on the phone. From the repository root:
+The build does not automatically run tests. Discord Python dependencies are needed for the full 2.9.0 suite and the separately hosted bridge, **not** for compiling the APK UI itself. Rebuilding from 2.9.0 includes the Discord connector; it does not bundle or start the Python bridge on the phone. From the repository root:
 
 ```sh
 python3 -m venv "$HOME/.jade-vault-test-venv"

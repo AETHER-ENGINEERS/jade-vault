@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 2.9.0
 - **Discord archive** (`--archive`, off by default): the Discord bridge keeps every message the bot can see on the
   computer it runs on, whether or not the app is open, as append-only JSON lines per channel and thread. People, bots,
   webhooks and Jade herself, edits, deletions, replies, embeds, reactions, and attachments downloaded before Discord's
@@ -11,6 +11,9 @@
 - **Render** (`--render OUT_DIR --name … --description …`): the archive as an Obsidian-style vault under a name you
   choose, a note per channel and month and per thread, replies linked to the message they answer, images embedded.
 - `archive_status` and `archive_search` tools; `./setup.sh --archive`; `JADE_DISCORD_ARCHIVE` for Docker.
+- Discord bridge: `JADE_DISCORD_HOST=127.0.0.1 ./setup.sh` keeps it on the server itself (for a VPS, reached over SSH or
+  Tailscale); discord.py's voice extra (PyNaCl, davey) is installed by default, with ffmpeg and opus in the Docker image.
+- Tests: the gem-theme checks can see Jade (`window.Jade`); all 27 suites pass.
 
 ## 2.8.0
 - **Discord bridge** (`jade-discord/`, built on discord.py) and a **Discord** section in Config. Jade lives on Discord as a bot:

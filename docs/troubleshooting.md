@@ -1,6 +1,6 @@
 # Troubleshooting
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Before clearing storage, reinstalling, or restoring: **export your current data**. Record app version, platform, provider/model, and the exact error without exposing tokens or private notes.
 
@@ -62,7 +62,7 @@ See [automation](automation.md).
 
 **Vector:** confirm bridge process/container, reachable URL/token, dedicated bot key, owner npub, DM/channel/trigger policy, and that Jade Vault is running. The bridge can stay online without the app generating replies. Protect logs that print the token.
 
-**Discord:** confirm app/source version 2.8.0, bridge URL ending in `/mcp`, bridge bearer token (not the bot token), numeric owner/admin IDs, channel whitelist, and trigger/DM settings. Missing Message Content Intent limits ordinary channel text while DMs/@mentions can still work. Messages older than the default ten-minute bridge cutoff are dropped. A Vector turn can delay a Discord turn because agent work is serialized. See the [Discord troubleshooting table](discord.md#troubleshooting), including the member-intent limitation.
+**Discord:** confirm app/source version 2.9.0, bridge URL ending in `/mcp`, bridge bearer token (not the bot token), numeric owner/admin IDs, channel whitelist, and trigger/DM settings. Missing Message Content Intent limits ordinary channel text while DMs/@mentions can still work. Messages older than the default ten-minute bridge cutoff are dropped. A Vector turn can delay a Discord turn because agent work is serialized. See the [Discord troubleshooting table](discord.md#troubleshooting), including the member-intent limitation.
 
 **HTTP request tool:** inspect status/body, method and body compatibility, secret names, CORS, and timeout. GET/HEAD cannot carry request bodies. A remote API may receive a write even if the client later times out; check before retrying.
 

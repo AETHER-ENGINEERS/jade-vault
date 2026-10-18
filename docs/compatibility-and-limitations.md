@@ -1,6 +1,6 @@
 # Compatibility and limitations
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Use this guide to plan your installation, understand which features need a network connection, and decide what to back up.
 
@@ -10,7 +10,7 @@ Use this guide to plan your installation, understand which features need a netwo
 | --- | --- |
 | Browser | A modern browser with JavaScript, IndexedDB, and WebAssembly support. Provider and integration requests must satisfy the browser's CORS and HTTPS rules. |
 | Android | Android 7 or newer. The app uses Android WebView; keep WebView updated for browser features and security fixes. |
-| Discord bridge | A separate computer running Python 3.9+ with the supplied requirements, or Docker. Discord support requires Jade Vault 2.8.0. |
+| Discord bridge | A separate computer running Python 3.9+ with the supplied requirements, or Docker. Discord support requires Jade Vault 2.8.0 or later. |
 | Vector bridge | A separate macOS/Linux computer or Docker host running the Vector bridge and its agent. |
 
 For installation, see [Getting started](getting-started.md), [Discord](discord.md), or [Vector](vector.md). To build your own APK, see [Build the Android APK](android-apk.md).
@@ -46,9 +46,9 @@ Discord's bridge drops bot-authored messages to avoid loops and discards queued 
 
 ## Discord-specific limits
 
-- Sending vault files is limited to **8 MiB** in Jade Vault 2.8.0.
+- Sending vault files is limited to **8 MiB** in Jade Vault 2.9.0.
 - Without Message Content Intent, the bot can still handle DMs and @mentions, but ordinary channel-text triggers are limited.
-- The 2.8.0 bridge does not enable Server Members Intent or provide a setting for it. Enabling the intent in the Developer Portal alone is insufficient for member listing. Use individual user profiles instead.
+- The 2.9.0 bridge does not enable Server Members Intent or provide a setting for it. Enabling the intent in the Developer Portal alone is insufficient for member listing. Use individual user profiles instead.
 - Outgoing allowed mentions are disabled, so messages do not notify @everyone, @here, or roles.
 
 See the [Discord guide](discord.md) for participation rules, owner/admin/public permissions, and troubleshooting.

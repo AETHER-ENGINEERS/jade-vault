@@ -1,6 +1,6 @@
 # Security, privacy, and licensing
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Read the project's [security policy](../SECURITY.md) for vulnerability reporting. Report security issues privately through GitHub's Security → Report a vulnerability rather than a public issue.
 
@@ -40,7 +40,7 @@ The Android API, Vector bridge, and Discord bridge are distinct bearer-token ser
 
 Vector's bridge holds a bot private key; Discord's bridge holds a Discord bot token. Bridge bearer-token compromise can allow bot actions, while compromise of the underlying bot key/token grants bot identity. Use dedicated bot accounts and secure each state directory/volume. Discord outbound allowed mentions are disabled and bot-authored incoming messages are ignored, but these safeguards do not guarantee harmless generated speech.
 
-Vector and Discord callers have owner/admin/public tool restrictions checked at prompt construction and tool execution. Verify owner/admin npubs for Vector and numeric user IDs for Discord before enabling unattended operation. In 2.8.0, both messenger non-owner tool allowlists include `web_search`; other actions vary by connector/role. SOUL persona text can be included in non-owner prompts even though ordinary private vault/memory context is omitted, so keep private facts out of persona text. These restrictions do not prevent every inappropriate generated reply.
+Vector and Discord callers have owner/admin/public tool restrictions checked at prompt construction and tool execution. Verify owner/admin npubs for Vector and numeric user IDs for Discord before enabling unattended operation. In 2.9.0, both messenger non-owner tool allowlists include `web_search`; other actions vary by connector/role. SOUL persona text can be included in non-owner prompts even though ordinary private vault/memory context is omitted, so keep private facts out of persona text. These restrictions do not prevent every inappropriate generated reply.
 
 ## Webxdc isolation
 

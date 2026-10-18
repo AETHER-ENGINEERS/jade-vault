@@ -1,6 +1,6 @@
 # Getting started
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 ## Choose a platform
 
@@ -10,7 +10,7 @@
 | Android | Install a release APK on Android 7+ | WebView storage, native file saving, TTS, background service, optional HTTP API |
 | Build from source | Follow the [development guide](development.md) | Node and Python required; APK also requires Java |
 
-Use **version 2.8.0** release files or the corresponding source checkout for these guides. A later release may behave differently. Get release files from the repository's [Releases](https://github.com/AETHER-ENGINEERS/jade-vault/releases). Only install APKs from a source you trust. To create your own, see [Build the Android APK](android-apk.md).
+Use **version 2.9.0** release files or the corresponding source checkout for these guides. A later release may behave differently. Get release files from the repository's [Releases](https://github.com/AETHER-ENGINEERS/jade-vault/releases). Only install APKs from a source you trust. To create your own, see [Build the Android APK](android-apk.md).
 
 A stable static URL is preferable to moving HTML files between locations. Changing protocol, hostname, port, or browser profile can make your existing browser vault appear absent because it uses different storage.
 

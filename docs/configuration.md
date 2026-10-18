@@ -1,6 +1,6 @@
 # Configuration and model providers
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Use Config's search box if a section is not visible in the selected tab. Keep credentials in the designated settings fields, not in chat or notes.
 

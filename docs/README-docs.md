@@ -1,10 +1,10 @@
 # Jade Vault documentation
 
-Jade Vault is a device-local Markdown vault with an AI assistant, browser-based scripting, automations, and an Android wrapper. These guides target **Jade Vault 2.8.0**; UI labels may vary slightly between releases. Config has Model, Memory, Tools, Connect, and App tabs, plus a search box.
+Jade Vault is a device-local Markdown vault with an AI assistant, browser-based scripting, automations, and an Android wrapper. These guides target **Jade Vault 2.9.0**; UI labels may vary slightly between releases. Config has Model, Memory, Tools, Connect, and App tabs, plus a search box.
 
 ## Version and compatibility
 
-These guides cover **Jade Vault 2.8.0**. For platform requirements, network access, background operation, and backup coverage, see [Compatibility and limitations](compatibility-and-limitations.md).
+These guides cover **Jade Vault 2.9.0**. For platform requirements, network access, background operation, and backup coverage, see [Compatibility and limitations](compatibility-and-limitations.md).
 
 ## Start here
 

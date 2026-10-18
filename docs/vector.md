@@ -1,6 +1,6 @@
 # Vector messenger integration
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Jade's model and permissions remain in the app. A separate always-on computer runs a Python HTTP bridge and Vector's patched `vector-agent`, which maintains the messenger identity and receives events. The bridge does not independently run Jade's brain.
 
@@ -55,7 +55,7 @@ Tools are filtered before prompting and checked again at execution. Non-owner pr
 
 ## Run alongside Discord
 
-In 2.8.0, [Discord](discord.md) and Vector can both be enabled. Each has its own bridge URL/token, messenger sessions, and incoming queue. Their queues coordinate busy checks and wake one another so Jade handles **one agent conversation at a time**, not parallel model turns. Connected bridges also participate in Android background-mode decisions.
+In 2.9.0, [Discord](discord.md) and Vector can both be enabled. Each has its own bridge URL/token, messenger sessions, and incoming queue. Their queues coordinate busy checks and wake one another so Jade handles **one agent conversation at a time**, not parallel model turns. Connected bridges also participate in Android background-mode decisions.
 
 The `notify_owner` tool routes messages from Discord chats to `/Jade/Discord Inbox.md`; Vector chats use `/Jade/Vector Inbox.md`. Configure the notification policy separately for each connector. Discord defaults to port 8788; Vector defaults to 8787.
 

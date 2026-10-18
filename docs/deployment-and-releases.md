@@ -1,10 +1,10 @@
 # Deployment and releases
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 ## Browser deployment
 
-From the root of the Jade Vault 2.8.0 source directory, build with `npm install` followed by `npm run build`. There are two relevant generated pages:
+From the root of the Jade Vault 2.9.0 source directory, build with `npm install` followed by `npm run build`. There are two relevant generated pages:
 
 - `dist/jade-vault.html`: browser/release page; some dependencies are externally loaded.
 - `android/proj/assets/index.html`: core rendering dependencies inlined, also suitable as a static-hosted page.

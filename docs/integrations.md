@@ -1,6 +1,6 @@
 # MCP and HTTP integrations
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 External integrations can transmit notes, prompts, and credentials to another service. Configure only trusted endpoints and review what tools do before exposing them to Jade.
 

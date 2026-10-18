@@ -1,6 +1,6 @@
 # Note scripts and templates
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 Jade Vault implements Dataview- and Templater-style features. Enable **Run JavaScript in notes** in Config → Tools → Note scripts & templates to render live script blocks (enabled by default). These are compatibility features, not full installations of the Obsidian plugins; do not assume every plugin API is supported.
 

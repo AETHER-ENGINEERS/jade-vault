@@ -1,6 +1,6 @@
 # Apps and Jade Link
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 ## Webxdc mini apps
 

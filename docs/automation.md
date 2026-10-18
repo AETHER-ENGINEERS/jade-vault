@@ -1,6 +1,6 @@
 # Flows, schedules, and heartbeat
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 > Automations execute while the app is running. A closed browser, suspended tab, stopped Android process, or unavailable provider can delay/prevent work. Android background mode helps but does not provide server-grade scheduling guarantees.
 
@@ -78,7 +78,7 @@ Text fields can interpolate `{{ JavaScript }}`. A field consisting solely of one
 
 Expression evaluation has no network access and a five-second worker timeout. Actual JavaScript and tool steps have broader capabilities. Flow execution is bounded to 5,000 steps, nested flow depth 5, and per-script/shell time limits (default 60 seconds, capped at 600). Run records show step status, input/output previews, errors, logs, and timing; do not treat previews as complete file archives.
 
-Discord's tool is available in the 2.8.0 flow editor's tool list/descriptions. Configure the connector before calling it; no Discord-specific step type is needed. `notify_owner` invoked in a Discord chat routes to the Discord inbox/notification policy. See [Discord permissions](discord.md#4-roles-tools-and-owner-notifications).
+Discord's tool is available in the 2.9.0 flow editor's tool list/descriptions. Configure the connector before calling it; no Discord-specific step type is needed. `notify_owner` invoked in a Discord chat routes to the Discord inbox/notification policy. See [Discord permissions](discord.md#4-roles-tools-and-owner-notifications).
 
 ### Triggers and entry points
 

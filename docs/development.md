@@ -1,6 +1,6 @@
 # Development and architecture
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
 ## Requirements
 
@@ -50,7 +50,7 @@ Inspect `app/build.py` to determine which fragment is actually inserted. `app/mo
 
 ## Install and build
 
-Run the following commands from the root of the Jade Vault 2.8.0 source directory:
+Run the following commands from the root of the Jade Vault 2.9.0 source directory:
 
 ```sh
 npm install
@@ -80,7 +80,7 @@ Provider/MCP CORS must permit the actual browser origin. A phone opening the pag
 
 ## Tests
 
-Build first. For the full 2.8.0 suite, install Discord's Python requirements in a virtual environment **outside the repository**, so it cannot accidentally be committed. Keep the environment active while running the tests, which invoke `python3`:
+Build first. For the full 2.9.0 suite, install Discord's Python requirements in a virtual environment **outside the repository**, so it cannot accidentally be committed. Keep the environment active while running the tests, which invoke `python3`:
 
 ```sh
 python3 -m venv "$HOME/.jade-vault-test-venv"

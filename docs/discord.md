@@ -1,8 +1,8 @@
 # Discord bridge and connector
 
-**Jade Vault 2.8.0** · [Documentation index](README-docs.md)
+**Jade Vault 2.9.0** · [Documentation index](README-docs.md)
 
-Connect Jade to Discord to answer DMs and channel messages, react, share files, and take messages for you. Discord support requires Jade Vault **2.8.0** and a bridge running on a separate computer.
+Connect Jade to Discord to answer DMs and channel messages, react, share files, and take messages for you. Discord support requires Jade Vault **2.8.0 or later** and a bridge running on a separate computer.
 
 ## Architecture and credentials
 
@@ -87,7 +87,7 @@ The source provides a local Dockerfile/Compose image named `jade-discord:latest`
 
 ## 3. Connect the app
 
-In the **2.8.0 app**, open Config → Connect → **Discord (Jade as a bot)**, or type `/discord` in the app chat.
+In the **2.9.0 app**, open Config → Connect → **Discord (Jade as a bot)**, or type `/discord` in the app chat.
 
 1. Set Bridge URL, for example `http://192.168.1.20:8788/mcp`.
 2. Set the **bridge bearer token** printed by the bridge.
@@ -122,9 +122,9 @@ The `discord` tool provides send/reply, typing, reaction, edit/delete, read/prof
 - `notify_owner` in a Discord chat uses `/Jade/Discord Inbox.md`, not Vector's inbox.
 - Notification settings control inbox-only versus immediate owner notification/DM behavior; urgent requests are handled according to that policy.
 - Attachments saved to the vault use `/attachments/discord/<date>/...` by default. Image interpretation depends on a vision-capable model and image settings.
-- Jade Vault 2.8.0 limits outgoing vault file sends to **8 MiB**.
+- Jade Vault 2.9.0 limits outgoing vault file sends to **8 MiB**.
 
-**Member-listing limitation:** the 2.8.0 bridge does not enable Server Members Intent and has no setting to turn it on. Enabling the intent in the Developer Portal alone is insufficient for member listing. Use individual user profiles instead; granting broader Discord permissions does not resolve this limitation.
+**Member-listing limitation:** the 2.9.0 bridge does not enable Server Members Intent and has no setting to turn it on. Enabling the intent in the Developer Portal alone is insufficient for member listing. Use individual user profiles instead; granting broader Discord permissions does not resolve this limitation.
 
 ## 5. Running alongside Vector
 
@@ -165,7 +165,7 @@ This bridge uses HTTP MCP at `/mcp` (POST for requests), **not** Android's GET-o
 
 | Symptom | Check |
 | --- | --- |
-| No Discord settings | Confirm the installed app/source is 2.8.0, rebuild web assets before APK assembly |
+| No Discord settings | Confirm the installed app/source is 2.9.0, rebuild web assets before APK assembly |
 | HTTP 401 | Correct bridge token, not bot token or Vector token |
 | Bridge online, bot not ready | Bot token validity, Gateway access, bridge error/log output |
 | DMs work but channel text does not | Message Content Intent, channel permissions/whitelist, trigger rules |

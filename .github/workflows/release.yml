@@ -55,8 +55,9 @@ jobs:
           case "$KT" in JKS|JCEKS|PKCS12) ;; *) echo "::error::The keystore is not JKS or PKCS12 (it starts with bytes $MAGIC: maybe BKS or UBER from KeyStore Explorer). Make a new one with File → New → JKS, or convert it there with Tools → Change KeyStore Type → JKS, then update JADE_KEYSTORE_B64."; exit 1;; esac
           [ "$P" = "$(printf %s "$P" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')" ] || echo "::warning::JADE_KEYSTORE_PASSWORD starts or ends with a space or line break; if that was not meant, re-enter it without one."
           # Check the three secrets against each other first, so a mismatch says which one (aliases are not secret).
-          keytool -list -keystore "$KS" -storepass "$P" >/dev/null 2>&1 \
-            || { echo "::error::The keystore did not open with JADE_KEYSTORE_PASSWORD (wrong password, or JADE_KEYSTORE_B64 is not the whole keystore file)."; exit 1; }
+          echo "::notice::Password secret: ${#P} characters."
+          OUT=$(keytool -list -keystore "$KS" -storepass "$P" 2>&1) \
+            || { echo "::error::The keystore did not open with JADE_KEYSTORE_PASSWORD. keytool said: $(printf %s "$OUT" | grep -i -m1 -E 'error|exception' | cut -c1-300)"; exit 1; }
           keytool -list -keystore "$KS" -storepass "$P" -alias "$A" >/dev/null 2>&1 \
             || { echo "::error::No key named '$A' (JADE_KEY_ALIAS) in the keystore. Keys it holds: $(keytool -list -keystore "$KS" -storepass "$P" 2>/dev/null | grep -i 'PrivateKeyEntry' | cut -d, -f1 | paste -sd ';' -)"; exit 1; }
           keytool -certreq -keystore "$KS" -storepass "$P" -alias "$A" -keypass "$P" -file /dev/null >/dev/null 2>&1 \

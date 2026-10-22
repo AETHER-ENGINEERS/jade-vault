@@ -3,7 +3,8 @@
 #   docker compose run --rm jade-discord --set-token      once, to store the bot's token
 #   docker compose logs | grep "Bridge token"
 FROM python:3.12-slim
-RUN pip install --no-cache-dir "discord.py>=2.4" \
+RUN apt-get update && apt-get install -y --no-install-recommends ffmpeg libopus0 && rm -rf /var/lib/apt/lists/*
+RUN pip install --no-cache-dir "discord.py[voice]>=2.4" \
  && useradd --create-home --uid 10001 jade && mkdir -p /data && chown jade /data
 COPY jade_discord_bridge.py /usr/local/bin/jade_discord_bridge.py
 USER jade

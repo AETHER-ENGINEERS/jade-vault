@@ -233,7 +233,7 @@ function dcFilterTools(list) {
   const sc = dcScope(); let out = list;
   if (!S.dcOn) out = out.filter(t => t.function.name !== 'discord');
   if (sc) out = out.filter(t => DC_SCOPE_TOOLS[sc].has(t.function.name));
-  return out;
+  return typeof curiosityFilterTools === 'function' ? curiosityFilterTools(out) : out;   // the last filter on the tool list: a curiosity wake-up gets only the tools the user allowed
 }
 function dcGuard(name) { const sc = dcScope(); if (sc && !DC_SCOPE_TOOLS[sc].has(name)) throw new Error(`${name} is not available in this Discord chat (only the owner can use it).`); }
 function dcScopedPrompt() {

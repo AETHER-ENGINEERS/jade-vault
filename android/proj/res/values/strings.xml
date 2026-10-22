@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
   <string name="app_name">Jade Vault</string>
+    <string name="a11y_desc">Lets Jade read what is on the screen and tap, type and scroll in your apps, when you ask her to. It stays off until you turn it on here, and the app shows a notice whenever Jade is using it.</string>
 </resources>

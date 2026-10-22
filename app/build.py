@@ -37,7 +37,299 @@ rep("<span>π Netrunner</span>", "<span>◆ Jade</span>")
 rep("out.push('## Netrunner', '', m.content, '')", "out.push('## Jade', '', m.content, '')")
 rep('placeholder="Read TODO.md and summarise what is left, then suggest the next step."', 'placeholder="Read Inbox.md and file each item into its own linked note."')
 
+# ---------- Jade's gemstone color themes ----------
+rep("jadeFrame: 'portrait',", "jadeFrame: 'portrait', jadeTheme: 'jade', jadeSpectrum: '#bd72f3', jadeGradientStart: '#f34b68', jadeGradientEnd: '#62a4ff', jadeGradientDirection: 'vertical', jadeHairMode: 'original', jadeHairColor: '#342c3c', jadeHairEnd: '#b58af4', jadeHairDirection: 'vertical', jadeClothesMode: 'original', jadeClothesColor: '#382f47', jadeClothesEnd: '#62a4ff', jadeClothesDirection: 'vertical', jadeStockingsMode: 'original', jadeStockingsColor: '#252330', jadeStockingsEnd: '#9c86bc', jadeStockingsDirection: 'vertical', jadeBootsMode: 'original', jadeBootsColor: '#20212a', jadeBootsEnd: '#f4c95d', jadeBootsDirection: 'vertical', jadeSkinMode: 'original', jadeSkinTone: 'fair', jadeSkinColor: '#d29b7c', jadeSkinEnd: '#f1d0c5', jadeSkinDirection: 'vertical',")
+JADE_THEMES_JS = r'''const JADE_THEMES = Object.freeze({
+  jade:      { name: 'Jade',      accent: '#1fe5a5', rgb: [31, 229, 165],  highlight: '#ffb8c6', highlightRgb: [255, 184, 198], line: '#1d6b52', ink: '#00140c' },
+  ruby:      { name: 'Ruby',      accent: '#f34b68', rgb: [243, 75, 104], highlight: '#ffb7c2', highlightRgb: [255, 183, 194], line: '#792a3d', ink: '#25050b' },
+  amethyst:  { name: 'Amethyst',  accent: '#b58af4', rgb: [181, 138, 244], highlight: '#e5c9ff', highlightRgb: [229, 201, 255], line: '#5e477d', ink: '#160b25' },
+  gold:      { name: 'Gold',      accent: '#f4c95d', rgb: [244, 201, 93], highlight: '#ffe3a3', highlightRgb: [255, 227, 163], line: '#79602c', ink: '#211800' },
+  sapphire:  { name: 'Sapphire',  accent: '#62a4ff', rgb: [98, 164, 255], highlight: '#b9d6ff', highlightRgb: [185, 214, 255], line: '#365a89', ink: '#061426' },
+  diamond:   { name: 'Diamond',   accent: '#9cecf4', rgb: [156, 236, 244], highlight: '#d9fbff', highlightRgb: [217, 251, 255], line: '#3f747d', ink: '#061619' },
+  'rose-gold': { name: 'Rose Gold', accent: '#e7a0a5', rgb: [231, 160, 165], highlight: '#ffd0c7', highlightRgb: [255, 208, 199], line: '#785052', ink: '#261011' },
+  emerald:   { name: 'Emerald',   accent: '#24d18b', rgb: [36, 209, 139], highlight: '#a6f1d1', highlightRgb: [166, 241, 209], line: '#176d4b', ink: '#001a10' },
+  obsidian:  { name: 'Obsidian',  accent: '#aebbd0', rgb: [174, 187, 208], highlight: '#d6dfec', highlightRgb: [214, 223, 236], line: '#515e72', ink: '#111722' },
+  quartz:    { name: 'Quartz',    accent: '#e3b5ed', rgb: [227, 181, 237], highlight: '#f5dcfb', highlightRgb: [245, 220, 251], line: '#705478', ink: '#211224' },
+  spectrum:  { name: 'Spectrum', accent: '#bd72f3', rgb: [189, 114, 243], highlight: '#e1c0fa', highlightRgb: [225, 192, 250], line: '#57366f', ink: '#160d1c' },
+  'custom-gradient': { name: 'Custom Gradient', accent: '#f34b68', rgb: [243, 75, 104], highlight: '#62a4ff', highlightRgb: [98, 164, 255], line: '#792a3d', ink: '#160a1d' },
+});'''
+JADE_THEME_UTILS_JS = r'''const JADE_APPEARANCE_PARTS = Object.freeze([
+  { id: 'hair', label: 'Hair' }, { id: 'clothes', label: 'Clothes' }, { id: 'stockings', label: 'Stockings' }, { id: 'boots', label: 'Boots' }, { id: 'skin', label: 'Skin' },
+]);
+const JADE_SKIN_TONES = Object.freeze({
+  porcelain: { label: 'Porcelain', color: '#f2d6d1' }, fair: { label: 'Fair', color: '#e9c1ac' }, light: { label: 'Light', color: '#d8a181' },
+  medium: { label: 'Medium', color: '#bd805f' }, tan: { label: 'Tan', color: '#9b654a' }, deep: { label: 'Deep', color: '#704533' },
+});
+// Source-texture rectangles for the bundled 2048×2048 atlas; keep these in sync with l2d-tex.
+const JADE_APPEARANCE_REGIONS = Object.freeze({
+  skin: [[0, 0, 220, 280], [0, 270, 320, 510], [600, 250, 850, 500], [560, 560, 820, 700], [850, 600, 1180, 1060], [0, 730, 920, 1120], [0, 1080, 700, 1400]],
+  hair: [[0, 460, 520, 750], [900, 0, 1200, 570], [1140, 240, 1340, 850]],
+  clothes: [[240, 0, 700, 650], [650, 0, 950, 760], [0, 280, 300, 510], [870, 620, 1160, 1040], [0, 1080, 700, 1370]],
+  stockings: [[160, 740, 920, 1110]], boots: [[0, 740, 180, 1110]],
+});
+function jadeHexRgb(hex, fallback = '#1fe5a5') {
+  const m = /^#?([\da-f]{6})$/i.exec(String(hex || ''));
+  const h = m ? m[1] : fallback.slice(1);
+  return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
+}
+function jadeRgbHex(rgb) { return '#' + rgb.map(c => Math.max(0, Math.min(255, Math.round(c))).toString(16).padStart(2, '0')).join(''); }
+function jadeMixHex(a, b, amount) {
+  const x = jadeHexRgb(a), y = jadeHexRgb(b);
+  return jadeRgbHex(x.map((c, i) => c * (1 - amount) + y[i] * amount));
+}
+function jadeContrastInk(rgb) {
+  const luminance = rgb.reduce((sum, c, i) => sum + (c / 255) * [0.2126, 0.7152, 0.0722][i], 0);
+  return luminance > 0.48 ? '#07100d' : '#f5f7ff';
+}
+function resolveJadeTheme(name) {
+  const preset = JADE_THEMES[name] || JADE_THEMES.jade;
+  if (name === 'spectrum') {
+    const accent = /^#[\da-f]{6}$/i.test(String(S.jadeSpectrum)) ? S.jadeSpectrum : JADE_THEMES.spectrum.accent;
+    const rgb = jadeHexRgb(accent), highlight = jadeMixHex(accent, '#ffffff', 0.48), highlightRgb = jadeHexRgb(highlight);
+    return { ...preset, accent, rgb, highlight, highlightRgb, line: jadeMixHex(accent, '#000000', 0.58), ink: jadeContrastInk(rgb), avatarStartRgb: rgb, avatarEndRgb: rgb, isGradient: false, direction: 'vertical', cssGradient: `linear-gradient(90deg, ${accent}, ${highlight})` };
+  }
+  if (name === 'custom-gradient') {
+    const start = /^#[\da-f]{6}$/i.test(String(S.jadeGradientStart)) ? S.jadeGradientStart : JADE_THEMES['custom-gradient'].accent;
+    const end = /^#[\da-f]{6}$/i.test(String(S.jadeGradientEnd)) ? S.jadeGradientEnd : JADE_THEMES['custom-gradient'].highlight;
+    const direction = ['vertical', 'horizontal', 'diagonal'].includes(S.jadeGradientDirection) ? S.jadeGradientDirection : 'vertical';
+    const rgb = jadeHexRgb(start), highlightRgb = jadeHexRgb(end), midpoint = rgb.map((c, i) => (c + highlightRgb[i]) / 2);
+    const angle = direction === 'vertical' ? '180deg' : direction === 'horizontal' ? '90deg' : '135deg';
+    return { ...preset, accent: start, rgb, highlight: end, highlightRgb, line: jadeMixHex(start, '#000000', 0.58), ink: jadeContrastInk(midpoint), avatarStartRgb: rgb, avatarEndRgb: highlightRgb, isGradient: true, direction, cssGradient: `linear-gradient(${angle}, ${start}, ${end})` };
+  }
+  return { ...preset, avatarStartRgb: preset.rgb, avatarEndRgb: preset.rgb, isGradient: false, direction: 'vertical', cssGradient: `linear-gradient(90deg, ${preset.accent}, ${preset.highlight})` };
+}'''
+rep('const Jade = (() => {', JADE_THEMES_JS + '\n' + JADE_THEME_UTILS_JS + '\nconst Jade = (() => {')
+rep("    cur: {}, frame: 'portrait', onStatus: () => {}, onSpeak: () => {},", "    cur: {}, frame: 'portrait', theme: 'jade', tintFilter: null, appearanceCanvas: null, appearanceContext: null, appearanceData: null, appearanceOriginal: null, appearanceMasks: null, appearanceTexture: null, onStatus: () => {}, onSpeak: () => {},")
+rep("  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];", """  const EXPR_KEYS = [P.BROW_LY, P.BROW_RY, P.BROW_LA, P.BROW_RA, P.BROW_LF, P.BROW_RF, P.MOUTH_FORM, P.SMILE_L, P.SMILE_R, P.CHEEK];
+  // Theme filter recolors emerald accents; the canvas texture handles separate appearance modes.
+  const GEM_TINT_FRAGMENT = `
+    varying vec2 vTextureCoord;
+    uniform sampler2D uSampler;
+    uniform vec3 uColor;
+    uniform vec3 uColor2;
+    uniform float uGradient;
+    uniform float uDirection;
+    void main(void) {
+      vec4 source = texture2D(uSampler, vTextureCoord);
+      vec3 rgb = source.rgb;
+      float high = max(rgb.r, max(rgb.g, rgb.b));
+      float low = min(rgb.r, min(rgb.g, rgb.b));
+      float green = smoothstep(0.02, 0.18, rgb.g - max(rgb.r, rgb.b));
+      float saturation = smoothstep(0.04, 0.25, high - low);
+      float mask = green * saturation;
+      float luminance = dot(rgb, vec3(0.2126, 0.7152, 0.0722));
+      float gradientT = vTextureCoord.y;
+      if (uDirection > 0.5) gradientT = vTextureCoord.x;
+      if (uDirection > 1.5) gradientT = clamp((vTextureCoord.x + 1.0 - vTextureCoord.y) * 0.5, 0.0, 1.0);
+      vec3 targetColor = mix(uColor, uColor2, gradientT * uGradient);
+      float gemLuminance = max(dot(targetColor, vec3(0.2126, 0.7152, 0.0722)), 0.08);
+      vec3 gem = targetColor * clamp(luminance / gemLuminance, 0.08, 1.35);
+      gl_FragColor = vec4(mix(rgb, gem, mask), source.a);
+    }
+  `;""")
+rep("    app.stage.addChild(model);\n    const core = model.internalModel.coreModel;", """    app.stage.addChild(model);
+    try {
+      state.tintFilter = new PIXI.Filter(undefined, GEM_TINT_FRAGMENT, { uColor: JADE_THEMES.jade.rgb.map(c => c / 255), uColor2: JADE_THEMES.jade.rgb.map(c => c / 255), uGradient: 0, uDirection: 0 });
+      state.tintFilter.padding = 2; model.filters = [state.tintFilter];
+    } catch (e) { state.tintFilter = null; console.warn('Jade gem-color filter unavailable', e); }
+    setTheme(S.jadeTheme);
+    const core = model.internalModel.coreModel;""")
+rep("  async function init({ host, onStatus, onSpeak } = {}) {", r"""  const JADE_APPEARANCE_ORDER = ['boots', 'stockings', 'hair', 'clothes'];
+  const JADE_APPEARANCE_FALLBACKS = { hair: '#342c3c', clothes: '#382f47', stockings: '#252330', boots: '#20212a', skin: '#d29b7c' };
+  function jadeIsSkinPixel(r, g, b) {
+    const rg = r - g, rb = r - b;
+    return r > 90 && rg > 4 && rg < 105 && rb > 12 && rb < 112 && g > b * 0.88;
+  }
+  function jadeBuildAppearanceMasks(width, height, source) {
+    const sx = width / 2048, sy = height / 2048, masks = {}, claimed = new Uint8Array(width * height);
+    for (const [part, boxes] of Object.entries(JADE_APPEARANCE_REGIONS)) {
+      masks[part] = boxes.map(([x0, y0, x1, y1]) => ({ box: [x0 * sx, y0 * sy, x1 * sx, y1 * sy], indices: [] }));
+    }
+    const collect = (part, skinOnly) => {
+      for (const region of masks[part]) {
+        const [x0, y0, x1, y1] = region.box;
+        for (let y = Math.max(0, Math.floor(y0)); y < Math.min(height, Math.ceil(y1)); y++) for (let x = Math.max(0, Math.floor(x0)); x < Math.min(width, Math.ceil(x1)); x++) {
+          const pixel = y * width + x;
+          if (claimed[pixel]) continue;
+          const offset = pixel * 4;
+          if (source[offset + 3] < 16) continue;
+          const skin = jadeIsSkinPixel(source[offset], source[offset + 1], source[offset + 2]);
+          if (skinOnly ? !skin : skin) continue;
+          claimed[pixel] = 1; region.indices.push(offset);
+        }
+      }
+    };
+    collect('skin', true);
+    for (const part of JADE_APPEARANCE_ORDER) collect(part, false);
+    for (const regions of Object.values(masks)) for (const region of regions) region.indices = new Uint32Array(region.indices);
+    return masks;
+  }
+  function jadeAppearanceSettings(part) {
+    const cap = part[0].toUpperCase() + part.slice(1), modeKey = `jade${cap}Mode`;
+    let mode = S[modeKey] || 'original';
+    const validModes = part === 'skin' ? ['original', 'natural', 'spectrum', 'gradient'] : ['original', 'spectrum', 'gradient'];
+    if (!validModes.includes(mode)) mode = 'original';
+    let start = S[`jade${cap}Color`], end = S[`jade${cap}End`];
+    if (part === 'skin' && mode === 'natural') start = JADE_SKIN_TONES[S.jadeSkinTone]?.color || JADE_SKIN_TONES.fair.color;
+    const fallback = JADE_APPEARANCE_FALLBACKS[part];
+    if (!/^#[\da-f]{6}$/i.test(String(start || ''))) start = fallback;
+    if (!/^#[\da-f]{6}$/i.test(String(end || ''))) end = fallback;
+    const direction = ['vertical', 'horizontal', 'diagonal'].includes(S[`jade${cap}Direction`]) ? S[`jade${cap}Direction`] : 'vertical';
+    return { mode, start, end, direction };
+  }
+  function jadeGradientAmount(x, y, box, direction) {
+    const nx = Math.max(0, Math.min(1, (x - box[0]) / Math.max(1, box[2] - box[0])));
+    const ny = Math.max(0, Math.min(1, (y - box[1]) / Math.max(1, box[3] - box[1])));
+    return direction === 'horizontal' ? nx : direction === 'diagonal' ? (nx + ny) * 0.5 : ny;
+  }
+  function setAppearance() {
+    if (!state.appearanceData || !state.appearanceContext) return;
+    const configs = Object.fromEntries(JADE_APPEARANCE_PARTS.map(({ id }) => [id, jadeAppearanceSettings(id)]));
+    if (Object.values(configs).every(config => config.mode === 'original') && !state.appearanceMasks) return;
+    if (!state.appearanceMasks) state.appearanceMasks = jadeBuildAppearanceMasks(state.appearanceCanvas.width, state.appearanceCanvas.height, state.appearanceOriginal);
+    const data = state.appearanceData.data, original = state.appearanceOriginal, width = state.appearanceCanvas.width;
+    data.set(original);
+    for (const [part, config] of Object.entries(configs)) {
+      if (config.mode === 'original') continue;
+      const start = jadeHexRgb(config.start), end = jadeHexRgb(config.end), skin = part === 'skin';
+      for (const { box, indices } of state.appearanceMasks[part]) for (const offset of indices) {
+        const pixel = offset >>> 2, x = pixel % width, y = (pixel / width) | 0;
+        const t = config.mode === 'gradient' ? jadeGradientAmount(x, y, box, config.direction) : 0;
+        const tr = start[0] * (1 - t) + end[0] * t, tg = start[1] * (1 - t) + end[1] * t, tb = start[2] * (1 - t) + end[2] * t;
+        const sourceLuma = (original[offset] * 0.2126 + original[offset + 1] * 0.7152 + original[offset + 2] * 0.0722) / 255;
+        const targetLuma = Math.max((tr * 0.2126 + tg * 0.7152 + tb * 0.0722) / 255, 0.08);
+        const shade = skin ? Math.max(0.48, Math.min(1.3, sourceLuma / 0.78)) : Math.max(0.08, Math.min(1.35, sourceLuma / targetLuma));
+        data[offset] = Math.max(0, Math.min(255, Math.round(tr * shade)));
+        data[offset + 1] = Math.max(0, Math.min(255, Math.round(tg * shade)));
+        data[offset + 2] = Math.max(0, Math.min(255, Math.round(tb * shade)));
+      }
+    }
+    state.appearanceContext.putImageData(state.appearanceData, 0, 0);
+    state.appearanceTexture?.baseTexture?.update();
+  }
+  function prepareAppearanceTexture(img, url) {
+    const canvas = document.createElement('canvas');
+    canvas.width = img.naturalWidth || img.width; canvas.height = img.naturalHeight || img.height;
+    const context = canvas.getContext('2d', { willReadFrequently: true });
+    if (!context) throw new Error('Canvas support is required for Jade appearance colors');
+    context.drawImage(img, 0, 0, canvas.width, canvas.height);
+    state.appearanceData = context.getImageData(0, 0, canvas.width, canvas.height);
+    state.appearanceOriginal = new Uint8ClampedArray(state.appearanceData.data);
+    state.appearanceCanvas = canvas; state.appearanceContext = context;
+    state.appearanceTexture = PIXI.Texture.from(canvas);
+    PIXI.Texture.addToCache(state.appearanceTexture, url);
+    setAppearance();
+  }
+
+  async function init({ host, onStatus, onSpeak } = {}) {""")
+rep("    if (!PIXI.utils.TextureCache[texUrl]) PIXI.Texture.addToCache(PIXI.Texture.from(img), texUrl);", "    try { prepareAppearanceTexture(img, texUrl); } catch (e) { console.warn('Jade appearance color setup unavailable', e); if (!PIXI.utils.TextureCache[texUrl]) PIXI.Texture.addToCache(PIXI.Texture.from(img), texUrl); }")
+rep("  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }", """  function setTheme(name) {
+    state.theme = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
+    const config = resolveJadeTheme(state.theme), uniforms = state.tintFilter?.uniforms;
+    if (!uniforms) return;
+    const set = (key, value) => {
+      const current = uniforms[key];
+      if (current?.set && Array.isArray(value)) current.set(value);
+      else uniforms[key] = Array.isArray(value) ? new Float32Array(value) : value;
+    };
+    set('uColor', config.avatarStartRgb.map(c => c / 255));
+    set('uColor2', config.avatarEndRgb.map(c => c / 255));
+    set('uGradient', config.isGradient ? 1 : 0);
+    set('uDirection', config.direction === 'horizontal' ? 1 : config.direction === 'diagonal' ? 2 : 0);
+  }
+  function setFrame(f) { state.frame = f === 'full' ? 'full' : 'portrait'; layout(); }""")
+rep("const api = { init, setMood, nod, setFrame, speak, stop,", "const api = { init, setMood, nod, setFrame, setTheme, setAppearance, speak, stop,")
+rep("$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnHideJade').onclick", "$('#btnFrame').onclick = () => { S.jadeFrame = S.jadeFrame === 'full' ? 'portrait' : 'full'; saveSettings(); Jade.setFrame(S.jadeFrame); $('#btnFrame').textContent = S.jadeFrame === 'full' ? 'Portrait' : 'Full'; };\n$('#btnTheme').onclick = () => { openSettings(); setTimeout(() => showSettingsSection('#jadeThemePicker'), 60); };\n$('#btnHideJade').onclick")
+
+JADE_THEME_UI_JS = r'''function renderJadeThemePicker() {
+  const host = $('#jadeThemePicker'); if (!host) return;
+  host.innerHTML = Object.entries(JADE_THEMES).map(([id, theme]) => {
+    const kind = id === 'spectrum' ? ' spectrum' : id === 'custom-gradient' ? ' custom-gradient' : '';
+    return `<button type="button" class="gem-theme" data-jade-theme="${esc(id)}" aria-pressed="${String(id === S.jadeTheme)}" title="Use the ${esc(theme.name)} theme"><span class="gem-theme-swatch${kind}" style="--swatch:${theme.accent}" aria-hidden="true"></span><span>${esc(theme.name)}</span></button>`;
+  }).join('');
+  host.querySelectorAll('[data-jade-theme]').forEach(button => {
+    button.onclick = () => applyJadeTheme(button.dataset.jadeTheme, true);
+  });
+  const bindColor = (selector, key, mode) => {
+    const input = $(selector); if (!input) return;
+    input.value = S[key];
+    input.oninput = () => { S[key] = input.value; if (S.jadeTheme === mode) applyJadeTheme(mode); };
+    input.onchange = () => { S[key] = input.value; if (S.jadeTheme === mode) applyJadeTheme(mode, true); else saveSettings(); };
+  };
+  bindColor('#jadeSpectrumColor', 'jadeSpectrum', 'spectrum');
+  bindColor('#jadeGradientStart', 'jadeGradientStart', 'custom-gradient');
+  bindColor('#jadeGradientEnd', 'jadeGradientEnd', 'custom-gradient');
+  const direction = $('#jadeGradientDirection');
+  if (direction) { direction.value = S.jadeGradientDirection || 'vertical'; direction.onchange = () => { S.jadeGradientDirection = direction.value; applyJadeTheme('custom-gradient', true); }; }
+}
+function applyJadeTheme(name, persist = false) {
+  const id = Object.prototype.hasOwnProperty.call(JADE_THEMES, name) ? name : 'jade';
+  S.jadeTheme = id;
+  const theme = resolveJadeTheme(id), root = document.documentElement;
+  root.style.setProperty('--yl', theme.accent);
+  root.style.setProperty('--cy', theme.highlight);
+  root.style.setProperty('--line-hot', theme.line);
+  root.style.setProperty('--theme-rgb', theme.rgb.join(','));
+  root.style.setProperty('--theme-highlight-rgb', theme.highlightRgb.join(','));
+  root.style.setProperty('--theme-ink', theme.ink);
+  root.style.setProperty('--theme-gradient', theme.cssGradient);
+  document.body.dataset.jadeTheme = id;
+  $('#jadeSpectrumControls').hidden = id !== 'spectrum';
+  $('#jadeGradientControls').hidden = id !== 'custom-gradient';
+  const label = $('#btnTheme'); if (label) label.textContent = theme.name;
+  $('#jadeThemePicker')?.querySelectorAll('[data-jade-theme]').forEach(button => {
+    button.setAttribute('aria-pressed', String(button.dataset.jadeTheme === id));
+  });
+  Jade.setTheme(id);
+  if (persist) saveSettings();
+}
+function renderJadeAppearancePicker() {
+  const host = $('#jadeAppearancePicker'); if (!host) return;
+  const modes = [['original', 'Original'], ['spectrum', 'Spectrum color'], ['gradient', 'Gradient']];
+  host.innerHTML = JADE_APPEARANCE_PARTS.map(({ id, label }) => {
+    const cap = id[0].toUpperCase() + id.slice(1), skin = id === 'skin';
+    const options = skin ? [['original', 'Original'], ['natural', 'Natural tone'], ...modes.slice(1)] : modes;
+    return `<fieldset class="jade-appearance-card" data-appearance-card="${id}"><legend>${label}</legend>
+      <label class="appearance-field" for="jadeAppearance${cap}Mode"><span class="lbl">Color mode</span><select class="field" id="jadeAppearance${cap}Mode" data-appearance-mode="${id}">${options.map(([value, text]) => `<option value="${value}">${text}</option>`).join('')}</select></label>
+      ${skin ? `<label class="appearance-field" data-appearance-natural hidden for="jadeSkinTone"><span class="lbl">Natural tone</span><select class="field" id="jadeSkinTone" data-appearance-tone>${Object.entries(JADE_SKIN_TONES).map(([value, tone]) => `<option value="${value}">${tone.label}</option>`).join('')}</select></label>` : ''}
+      <label class="appearance-field" data-appearance-start hidden for="jadeAppearance${cap}Color"><span class="lbl">Spectrum color</span><input type="color" class="theme-color-input" id="jadeAppearance${cap}Color" data-appearance-input="jade${cap}Color"></label>
+      <div class="appearance-gradient-fields" data-appearance-gradient hidden><label class="appearance-field" for="jadeAppearance${cap}End"><span class="lbl">Gradient end</span><input type="color" class="theme-color-input" id="jadeAppearance${cap}End" data-appearance-input="jade${cap}End"></label><label class="appearance-field" for="jadeAppearance${cap}Direction"><span class="lbl">Direction</span><select class="field" id="jadeAppearance${cap}Direction" data-appearance-direction="${id}"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></label></div>
+      <p class="hint appearance-help">Shading and texture detail are preserved.</p></fieldset>`;
+  }).join('');
+  const sync = card => {
+    const part = card.dataset.appearanceCard, mode = card.querySelector('[data-appearance-mode]').value;
+    const natural = card.querySelector('[data-appearance-natural]'), start = card.querySelector('[data-appearance-start]'), gradient = card.querySelector('[data-appearance-gradient]');
+    if (natural) natural.hidden = mode !== 'natural';
+    if (start) { start.hidden = mode !== 'spectrum' && mode !== 'gradient'; start.querySelector('.lbl').textContent = mode === 'gradient' ? 'Gradient start' : 'Spectrum color'; }
+    if (gradient) gradient.hidden = mode !== 'gradient';
+  };
+  host.querySelectorAll('[data-appearance-card]').forEach(card => {
+    const part = card.dataset.appearanceCard, cap = part[0].toUpperCase() + part.slice(1), mode = card.querySelector('[data-appearance-mode]');
+    mode.value = S[`jade${cap}Mode`] || 'original';
+    card.querySelectorAll('[data-appearance-input]').forEach(input => { input.value = S[input.dataset.appearanceInput];
+      input.oninput = () => { S[input.dataset.appearanceInput] = input.value; if (mode.value === 'spectrum' || mode.value === 'gradient') Jade.setAppearance(); };
+      input.onchange = () => { S[input.dataset.appearanceInput] = input.value; Jade.setAppearance(); saveSettings(); };
+    });
+    const tone = card.querySelector('[data-appearance-tone]');
+    if (tone) { tone.value = S.jadeSkinTone || 'fair'; tone.onchange = () => { S.jadeSkinTone = tone.value; if (mode.value === 'natural') Jade.setAppearance(); saveSettings(); }; }
+    const direction = card.querySelector('[data-appearance-direction]');
+    if (direction) { direction.value = S[`jade${cap}Direction`] || 'vertical'; direction.onchange = () => { S[`jade${cap}Direction`] = direction.value; if (mode.value === 'gradient') Jade.setAppearance(); saveSettings(); }; }
+    mode.onchange = () => { S[`jade${cap}Mode`] = mode.value; sync(card); Jade.setAppearance(); saveSettings(); };
+    sync(card);
+  });
+}
+renderJadeThemePicker();
+renderJadeAppearancePicker();
+applyJadeTheme(S.jadeTheme);
+Jade.setAppearance();'''
+rep("})();\n\n/* =====================================================================\n   CRON —", "})();\n\n" + JADE_THEME_UI_JS + "\n\n/* =====================================================================\n   CRON —")
+
 # ---------- markup ----------
+rep('<div class="jade-label"><span class="dot busy" id="jadeDot"></span><span class="jade-mood" id="jadeMood">booting</span></div>', '<div class="jade-label"><span class="dot busy" id="jadeDot"></span><button type="button" class="jade-theme-label" id="btnTheme" aria-label="Choose Jade\'s gemstone theme" title="Choose Jade\'s gemstone colors">Jade</button><span class="jade-mood" id="jadeMood">booting</span></div>')
+rep('<div class="pane-h">Jade companion</div>\n        <div class="grid gap-3"', '<div class="pane-h">Jade companion</div>\n        <div><div class="lbl">Jade\'s gemstone theme</div><p class="hint leading-relaxed mt-1">Choose a color for Jade\'s outfit accents and the app highlights.</p><div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade\'s gemstone theme"></div></div>\n        <div class="grid gap-3"')
+rep("""<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div></div>""", """<div class="gem-theme-grid mt-2" id="jadeThemePicker" role="group" aria-label="Choose Jade's gemstone theme"></div>
+          <div class="theme-custom-controls mt-2" id="jadeSpectrumControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeSpectrumColor"><span class="lbl">Spectrum color</span><input type="color" id="jadeSpectrumColor" class="theme-color-input" value="#bd72f3" aria-describedby="jadeSpectrumHint"></label></div><p class="hint mt-2" id="jadeSpectrumHint">Choose any hue with the full spectrum color picker.</p></div>
+          <div class="theme-custom-controls mt-2" id="jadeGradientControls" hidden><div class="theme-color-fields"><label class="theme-color-field" for="jadeGradientStart"><span class="lbl">Gradient start</span><input type="color" id="jadeGradientStart" class="theme-color-input" value="#f34b68"></label><label class="theme-color-field" for="jadeGradientEnd"><span class="lbl">Gradient end</span><input type="color" id="jadeGradientEnd" class="theme-color-input" value="#62a4ff"></label><div><label class="lbl" for="jadeGradientDirection">Direction</label><select id="jadeGradientDirection" class="field mt-1"><option value="vertical">Vertical</option><option value="horizontal">Horizontal</option><option value="diagonal">Diagonal</option></select></div></div><p class="hint mt-2">Blend Jade's accents between your two colors.</p></div><div class="jade-appearance-panel mt-3"><div class="lbl">Customize Jade's appearance</div><p class="hint leading-relaxed mt-1">Choose independent colors for hair, clothes, stockings, boots, and skin.</p><div id="jadeAppearancePicker" class="jade-appearance-grid mt-2"></div></div></div>""")
 NOTES_MARKUP = r'''<!-- NOTES (vault) -->
     <section class="m-screen" data-panel="files" hidden>
       <div class="m-sub">
@@ -170,6 +462,53 @@ body.kb .note-body[data-mode="split"] .note-prev{display:none}
 .md a.wiki-link.missing{color:var(--cy);border-bottom-color:rgba(255,61,79,.7);opacity:.85}
 .md a.tag-chip{padding:0 6px;font-size:.85em;vertical-align:1px}
 #graphCv{background:radial-gradient(circle at 50% 45%,rgba(31,229,165,.06),transparent 70%)}
+/* ---------- gemstone themes ---------- */
+:root{--theme-rgb:31,229,165;--theme-highlight-rgb:255,184,198;--theme-ink:#00140c;--theme-gradient:linear-gradient(90deg,#1fe5a5,#ffb8c6)}
+body::before{background:
+  linear-gradient(transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/100% 32px,
+  linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.035) 0) 0 0/32px 100%,
+  radial-gradient(1200px 600px at 85% -10%,rgba(var(--theme-rgb),.10),transparent 60%),
+  radial-gradient(900px 500px at -10% 110%,rgba(var(--theme-highlight-rgb),.06),transparent 60%)}
+.jade-stage{background:radial-gradient(ellipse 70% 62% at 50% 30%,rgba(var(--theme-rgb),.20),transparent 70%),linear-gradient(180deg,#07150f 0%,#030806 100%)}
+.jade-stage::before{background:linear-gradient(transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.16) 0) 0 0/100% 18px,linear-gradient(90deg,transparent 0 calc(100% - 1px),rgba(var(--theme-rgb),.12) 0) 0 0/36px 100%}
+.jade-label{text-shadow:0 0 10px rgba(var(--theme-rgb),.5)}
+.jade-theme-label{display:inline-flex;align-items:center;justify-content:center;min-height:27px;pointer-events:auto;cursor:pointer;font-family:var(--f-disp);font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;line-height:1.2;color:var(--cy);border:1px solid rgba(var(--theme-highlight-rgb),.35);padding:2px 7px;background:rgba(3,7,5,.52)}
+.jade-theme-label::before{content:"";width:6px;height:6px;flex:none;border-radius:50%;margin-right:5px;background:var(--yl);box-shadow:0 0 7px var(--yl)}
+.jade-theme-label:hover{color:var(--yl);border-color:var(--yl);background:rgba(var(--theme-rgb),.08)}
+.jade-theme-label:focus-visible{outline:2px solid var(--yl);outline-offset:2px}
+@media(max-width:360px){.jade-mood{display:none}}
+.jade-bubble{border-color:rgba(var(--theme-rgb),.42)}
+.jade-bubble .who{color:var(--yl)}
+.text-yl{color:var(--yl)!important}.bg-yl{background-color:var(--yl)!important}.border-yl{border-color:var(--yl)!important}
+.text-cy{color:var(--cy)!important}.bg-cy{background-color:var(--cy)!important}.border-cy{border-color:var(--cy)!important}
+.accent-emerald-400,.accent-emerald-500{accent-color:var(--yl)!important}
+.btn-solid{color:var(--theme-ink)}
+.seg button[aria-pressed="true"]{color:var(--theme-ink)}
+.tag-chip.on{color:var(--theme-ink);background:var(--cy);border-color:var(--cy)}
+.gem-theme-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(104px,1fr));gap:7px}
+.gem-theme{display:flex;align-items:center;gap:8px;min-height:38px;padding:6px 9px;border:1px solid var(--line);background:rgba(5,10,8,.55);color:var(--dim);font-family:var(--f-disp);font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;text-align:left;transition:background .15s,border-color .15s,color .15s}
+.gem-theme:hover{border-color:var(--yl);color:var(--fg);background:rgba(var(--theme-rgb),.07)}
+.gem-theme[aria-pressed="true"]{border-color:var(--yl);color:var(--fg);background:rgba(var(--theme-rgb),.12);box-shadow:inset 0 0 0 1px rgba(var(--theme-rgb),.3)}
+.gem-theme:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+.gem-theme-swatch{width:14px;height:14px;flex:none;border-radius:50%;background:var(--swatch);box-shadow:0 0 9px var(--swatch);border:1px solid rgba(255,255,255,.38)}
+.gem-theme-swatch.spectrum{background:conic-gradient(#f34b68,#ffd15c,#54d78b,#54c8e8,#607df1,#b46bed,#f34b68);box-shadow:0 0 9px rgba(189,114,243,.55)}
+.gem-theme-swatch.custom-gradient{background:linear-gradient(135deg,#f34b68,#62a4ff);box-shadow:0 0 9px rgba(154,116,239,.55)}
+body[data-jade-theme="custom-gradient"] .gem-theme-swatch.custom-gradient{background:var(--theme-gradient)}
+.theme-custom-controls{padding:9px 10px;border:1px solid var(--line);background:rgba(5,10,8,.45)}
+.jade-appearance-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:8px}
+.jade-appearance-card{min-width:0;padding:8px 9px;border:1px solid var(--line);background:rgba(3,8,6,.55)}
+.jade-appearance-card legend{padding:0 5px;color:var(--yl);font-family:var(--f-disp);font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase}
+.appearance-field{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:8px}
+.appearance-field .field{width:112px;min-width:0;flex:none}
+.appearance-gradient-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.appearance-gradient-fields .appearance-field{align-items:flex-start;flex-direction:column}
+.appearance-help{margin-top:8px;font-size:10px;line-height:1.4}
+.theme-color-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:10px;align-items:end}
+.theme-color-field{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:38px}
+.theme-color-input{width:48px;height:36px;flex:none;padding:3px;border:1px solid var(--line-hot);background:var(--panel);cursor:pointer}
+.theme-color-input:focus-visible{outline:2px solid var(--cy);outline-offset:2px}
+body[data-jade-theme="custom-gradient"] .btn-solid{background:var(--theme-gradient);border-color:transparent;color:var(--theme-ink)}
+body[data-jade-theme="custom-gradient"] .jade-theme-label{background:var(--theme-gradient);border-color:transparent;color:var(--theme-ink)}
 '''
 rep('@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }',
     '@media (prefers-reduced-motion:reduce){ .drawer,.drawer-bg,.jade-stage{transition:none} }' + CSS)
@@ -347,8 +686,8 @@ rep("      const p = P(args.path); const text = vfs.read(p); const oldT = String
 rep("Use `node file.js` for scripting. Vault commands:", "For scripts longer than a line, write a .js file and run `node file.js` (fs and path work on the vault). Vault commands:")
 
 # memory module after the notes UI
-s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n/* =====================================================================\n   UI WIRING', 1)
-rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: false, memoryRagK: 8, journalOn: true, compactAuto: true,")
+s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n' + rd('embed.js') + '\n/* =====================================================================\n   UI WIRING', 1)
+rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: true, memoryRagK: 8, journalOn: true, embedOn: true, embedModel: 'nomic-embed-text', embedHost: '', embedKey: '', embedNotes: false, compactAuto: true,")
 rep("""  { name: 'notes_search', description:""", """  { name: 'memory', description: 'Your long-term memory across chats, kept in the note /Jade/Memory.md (you see it in your instructions every chat). save: remember one durable fact (who the user is, preferences, projects, people, decisions, or anything they ask you to remember). search: look through memory and your journal of past chats. forget: delete remembered lines containing text. list: show all of memory.',
     parameters: { type: 'object', properties: { action: { type: 'string', enum: ['save', 'search', 'forget', 'list'] }, text: { type: 'string', description: 'save: the fact, as one short sentence. search: words to look for. forget: text of the memory to delete.' }, section: { type: 'string', enum: ['about', 'preferences', 'projects', 'notes'], description: 'save: where it belongs (default notes)' } }, required: ['action'] } },
   { name: 'notes_search', description:""")
@@ -376,19 +715,30 @@ rep("""      <section class="flex flex-col gap-3">
         <div class="pane-h">Long-term memory</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade keeps what she learns about you in the note <span class="text-yl">Jade/Memory</span> and reads it at the start of every chat. When you leave a chat (or after a few quiet minutes) she writes a short entry in her journal under <span class="text-yl">Jade/Journal</span> and adds new facts to memory. Both are plain notes you can edit or delete.</p>
         <label class="flex items-center gap-2 text-sm" for="sMemoryOn"><input type="checkbox" id="sMemoryOn" class="accent-emerald-400 w-4 h-4"> Use long-term memory (memory tool + memory in every chat)</label>
-        <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories with BM25: put only the lines that match your message in the prompt</label>
+        <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories: put only the lines that match your message in the prompt (keywords + meaning when embeddings are on, BM25 otherwise)</label>
         <label class="flex items-center gap-2 text-sm" for="sMemoryRagK"><span>Memories to inject (BM25)</span><input type="number" id="sMemoryRagK" class="field" min="1" max="30" step="1" style="width:5rem"></label>
         <label class="flex items-center gap-2 text-sm" for="sJournalOn"><input type="checkbox" id="sJournalOn" class="accent-emerald-400 w-4 h-4"> Journal finished chats and learn facts from them</label>
         <div><button type="button" class="btn btn-ghost" id="btnOpenMemory">Open memory note</button></div>
       </section>
 
+      <section class="flex flex-col gap-3" id="embedSection">
+        <div class="pane-h">Embeddings (sqlite-vec)</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade's memory search uses <b>hybrid search</b>: the words you used (SQLite FTS5) and what you meant (embeddings from Ollama, stored and searched with <span class="text-yl">sqlite-vec</span>), fused into one ranking. She also gets an <span class="text-yl">embeddings</span> tool for her own collections and your notes. The index is the file <span class="text-yl">Jade/.index/vectors.db</span>; delete it and it is rebuilt. It needs an embedding model on your Ollama: <span class="text-yl">ollama pull nomic-embed-text</span>. Without one she falls back to keyword search.</p>
+        <label class="flex items-center gap-2 text-sm" for="sEmbedOn"><input type="checkbox" id="sEmbedOn" class="accent-emerald-400 w-4 h-4"> Use embeddings (memory search, ranking and the embeddings tool)</label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedModel"><span>Embedding model</span><input type="text" id="sEmbedModel" class="field" placeholder="nomic-embed-text" autocomplete="off" spellcheck="false"></label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedHost"><span>Ollama address for embeddings (empty = the Ollama address above)</span><input type="text" id="sEmbedHost" class="field" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false"></label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedKey"><span>API key for that address (only if it needs one)</span><input type="password" id="sEmbedKey" class="field" autocomplete="off"></label>
+        <label class="flex items-center gap-2 text-sm" for="sEmbedNotes"><input type="checkbox" id="sEmbedNotes" class="accent-emerald-400 w-4 h-4"> Also index all my notes (so the embeddings tool can search the whole vault by meaning)</label>
+        <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnEmbedRebuild">Test and rebuild the index</button><span class="text-sm text-dim" id="embedStatus"></span></div>
+      </section>
+
       <section class="flex flex-col gap-3">
         <div class="pane-h">History compaction</div>""")
-rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
-rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)) });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
-rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sEmbedOn').checked = S.embedOn !== false; $('#sEmbedModel').value = S.embedModel || ''; $('#sEmbedHost').value = S.embedHost || ''; $('#sEmbedKey').value = S.embedKey || ''; $('#sEmbedNotes').checked = !!S.embedNotes;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)), embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };\n$('#btnEmbedRebuild').onclick = async () => {\n  const st = $('#embedStatus'); st.textContent = 'Working…';\n  Object.assign(S, { embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  try {\n    const r = await vmemRebuild(n => { st.textContent = `Embedded ${n} texts…`; }); const x = await vmemStatus();\n    st.textContent = (r.error ? 'Problem: ' + r.error + '. ' : 'Works. ') + `sqlite-vec ${x.vec} · ${x.model}${x.dim ? ' (' + x.dim + ')' : ''} · ` + (x.collections.map(c => `${c.name} ${c.embedded}/${c.chunks}`).join(', ') || 'nothing to index yet');\n  } catch (e) { st.textContent = 'Failed: ' + e.message; }\n};")
 rep("  if (!(await vfs.load())) seedFs();", "  if (!(await vfs.load())) seedFs();\n  ensureMemory();")
-rep("Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $ });", "Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell });")
+rep("Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $ });", "Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell, Jade });")
 
 # ================= v3: LaTeX, edit + resend, SOUL/AGENTS/SYSTEM, skills =================
 rep('<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>',
@@ -567,6 +917,22 @@ rep("""      <section class="flex flex-col gap-3">
         <label class="flex items-center gap-2 text-sm" for="sBackupKeys"><input type="checkbox" id="sBackupKeys" class="accent-emerald-400 w-4 h-4"> Include API keys (keep that file private)</label>
         <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-solid cut cut-sm" id="btnExportAll">Export everything</button><button type="button" class="btn" id="btnExportCfg">Export config</button><label class="btn btn-ghost" for="importBackup">Import…</label><input type="file" id="importBackup" accept=".json,application/json" hidden><button type="button" class="btn btn-ghost" id="btnBackupCopy" hidden>Copy JSON</button></div>
         <div class="hint" id="backupNote"></div>
+        <div class="mt-2 p-3 rounded border border-white/10" id="abBox">
+          <label class="flex items-center gap-2 text-sm" for="sAbOn"><input type="checkbox" id="sAbOn" class="accent-emerald-400 w-4 h-4"> <b>Scheduled backup to a server</b></label>
+          <div class="hint mt-1">Uploads a backup on a schedule to your own backup server (server/jade-backup-server.py; setup in docs/backup-server.md). It runs while the app is running, like the heartbeat.</div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="col-span-2"><label class="lbl" for="sAbUrl">Server address</label><input id="sAbUrl" class="field mt-1" placeholder="http://192.168.1.20:8787" autocomplete="off"></div>
+            <div class="col-span-2"><label class="lbl" for="sAbToken">Token</label><input id="sAbToken" type="password" class="field mt-1" autocomplete="off"></div>
+            <div><label class="lbl" for="sAbHours">Every (hours)</label><input id="sAbHours" type="number" min="1" max="720" class="field mt-1"></div>
+            <div><label class="lbl" for="sAbKind">What</label><select id="sAbKind" class="field mt-1"><option value="full">Everything</option><option value="config">Config only</option></select></div>
+          </div>
+          <label class="flex items-center gap-2 text-sm mt-2" for="sAbEncrypt"><input type="checkbox" id="sAbEncrypt" class="accent-emerald-400 w-4 h-4"> Encrypt on this device before sending (the server never sees your notes)</label>
+          <label class="flex items-center gap-2 text-sm mt-1" for="sAbKeys"><input type="checkbox" id="sAbKeys" class="accent-emerald-400 w-4 h-4"> Include API keys and SSH hosts (forces encryption)</label>
+          <div class="mt-1"><label class="lbl" for="sAbPass">Passphrase (needed to restore an encrypted backup; if you lose it the backup cannot be opened)</label><input id="sAbPass" type="password" class="field mt-1" autocomplete="off"></div>
+          <div class="flex flex-wrap items-center gap-2 mt-2"><button type="button" id="abNow" class="btn btn-solid cut cut-sm">Back up now</button><button type="button" id="abTest" class="btn btn-ghost">Test connection</button><button type="button" id="abPick" class="btn btn-ghost">Restore from server…</button></div>
+          <div id="abRestoreRow" class="flex gap-2 mt-2" hidden><select id="abSel" class="field flex-1"></select><button type="button" id="abRestore" class="btn">Restore this</button></div>
+          <div class="hint mt-1" id="abStatus"></div>
+        </div>
       </section>
 
       <section class="flex flex-col gap-3">
@@ -803,7 +1169,7 @@ rep("  if (cmd === 'compact') {", "  if (cmd === 'context' || cmd === 'ctx') { s
 s = s.replace("['/compact', 'summarise old turns'],", "['/compact', 'summarise old turns'], ['/context', 'what fills the context'],", 1)
 rep("<b>/compact</b> summarise old turns ·", "<b>/compact</b> summarise old turns · <b>/context</b> what fills the context ·")
 rep("  const sys = vfs.isFile(SYSTEM_PATH) ? stripComments(parseFront(vfs.read(SYSTEM_PATH)).body) : '';", "  const sys = vfs.isFile(SYSTEM_PATH) ? clip(stripComments(parseFront(vfs.read(SYSTEM_PATH)).body), 24000, 'of SYSTEM.md left out: keep it shorter') : '';")
-rep("${st.skills.map(s => `- ${s.name}: ${s.description}`).join('\\n')}", "${st.skills.slice(0, 60).map(s => `- ${s.name}: ${String(s.description).slice(0, 160)}`).join('\\n')}${st.skills.length > 60 ? `\\n- (${st.skills.length - 60} more: /skills)` : ''}")
+rep("${st.skills.map(s => `- ${s.name}: ${s.description}`).join('\\n')}", "${skillLines(st.skills)}")
 rep("    out.push({ name: mcpToolName(srv.name, t.name), server: srv.name, tool: t.name, description: t.description || t.title || '', inputSchema: t.inputSchema || { type: 'object', properties: {} }, exposure: ex, annotations: t.annotations });\n  }\n  return out;",
 """    out.push({ name: mcpToolName(srv.name, t.name), server: srv.name, tool: t.name, description: t.description || t.title || '', inputSchema: t.inputSchema || { type: 'object', properties: {} }, exposure: ex, annotations: t.annotations });
   }
@@ -1071,6 +1437,79 @@ DC_HTML = """      <section class="flex flex-col gap-3" id="dcSection">
 
 """
 rep("""      <section class="flex flex-col gap-3" id="secretSection">""", DC_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+# v24: Voice & senses settings section
+WORLD_HTML = """      <section class="flex flex-col gap-3" id="senseSection">
+        <div class="pane-h">Voice &amp; senses</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Talk to Jade without touching the screen (the <span class="text-yl">Talk</span> button next to Voice), and let her use the phone's camera, microphone, location and sensors: <span class="text-yl">senses</span> (photos, video, sound level, GPS, accelerometer, gyroscope, magnetic field, light, battery, Wi-Fi signal…), <span class="text-yl">look</span> (open any image or video in the vault), <span class="text-yl">litert</span> (run .tflite models). Android asks you the first time. She can also build her own tools, skills and flows on top of these.</p>
+        <label class="flex items-center gap-2 text-sm" for="sSensesOn"><input type="checkbox" id="sSensesOn" class="accent-emerald-400 w-4 h-4"> Let Jade use the camera, microphone, location, sensors and the phone itself (alarms, sounds, calls, texts)</label>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <div><label class="lbl" for="sVoiceLang">Speech language (empty = the phone's)</label><input id="sVoiceLang" class="field mt-1" placeholder="en-US" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sWakeWords">Wake phrases for hands-free (empty = always listening)</label><input id="sWakeWords" class="field mt-1" placeholder="hey jade, hey choom" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sVadMs">Pause that ends a sentence (ms, transcription model only)</label><input id="sVadMs" type="number" min="400" max="3000" step="100" class="field mt-1" placeholder="900"></div>
+          <div><label class="lbl" for="sSttProv">Speech to text (hands-free listening)</label><select id="sSttProv" class="field mt-1"></select></div>
+          <div><label class="lbl" for="sSttModel">Transcription model</label><input id="sSttModel" class="field mt-1" list="dlStt" placeholder="e.g. whisper-large-v3-turbo" autocomplete="off" spellcheck="false"><datalist id="dlStt"></datalist></div>
+          <div><label class="lbl" for="sVisProv">Picture understanding</label><select id="sVisProv" class="field mt-1"></select></div>
+          <div><label class="lbl" for="sVisModel">Vision model</label><input id="sVisModel" class="field mt-1" list="dlVis" placeholder="e.g. gemma3:12b" autocomplete="off" spellcheck="false"><datalist id="dlVis"></datalist></div>
+        </div>
+        <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSttScan">List transcription models</button><button type="button" class="btn btn-ghost" id="btnVisScan">List vision models</button></div>
+        <p class="hint leading-relaxed">When a vision model is picked, every picture (yours, from the camera, or from <span class="text-yl">look</span>) is described by it and the chat model reads the description, so the chat model does not need to see images. With a transcription model, Jade records each phrase and sends it there (Groq/OpenAI-style <span class="mono">/audio/transcriptions</span>, or an audio-capable chat model); it needs a connection to that provider.</p>
+        <label class="flex items-center gap-2 text-sm" for="sSttOffline"><input type="checkbox" id="sSttOffline" class="accent-emerald-400 w-4 h-4"> Prefer on-device speech recognition (works without internet when the phone has its offline language pack)</label>
+        <label class="flex items-center gap-2 text-sm" for="sHfSolo"><input type="checkbox" id="sHfSolo" class="accent-emerald-400 w-4 h-4"> Hands-free shows only her avatar and background (tap ✕, double-tap, or Back to leave)</label>
+        <label class="flex items-center gap-2 text-sm" for="sBrowserOn"><input type="checkbox" id="sBrowserOn" class="accent-emerald-400 w-4 h-4"> Let Jade use her own web browser (open pages, click, type, screenshots)</label>\n        <label class="flex items-center gap-2 text-sm" for="sScreenOn"><input type="checkbox" id="sScreenOn" class="accent-emerald-400 w-4 h-4"> Let Jade drive other apps on the phone (needs turning on in Android Accessibility settings too)</label>
+        <label class="flex items-center gap-2 text-sm" for="sPhoneOn"><input type="checkbox" id="sPhoneOn" class="accent-emerald-400 w-4 h-4"> Let Jade control the phone (alarms, calls, texts, Bluetooth, casting, apps)</label>
+        <div class="mt-3 p-3 rounded border border-white/10">
+          <label class="flex items-center gap-2 text-sm" for="sCuOn"><input type="checkbox" id="sCuOn" class="accent-emerald-400 w-4 h-4"> <b>Curiosity wake-ups</b>: Jade wakes at random times and chooses for herself what to do</label>
+          <div class="hint mt-1">Off by default. She picks from a ranked menu (learning progress + her track record), or rests, and what she does is measured by what actually changed in the vault. Needs the app to stay running, like the heartbeat. Write what you want her to know (interests, things to look into, things to keep away from) in CURIOSITY.md.</div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div><label class="lbl" for="sCuMin">Soonest (minutes)</label><input id="sCuMin" type="number" min="1" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuMax">Latest (minutes)</label><input id="sCuMax" type="number" min="1" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuFrom">Active from</label><input id="sCuFrom" type="time" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuTo">Active until</label><input id="sCuTo" type="time" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuCap">At most per day</label><input id="sCuCap" type="number" min="1" max="48" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuTools">Tools while awake</label><select id="sCuTools" class="field mt-1"><option value="notes">Notes and memory only</option><option value="web">Notes, memory and web</option><option value="all">All tools</option></select></div>
+          </div>
+          <div class="lbl mt-2">Things she may choose to do</div><div id="cuActs" class="mt-1 space-y-1"></div>
+          <div class="flex items-center gap-2 mt-2"><button type="button" id="cuEdit" class="btn btn-ghost">Edit CURIOSITY.md</button><button type="button" id="cuNow" class="btn btn-ghost">Wake her now</button><span id="cuStatus" class="hint"></span></div>
+        </div>
+        <label class="flex items-center gap-2 text-sm" for="sDelegateOn"><input type="checkbox" id="sDelegateOn" class="accent-emerald-400 w-4 h-4"> Let Jade hand side jobs to a sub-agent (its own clean context; read-only unless she says otherwise)</label>
+        <label class="flex items-center gap-2 text-sm" for="sThinkOn"><input type="checkbox" id="sThinkOn" class="accent-emerald-400 w-4 h-4"> Let Jade search several lines of reasoning and verify them (tree of thoughts)</label>
+        <label class="flex items-center gap-2 text-sm" for="sSentryPackOn"><input type="checkbox" id="sSentryPackOn" class="accent-emerald-400 w-4 h-4"> Let Jade set up Sentry rules (react to sensors, calls, texts, the camera…)</label>
+        <p class="hint leading-relaxed">Each switch above removes that whole set of tools from what Jade is told, which also saves some of the model's context (the estimate is on each line).</p>
+        <div class="flex flex-col gap-2 mt-2 p-3 rounded-lg" style="border:1px solid var(--bd,#2f6)" id="sentryBox">
+          <div class="lbl">Sentry: reacts to events by itself</div>
+          <label class="flex items-center gap-2 text-sm" for="sySentryOn"><input type="checkbox" id="sySentryOn" class="accent-emerald-400 w-4 h-4"> Sentry is on (runs the rules in /Jade/Config/Sentry.json)</label>
+          <div class="hint leading-relaxed">Systems: add or remove each source. A system only uses battery while it is ticked <em>and</em> a rule needs it.</div>
+          <div id="sySystems" class="flex flex-col gap-1"></div>
+          <div><label class="lbl" for="syAllow">Numbers Sentry may text or call by itself (emergency contacts)</label><textarea id="syAllow" class="field mt-1" rows="2" placeholder="one number per line" spellcheck="false"></textarea></div>
+          <div class="flex items-center gap-2 text-sm"><label for="syLimit">At most</label><input id="syLimit" type="number" min="1" max="60" class="field" style="width:5rem"><span>texts or calls per hour</span></div>
+          <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSyNotif">Notification access…</button><span class="text-sm text-dim" id="syStatus"></span></div>
+          <p class="hint leading-relaxed">Camera and microphone checks only measure change and loudness; nothing is recorded or sent anywhere. While Sentry is working, a notice lists what it is using. Jade cannot edit the numbers above.</p>
+        </div>
+        <div class="flex flex-col gap-2 mt-2 p-3 rounded-lg" style="border:1px solid var(--bd,#2f6)" id="sshBox">
+          <div class="lbl">SSH hosts: machines Jade can work on</div>
+          <label class="flex items-center gap-2 text-sm" for="sSshOn"><input type="checkbox" id="sSshOn" class="accent-emerald-400 w-4 h-4"> Let Jade open SSH sessions</label>
+          <div class="hint leading-relaxed">Jade asks for a machine by name. The password or key below is sent straight from here to the SSH connection &mdash; it is never shown to her and never appears in the chat. The first connection asks you to approve the machine's host-key fingerprint; after that a changed key is refused.</div>
+          <div id="sshList" class="flex flex-col gap-2"></div>
+          <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSshAdd">Add a machine</button><span class="text-sm text-dim" id="sshStatus"></span></div>
+          <p class="hint leading-relaxed">These are kept with your API keys, so a backup exported <em>with</em> keys contains them in the clear: treat that file like a private key. &ldquo;Ask before each command&rdquo; is on by default. Sentry-triggered flows cannot use a machine unless you tick it for them.</p>
+        </div>
+        <label class="flex items-center gap-2 text-sm" for="sAskRisky"><input type="checkbox" id="sAskRisky" class="accent-emerald-400 w-4 h-4"> Ask me before Jade places a call, sends a text or sends an email</label>
+        <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSenseTest">Check permissions</button><span class="text-sm text-dim" id="senseStatus"></span></div>
+        <p class="hint leading-relaxed">Hands-free listens while the app is open and the screen is on, and stops listening while Jade is talking so she does not hear herself. Some phones beep each time the recognizer restarts; turn the phone's system sounds down if that bothers you.</p>
+      </section>
+
+"""
+rep("""      <section class="flex flex-col gap-3" id="secretSection">""", WORLD_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+DISK_HTML = """      <section class="flex flex-col gap-3" id="diskSection" hidden>
+        <div class="pane-h">Vault storage</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Every note and file is a real file on the phone, so other apps (a file manager, Pydroid, a sync app) can open and edit them. Jade only keeps the list of files in memory and reads a file when she needs it.</p>
+        <div class="text-sm flex flex-col gap-1" id="diskStatus"></div>
+        <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnDiskShared">Use the JadeVault folder</button><button type="button" class="btn btn-ghost" id="btnDiskRescan">Rescan the folder</button></div>
+        <p class="hint leading-relaxed">Changes made by other apps show up when you come back to Jade, or when you tap Rescan. Files over about 16 MB are not handed to shell commands, Python or scripts, but Jade can still open, move and delete them.</p>
+      </section>
+
+"""
+rep("""      <section class="flex flex-col gap-3" id="secretSection">""", DISK_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
 s = s.replace('/* =====================================================================\n   BOOT', rd('discord.js') + '\n/* =====================================================================\n   BOOT', 1)
 rep("const activeTools = () => [...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...mcpToolDefs()];",
     "const activeTools = () => vecFilterTools([...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...VEC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);")
@@ -1157,10 +1596,10 @@ rep("openSettings(); $('#sProvider').value = p; showProvFields(); return; }", "o
 # settings tabs: every section gets data-tab (an unknown section fails the build, so none is ever lost)
 TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect', 'Connect'), ('app', 'App')]
 TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
-          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
+          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'Embeddings (sqlite-vec)': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
           'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
           'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect', 'Discord (Jade as a bot)': 'connect',
-          'Heartbeat': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
+          'Heartbeat': 'app', 'Voice & senses': 'app', 'Vault storage': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
 a = s.index('<div class="modal-bg" id="settings" hidden>'); b = s.index('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', a)
 blk = s[a:b]; seen = set()
 def tag(m):
@@ -1364,6 +1803,87 @@ rep("<b>/vector</b> bot settings ·", "<b>/vector</b> bot settings · <b>/discor
 rep("window.__vecSync?.();", "window.__vecSync?.(); window.__dcSync?.();")
 rep("'secrets', 'vecToken', 'aicKey'];", "'secrets', 'vecToken', 'aicKey', 'dcToken'];")
 rep("Object.assign(window, { tfjsSource,", "Object.assign(window, { DC, dcInviteUrl, dcConnect, dcStop, dcIncoming, dcPoll, dcCall, dcWake, dcScope, dcFilterTools, discordTool, dcInboxAdd, DC_INBOX, tfjsSource,")
+# ---------- v22: embeddings (Ollama) + sqlite-vec + FTS5 hybrid search, the embeddings tool ----------
+rep("  { name: 'notes_search', description:", """  { name: 'embeddings', description: 'Semantic search and storage on sqlite-vec, with embeddings from Ollama. Collections: "memory" and "journal" (kept in step automatically), "notes" (the vault, after the index action) and any collection name you choose for your own text. search: the closest texts to a query; mode hybrid (default: meaning + keywords, fused), semantic or keyword; collection limits it (default: all). add: store text (or texts) in a collection of your own so you can find it by meaning later. index: embed the vault\\'s notes (optional path = a folder). remove: delete by id, source or whole collection. compare: cosine similarity of two texts (a, b). status: model, sizes, problems. For facts about the user use the memory tool; use this for research, snippets, documents and anything you want to search by meaning.',
+    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['search', 'add', 'index', 'remove', 'compare', 'status'] }, query: { type: 'string', description: 'search: what to look for' }, text: { type: 'string', description: 'add: the text to store' }, texts: { type: 'array', items: { type: 'string' }, description: 'add: several texts at once' }, collection: { type: 'string', description: 'search/add/remove: collection name (search takes a comma list)' }, source: { type: 'string', description: 'add: where the text came from (a note path, URL …); remove: delete everything from that source' }, head: { type: 'string', description: 'add: a short title for the text' }, k: { type: 'number', description: 'search: results (default 8, max 30)' }, mode: { type: 'string', enum: ['hybrid', 'semantic', 'keyword'] }, id: { type: 'number', description: 'remove: id from a search result' }, path: { type: 'string', description: 'index: only notes under this folder' }, a: { type: 'string', description: 'compare: first text' }, b: { type: 'string', description: 'compare: second text' } }, required: ['action'] } },
+  { name: 'notes_search', description:""")
+rep("(t.function.name !== 'memory' || S.memoryOn))", "(t.function.name !== 'memory' || S.memoryOn) && (t.function.name !== 'embeddings' || (S.memoryOn && S.embedOn !== false)))")
+rep("    case 'memory': return memoryTool(args);", "    case 'memory': return memoryTool(args);\n    case 'embeddings': return await embeddingsTool(args);")
+rep("skill: a => a.name || '',", "skill: a => a.name || '', embeddings: a => `${a.action || 'status'}${a.query || a.text ? ' “' + String(a.query || a.text).slice(0, 50) + '”' : ''}${a.collection ? ' in ' + a.collection : ''}`,")
+rep("skill: () => `Loading skill: ${short(a.name)}`,", "skill: () => `Loading skill: ${short(a.name)}`, embeddings: () => ({ search: 'Searching by meaning', add: 'Storing for later', index: 'Embedding the vault', remove: 'Removing embeddings', compare: 'Comparing meanings', status: 'Checking embeddings' }[a.action] || 'Embeddings') + (a.query || a.text ? ': ' + short(a.query || a.text, 50) : ''),")
+rep("${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list)\\n' : ''}", "${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list; search uses keywords and meaning together)\\n' : ''}${S.memoryOn && S.embedOn !== false ? '- embeddings: search by meaning with sqlite-vec (memory, journal, the vault after index, and collections of your own: search / add / index / remove / compare / status)\\n' : ''}")
+rep("  let runError = null, lastContent = '';", "  let runError = null, lastContent = '';\n  await skillPrefetch().catch(() => {});   // pick the skills that fit this message when there are many\n  await memoryPrefetch();                 // rank the memories for this message by keywords + meaning (the prompt builder is synchronous)")
+rep("  ensureMemory(); ensureSteering(); ensureHeartbeatFile(); ensureMcpFile();", "  ensureMemory(); ensureSteering(); ensureHeartbeatFile(); ensureMcpFile(); vmemSyncSoon();")
+rep("'secrets', 'vecToken', 'aicKey', 'dcToken'];", "'secrets', 'vecToken', 'aicKey', 'dcToken', 'embedKey'];")
+rep("'dcToken', 'embedKey'];", "'dcToken', 'embedKey', 'sshHosts'];")
+rep("'embedKey', 'sshHosts'];", "'embedKey', 'sshHosts', 'abToken', 'abPass'];")
+rep("Object.assign(window, { DC,", "window.__vmem = { sync: vmemSync, rebuild: vmemRebuild, status: vmemStatus, search: vmemSearch, prefetch: memoryPrefetch, reset: () => { vmemCtx = { q: '', hits: null }; } };\nObject.assign(window, { DC,")
+# ---------- v23: kiosk mode (Android app: Jade as the home screen of a dedicated device) ----------
+rep("""        <p class="hint leading-relaxed" id="bgWeb">""", """        <div id="kioskNative" class="flex flex-col gap-2" hidden>
+          <label class="flex items-center gap-2 text-sm" for="sKiosk"><input type="checkbox" id="sKiosk" class="accent-emerald-400 w-4 h-4"> Kiosk mode: Jade is the home screen, full screen and always in front</label>
+          <div class="text-sm flex items-center gap-2 flex-wrap" id="kioskStatus"></div>
+          <p class="hint leading-relaxed">For a computer or tablet that only runs Jade. She starts when it boots, and this switch is the way out. Without more setup Android pins the screen (hold Back and Overview to unpin). For a full lock, run this once from a computer with USB debugging on: <code>adb shell dpm set-device-owner app.netrunner.vault/app.netrunner.jade.AdminReceiver</code></p>
+        </div>
+        <p class="hint leading-relaxed" id="bgWeb">""")
+rep("function renderBgSettings() {", """function nativeKiosk() { return typeof window.NetrunnerAndroid?.setKiosk === 'function'; }
+function renderKiosk() {
+  const el = $('#kioskNative'); if (!el) return;
+  el.hidden = !nativeKiosk(); if (el.hidden) return;
+  let st = {}; try { st = JSON.parse(window.NetrunnerAndroid.kioskStatus()); } catch {}
+  $('#sKiosk').checked = !!st.on;
+  $('#kioskStatus').innerHTML = !st.on ? '<span class="dot"></span>Off.'
+    : st.locked ? '<span class="dot ok"></span>On and locked' + (st.owner ? ' (device owner: full kiosk).' : '.')
+    : st.pinned ? '<span class="dot ok"></span>On: the screen is pinned to Jade.'
+    : '<span class="dot bad"></span>On, not locked yet. Press Home and pick Jade, then “Always”.';
+}
+$('#sKiosk').addEventListener('change', e => { try { window.NetrunnerAndroid.setKiosk(e.target.checked); } catch {} setTimeout(renderKiosk, 800); });
+function renderBgSettings() {
+  renderKiosk();""")
+# ---------- v24: senses, look, LiteRT, hands-free voice ----------
+s = s.replace('/* =====================================================================\n   BOOT', rd('world.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]));", "...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...WORLD_TOOL_DEFS.filter(t => S.sensesOn !== false || t.name === 'look' || t.name === 'litert').map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]));")
+rep("    case 'discord': return await discordTool(args);", "    case 'discord': return await discordTool(args);\n    case 'senses': case 'look': case 'litert': return await worldTool(name, args);")
+rep(r"${S.dcOn ? `- discord: you are also a bot on Discord", r"${S.sensesOn !== false ? '- senses: your senses (camera photo/video, microphone, GPS, every phone sensor incl. accelerometer, gyroscope, magnetic field/EMF, light, battery, Wi-Fi signal, device facts, and the flashlight and vibration motor: senses torch / vibrate); look: open an image or video from the vault and see it; litert: run .tflite models. Build tools, skills and flows on top of them (jade.tool(\'senses\', {...}) from scripts)\\n' : ''}${S.dcOn ? `- discord: you are also a bot on Discord")
+rep("saveSession(); TR.tool(name, result, isErr);", "saveSession(); TR.tool(name, result, isErr);\n        if (tc === asst.tool_calls[asst.tool_calls.length - 1]) { const lv = worldFlushViews(); if (lv) { cur.messages.push(lv); chatEl.appendChild(userBlock(lv.display, cur.messages.length - 1)); scrollDown(); saveSession(); } }")
+rep("const DEFAULTS = { tplOn: true,", "const DEFAULTS = { sensesOn: true, voiceLang: '', sttOffline: false, visProv: '', visModel: '', sttProv: '', sttModel: '', vadMs: 900, tplOn: true,")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { sensesOn: $('#sSensesOn').checked, voiceLang: $('#sVoiceLang').value.trim(), sttOffline: $('#sSttOffline').checked }, worldReadSettings());\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sSensesOn').checked = S.sensesOn !== false; $('#sVoiceLang').value = S.voiceLang || ''; $('#sSttOffline').checked = !!S.sttOffline; worldFillSettings();\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("      let apiMsgs = buildApiMessages(); const toolsNow = activeTools();", "      await visionPrepass();\n      let apiMsgs = buildApiMessages(); const toolsNow = activeTools();")
+rep("    if (m.images?.length && !cur._noImages) o.images = m.images;", "    if (m.images?.length && !cur._noImages) { if (visionOn() && m._vdesc) o.content = (o.content ? o.content + '\\n\\n' : '') + visionNote(m); else o.images = m.images; }")
+
+# ---------- v25: the vault lives on real storage (Android app) ----------
+rep_between("class VFS {", "const vfs = new VFS();", rd('vfs_disk.js').split('class VFS {', 1)[0].split('   VIRTUAL FILESYSTEM', 1)[1].split('*/', 1)[1].lstrip('\n') + 'class VFS {' + rd('vfs_disk.js').split('class VFS {', 1)[1] + '\n')
+s = s.replace('/* =====================================================================\n   BOOT', rd('vfs_disk_ui.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("window.__trajSync?.(); window.__vecSync?.(); window.__dcSync?.();", "window.__trajSync?.(); window.__vecSync?.(); window.__dcSync?.(); window.__diskSync?.();")
+# sizes without reading the file
+rep("const entriesForBb = () => vfs.entries().map(([p, n]) => [p, n.dir ? { dir: true } : { data: n.data }]);", "const BB_MAX = 16e6;   // bigger files stay on disk and are not copied into the shell\nconst entriesForBb = () => vfs.entries().filter(([p, n]) => n.dir || !vfs.diskOn || fsize(n) <= BB_MAX).map(([p, n]) => [p, n.dir ? { dir: true } : { data: n.data }]);")
+rep("      else { const s = old && !old.dir && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }\n    }\n    if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);",
+    "      else { const s = old && !old.dir && fsize(old) === n.data.length && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }\n    }\n    for (const [p, o] of vfs.nodes) if (!o.dir && vfs.diskOn && fsize(o) > BB_MAX && !next.has(p)) next.set(p, o);\n    if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);")
+rep("    if (n.dir) { if (!cur) { vfs.nodes.set(p, { dir: true, mtime: Date.now() }); changed = true; } continue; }\n    if (b && !b.dir && same(b.data, n.data)) continue;               // the command did not touch it: keep what is there now\n    if (cur && !cur.dir && same(cur.data, n.data)) continue;\n    vfs.nodes.set(p, { data: n.data, mtime: Date.now() }); changed = true;",
+    "    if (n.dir) { if (!cur) { vfs.mkdirp(p); changed = true; } continue; }\n    if (b && !b.dir && fsize(b) === n.data.length && same(b.data, n.data)) continue;               // the command did not touch it: keep what is there now\n    if (cur && !cur.dir && fsize(cur) === n.data.length && same(cur.data, n.data)) continue;\n    vfs.write(p, n.data, { mkdirs: true }); changed = true;")
+rep("for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b) { vfs.nodes.delete(p); changed = true; }", "for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b && !(vfs.diskOn && !b.dir && fsize(b) > BB_MAX)) { if (vfs.exists(p)) vfs.rm(p, true); changed = true; }")
+rep("if (vfs.isFile(p)) vfs.nodes.get(p).mtime = Date.now(), vfs.changed(); else vfs.write(p, '');", "if (vfs.isFile(p)) vfs.touch(p); else vfs.write(p, '');")
+# do not read every file just to learn how big it is
+rep("else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (n.data.length < 2e6) files[p] = dec.decode(n.data); }", "else if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\\.(db|sqlite3?)$/i.test(p))) continue; else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (fsize(n) < 2e6) files[p] = dec.decode(n.data); }")
+rep("[...vfs.nodes].some(([p, n]) => !n.dir && /\\.[cm]?js$/.test(p) && n.data.length < 2e6 && /sqlite/i.test(dec.decode(n.data))));", "[...vfs.nodes].some(([p, n]) => !n.dir && /\\.[cm]?js$/.test(p) && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(n.data))));")
+rep("    if (isSqliteBytes(n.data)) files[p] = n.data; else if (n.data.length < 2e6) files[p] = dec.decode(n.data);", "    if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\\.(db|sqlite3?)$/i.test(p))) continue;\n    if (isSqliteBytes(n.data)) files[p] = n.data; else if (fsize(n) < 2e6) files[p] = dec.decode(n.data);")
+rep("else if (n.data.length < 4e6) files[p] = n.data; }\n", "else if (fsize(n) < 4e6) files[p] = n.data; }\n")
+rep("!n.dir && p.endsWith('.py') && n.data.length < 2e6 &&", "!n.dir && p.endsWith('.py') && fsize(n) < 2e6 &&")
+rep("return { path: full, bytes: vfs.nodes.get(full)?.data.length || 0 };", "return { path: full, bytes: fsize(vfs.nodes.get(full) || { dir: true }) };")
+rep("const st = vfs.stat?.(p)?.size ?? vfs.nodes.get(p)?.data?.length ?? 0;", "const st = vfs.stat?.(p)?.size ?? 0;")
+# backups and restores
+rep("""    await dbRestore({ ...(data.db || {}), vfs: entries, pendingSettings: next }, true);   // settings ride along in IndexedDB (durable before reload)""",
+    """    if (vfs.diskOn) { vfs.replace(entries, true); if (!vfs.flush(true)) throw new Error('could not write the restored vault to storage'); await dbRestore({ ...(data.db || {}), pendingSettings: next }, true); }
+    else await dbRestore({ ...(data.db || {}), vfs: entries, pendingSettings: next }, true);   // settings ride along in IndexedDB (durable before reload)""")
+rep("await dbRestore({ vfs: [...vfs.nodes.entries()], pendingSettings: next }, false);", "if (vfs.diskOn) { vfs.flush(true); await dbRestore({ pendingSettings: next }, false); } else await dbRestore({ vfs: [...vfs.nodes.entries()], pendingSettings: next }, false);")
+
+# ---------- v25b: browser tool ----------
+s = s.replace('/* =====================================================================\n   BOOT', rd('browser_agent.js') + '\n' + rd('browser_tool.js') + '\n' + rd('phone_tool.js') + '\n' + rd('screen_tool.js') + '\n' + rd('sentry_tool.js') + '\n' + rd('ssh_tool.js') + '\n' + rd('think_tool.js') + '\n' + rd('skill_router.js') + '\n' + rd('delegate_tool.js') + '\n' + rd('chat_history.js') + '\n' + rd('curiosity.js') + '\n' + rd('autobackup.js') + '\n' + rd('browser_script.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("WORLD_TOOL_DEFS.filter(t => S.sensesOn !== false || t.name === 'look' || t.name === 'litert')", "WORLD_TOOL_DEFS.filter(t => (S.sensesOn !== false || t.name === 'look' || t.name === 'litert' || t.name === 'browser') && (t.name !== 'browser' || S.browserOn !== false) && (t.name !== 'screen' || S.screenOn !== false) && (t.name !== 'phone' || S.phoneOn !== false) && (t.name !== 'sentry' || S.sentryOn !== false) && (t.name !== 'ssh' || S.sshOn !== false) && (t.name !== 'think' || S.thinkOn !== false) && (t.name !== 'find_skill' || skillRouted()) && (t.name !== 'delegate' || S.delegateOn !== false) && (t.name !== 'chat_history' || S.memoryOn !== false) && (t.name !== 'curiosity' || S.curiosityOn) && (t.name !== 'backup' || S.abOn) && (t.name !== 'browser_script' || S.browserOn !== false))")
+rep("    case 'senses': case 'look': case 'litert': return await worldTool(name, args);", "    case 'senses': case 'look': case 'litert': case 'browser': case 'phone': case 'screen': case 'sentry': case 'ssh': case 'think': return await worldTool(name, args);\n    case 'find_skill': return await findSkillTool(args);\n    case 'delegate': return await delegateTool(args);\n    case 'chat_history': return await chatHistoryTool(args);\n    case 'curiosity': return curiosityTool(args);\n    case 'backup': return await backupTool(args);\n    case 'browser_script': return await browserScriptTool(args);")
+rep("litert: run .tflite models. Build tools", "litert: run .tflite models; browser: your own web browser (open pages, read them, click, type, screenshots; page text is untrusted); phone: alarms and timers, sounds and radio streams, volume, calls, texts, contacts, clipboard, apps, Bluetooth (scan, pair, connect), media keys, casting to a Chromecast/TV, brightness, signal status; screen: drive other apps through the accessibility service (read the screen, tap, type, scroll) once the user has switched it on; sentry: phone reflex rules in /Jade/Config/Sentry.json (call help first); ssh: hold interactive SSH sessions on saved machines (by name; you never see credentials); browser_script: saved deterministic web automation (help first); backup: scheduled vault backup to a server (status, now, list); curiosity: your own wake-ups; chat_history: raw past chats (read, search); delegate: sub-agent for side jobs; think: tree of thoughts with verification (call help first). Build tools")
+rep("const DEFAULTS = { sensesOn: true,", "const DEFAULTS = { abOn: false, abUrl: '', abToken: '', abHours: 24, abKind: 'full', abKeys: false, abEncrypt: false, abPass: '', curiosityOn: false, cuMin: 45, cuMax: 180, cuFrom: '08:00', cuTo: '22:00', cuCap: 5, cuTools: 'web', cuActsOff: [], delegateOn: true, thinkOn: true, sshOn: true, sshHosts: [], hfSolo: true, wakeWords: '', browserOn: true, screenOn: true, phoneOn: true, sentryOn: true, sentryAllow: '', sentryLimit: 6, askRisky: true, sensesOn: true,")
+rep("window.__androidBack = () => {\n", "window.__androidBack = () => {\n  if (typeof HFS !== 'undefined' && HFS.on) { hfStop(); return true; }\n")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

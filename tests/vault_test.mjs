@@ -55,6 +55,23 @@ await page.waitForFunction(() => /BUSYBOX|JS APPLETS/.test(document.querySelecto
 await page.waitForTimeout(1500);
 ok(await page.title() === 'Jade Vault', 'title');
 ok(/second brain/.test(await page.textContent('#chat')), 'empty state hero');
+// Jade's gem palette changes the companion accents and app colors, and persists like other settings.
+await page.tap('#btnTheme'); await page.waitForTimeout(250);
+ok(await page.locator('#jadeThemePicker .gem-theme').count() === 12, 'ten gemstone palettes plus Spectrum and Custom Gradient are available');
+await page.tap('#jadeThemePicker [data-jade-theme="ruby"]');
+const ruby = await page.evaluate(() => ({ setting: S.jadeTheme, avatar: Jade.state.theme, accent: getComputedStyle(document.documentElement).getPropertyValue('--yl').trim(), label: document.querySelector('#btnTheme')?.textContent, selected: document.querySelector('#jadeThemePicker [data-jade-theme="ruby"]')?.getAttribute('aria-pressed'), saved: JSON.parse(localStorage.getItem('jvault:settings') || '{}').jadeTheme }));
+ok(ruby.setting === 'ruby' && ruby.avatar === 'ruby' && ruby.accent === '#f34b68' && ruby.label === 'Ruby' && ruby.selected === 'true' && ruby.saved === 'ruby', 'Ruby theme updates Jade, app accent, picker, and saved settings: ' + JSON.stringify(ruby));
+await page.tap('#jadeThemePicker [data-jade-theme="spectrum"]');
+await page.locator('#jadeSpectrumColor').evaluate(el => { el.value = '#32b8e9'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+const spectrum = await page.evaluate(() => ({ theme: S.jadeTheme, color: S.jadeSpectrum, accent: getComputedStyle(document.documentElement).getPropertyValue('--yl').trim(), saved: JSON.parse(localStorage.getItem('jvault:settings') || '{}').jadeSpectrum }));
+ok(spectrum.theme === 'spectrum' && spectrum.color === '#32b8e9' && spectrum.accent === '#32b8e9' && spectrum.saved === '#32b8e9', 'Spectrum picker applies and saves a custom color: ' + JSON.stringify(spectrum));
+await page.tap('#jadeThemePicker [data-jade-theme="custom-gradient"]');
+await page.locator('#jadeGradientStart').evaluate(el => { el.value = '#fd8b32'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+await page.locator('#jadeGradientEnd').evaluate(el => { el.value = '#5874f7'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+await page.selectOption('#jadeGradientDirection', 'horizontal');
+const gradient = await page.evaluate(() => ({ theme: S.jadeTheme, start: S.jadeGradientStart, end: S.jadeGradientEnd, direction: S.jadeGradientDirection, css: getComputedStyle(document.documentElement).getPropertyValue('--theme-gradient').trim(), avatar: Jade.state.theme }));
+ok(gradient.theme === 'custom-gradient' && gradient.start === '#fd8b32' && gradient.end === '#5874f7' && gradient.direction === 'horizontal' && /90deg/.test(gradient.css) && gradient.avatar === 'custom-gradient', 'Custom Gradient blends both picks in the chosen direction: ' + JSON.stringify(gradient));
+await page.tap('#btnCancel'); await page.waitForTimeout(150);
 ok(/\d+ notes, \d+ links/.test(await page.textContent('#chat')), 'vault boot row');
 await shot('1_chat'); await overflow('chat');
 
@@ -279,9 +296,29 @@ const ed = await page.evaluate(() => ({ users: [...document.querySelectorAll('#c
 ok(ed.users.length === 1 && ed.users[0] === 'Make a map of content, but only for guides' && ed.ai === 1, 'edit replaces message and re-runs: ' + JSON.stringify(ed));
 ok(sentUser0 === 'Make a map of content, but only for guides', 'resend sent edited text to model');
 await shot('18_after_edit');
+// Jade's appearance can be customized independently, including natural skin tones and per-part gradients.
+await page.tap('#btnTheme'); await page.waitForTimeout(250);
+await page.waitForFunction(() => Jade.state.appearanceTexture, null, { timeout: 30000 });
+ok(await page.locator('#jadeAppearancePicker .jade-appearance-card').count() === 5, 'hair, clothes, stockings, boots, and skin controls are available');
+await page.selectOption('[data-appearance-mode="hair"]', 'spectrum');
+await page.locator('#jadeAppearanceHairColor').evaluate(el => { el.value = '#d342e8'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+await page.selectOption('[data-appearance-mode="skin"]', 'natural'); await page.selectOption('#jadeSkinTone', 'tan');
+await page.selectOption('[data-appearance-mode="clothes"]', 'gradient');
+await page.locator('#jadeAppearanceClothesColor').evaluate(el => { el.value = '#fa354c'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+await page.locator('#jadeAppearanceClothesEnd').evaluate(el => { el.value = '#449de3'; el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); });
+await page.selectOption('#jadeAppearanceClothesDirection', 'horizontal');
+const appearance = await page.evaluate(() => {
+  const masks = Jade.state.appearanceMasks || {}, count = part => (masks[part] || []).reduce((n, r) => n + r.indices.length, 0);
+  const hairRegion = (masks.hair || []).find(r => r.indices.length), off = hairRegion?.indices[0], original = Jade.state.appearanceOriginal, current = Jade.state.appearanceData?.data;
+  return { hairMode: S.jadeHairMode, hairColor: S.jadeHairColor, skinMode: S.jadeSkinMode, skinTone: S.jadeSkinTone, clothesMode: S.jadeClothesMode, clothesEnd: S.jadeClothesEnd, clothesDirection: S.jadeClothesDirection, counts: Object.fromEntries(['hair','clothes','stockings','boots','skin'].map(p => [p, count(p)])), hairRecolored: off !== undefined && (original[off] !== current[off] || original[off + 1] !== current[off + 1] || original[off + 2] !== current[off + 2]) };
+});
+ok(appearance.hairMode === 'spectrum' && appearance.hairColor === '#d342e8' && appearance.skinMode === 'natural' && appearance.skinTone === 'tan' && appearance.clothesMode === 'gradient' && appearance.clothesEnd === '#449de3' && appearance.clothesDirection === 'horizontal' && appearance.hairRecolored && Object.values(appearance.counts).every(n => n > 0), 'appearance colors apply to the right atlas parts and preserve settings: ' + JSON.stringify(appearance));
+await page.tap('#btnCancel'); await page.waitForTimeout(150);
 // persistence across reload
 await page.reload(); await page.waitForFunction(() => typeof vfs !== 'undefined' && vfs.isFile('/Map of Content.md'), null, { timeout: 30000 }).catch(() => {});
 ok(await page.evaluate(() => vfs.isFile('/Map of Content.md') && /\[x\] Write/.test(vfs.read('/Todo List.md'))), 'vault persists across reload');
+ok(await page.evaluate(() => S.jadeTheme === 'custom-gradient' && S.jadeGradientStart === '#fd8b32' && S.jadeGradientEnd === '#5874f7' && S.jadeGradientDirection === 'horizontal' && /90deg/.test(getComputedStyle(document.documentElement).getPropertyValue('--theme-gradient')) && document.querySelector('#btnTheme').textContent === 'Custom Gradient'), 'custom gradient and direction persist after reload');
+ok(await page.evaluate(() => S.jadeHairMode === 'spectrum' && S.jadeHairColor === '#d342e8' && S.jadeSkinMode === 'natural' && S.jadeSkinTone === 'tan' && S.jadeClothesMode === 'gradient' && S.jadeClothesColor === '#fa354c' && S.jadeClothesEnd === '#449de3' && S.jadeClothesDirection === 'horizontal'), 'per-part colors, gradients, and natural skin tone persist after reload');
 ok(await page.evaluate(() => Object.keys(localStorage).every(k => !k.startsWith('pinet:'))), 'separate storage prefix');
 
 console.log(log.join('\n')); console.log('\n' + (fail.length ? fail.join('\n') : 'ALL PASS'));

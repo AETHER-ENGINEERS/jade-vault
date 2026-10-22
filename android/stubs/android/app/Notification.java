@@ -1,6 +1,11 @@
 package android.app;
 import android.content.Context;
 public class Notification {
+  public static final String EXTRA_TITLE = "android.title", EXTRA_TEXT = "android.text";
+  public static final int FLAG_ONGOING_EVENT = 2, FLAG_GROUP_SUMMARY = 512;
+  public android.os.Bundle extras;
+  public String category;
+  public int flags;
   public abstract static class Style { }
   public static class BigTextStyle extends Style { public BigTextStyle() { throw new RuntimeException(); } public BigTextStyle bigText(CharSequence c) { throw new RuntimeException(); } }
   public static class Builder {

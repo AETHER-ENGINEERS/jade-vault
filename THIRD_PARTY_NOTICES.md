@@ -27,12 +27,14 @@ corresponding source on request for three years from each release.
 | Component | Version | License | Notes |
 | --- | --- | --- | --- |
 | TensorFlow.js (`@tensorflow/tfjs`, the `tf.min.js` bundle: core, layers, converter, CPU and WebGL backends) | 4.22.0 | Apache-2.0 | `app/vendor/tf.min.js`, unmodified apart from the removed source-map comment; Google's license header is kept. Loaded only into scripts that use `tf`. License: https://www.apache.org/licenses/LICENSE-2.0 |
+| LiteRT.js (`@litertjs/core`, `@litertjs/wasm-utils`) | 2.5.3 | Apache-2.0 | `android/proj/assets/litert/`: the bundled JavaScript (esbuild bundle of the two packages; one change to `@litertjs/core`: an `int8` entry added to its data-type table) and the WebAssembly runtime files. Loaded only when Jade uses the `litert` tool. License: https://www.apache.org/licenses/LICENSE-2.0 |
 
 ## Built here
 
 | Component | Version | License | Notes |
 | --- | --- | --- | --- |
 | SQLite | 3.53.4 | Public domain | `app/vendor/sqlite3.min.wasm`, built from the amalgamation; build inputs in `sqlite-wasm/`. |
+| sqlite-vec | 0.1.9 | MIT OR Apache-2.0 (Alex Garcia) | linked into `app/vendor/sqlite3.min.wasm`; vector search for Jade's memory. |
 | wasi-libc (linked into the SQLite build) | — | Apache-2.0 WITH LLVM-exception / MIT / BSD | |
 
 ## Inlined into the Android page at build time

@@ -686,8 +686,8 @@ rep("      const p = P(args.path); const text = vfs.read(p); const oldT = String
 rep("Use `node file.js` for scripting. Vault commands:", "For scripts longer than a line, write a .js file and run `node file.js` (fs and path work on the vault). Vault commands:")
 
 # memory module after the notes UI
-s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n/* =====================================================================\n   UI WIRING', 1)
-rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: false, memoryRagK: 8, journalOn: true, compactAuto: true,")
+s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n' + rd('embed.js') + '\n/* =====================================================================\n   UI WIRING', 1)
+rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: true, memoryRagK: 8, journalOn: true, embedOn: true, embedModel: 'nomic-embed-text', embedHost: '', embedKey: '', embedNotes: false, compactAuto: true,")
 rep("""  { name: 'notes_search', description:""", """  { name: 'memory', description: 'Your long-term memory across chats, kept in the note /Jade/Memory.md (you see it in your instructions every chat). save: remember one durable fact (who the user is, preferences, projects, people, decisions, or anything they ask you to remember). search: look through memory and your journal of past chats. forget: delete remembered lines containing text. list: show all of memory.',
     parameters: { type: 'object', properties: { action: { type: 'string', enum: ['save', 'search', 'forget', 'list'] }, text: { type: 'string', description: 'save: the fact, as one short sentence. search: words to look for. forget: text of the memory to delete.' }, section: { type: 'string', enum: ['about', 'preferences', 'projects', 'notes'], description: 'save: where it belongs (default notes)' } }, required: ['action'] } },
   { name: 'notes_search', description:""")
@@ -715,17 +715,28 @@ rep("""      <section class="flex flex-col gap-3">
         <div class="pane-h">Long-term memory</div>
         <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade keeps what she learns about you in the note <span class="text-yl">Jade/Memory</span> and reads it at the start of every chat. When you leave a chat (or after a few quiet minutes) she writes a short entry in her journal under <span class="text-yl">Jade/Journal</span> and adds new facts to memory. Both are plain notes you can edit or delete.</p>
         <label class="flex items-center gap-2 text-sm" for="sMemoryOn"><input type="checkbox" id="sMemoryOn" class="accent-emerald-400 w-4 h-4"> Use long-term memory (memory tool + memory in every chat)</label>
-        <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories with BM25: put only the lines that match your message in the prompt</label>
+        <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories: put only the lines that match your message in the prompt (keywords + meaning when embeddings are on, BM25 otherwise)</label>
         <label class="flex items-center gap-2 text-sm" for="sMemoryRagK"><span>Memories to inject (BM25)</span><input type="number" id="sMemoryRagK" class="field" min="1" max="30" step="1" style="width:5rem"></label>
         <label class="flex items-center gap-2 text-sm" for="sJournalOn"><input type="checkbox" id="sJournalOn" class="accent-emerald-400 w-4 h-4"> Journal finished chats and learn facts from them</label>
         <div><button type="button" class="btn btn-ghost" id="btnOpenMemory">Open memory note</button></div>
       </section>
 
+      <section class="flex flex-col gap-3" id="embedSection">
+        <div class="pane-h">Embeddings (sqlite-vec)</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Jade's memory search uses <b>hybrid search</b>: the words you used (SQLite FTS5) and what you meant (embeddings from Ollama, stored and searched with <span class="text-yl">sqlite-vec</span>), fused into one ranking. She also gets an <span class="text-yl">embeddings</span> tool for her own collections and your notes. The index is the file <span class="text-yl">Jade/.index/vectors.db</span>; delete it and it is rebuilt. It needs an embedding model on your Ollama: <span class="text-yl">ollama pull nomic-embed-text</span>. Without one she falls back to keyword search.</p>
+        <label class="flex items-center gap-2 text-sm" for="sEmbedOn"><input type="checkbox" id="sEmbedOn" class="accent-emerald-400 w-4 h-4"> Use embeddings (memory search, ranking and the embeddings tool)</label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedModel"><span>Embedding model</span><input type="text" id="sEmbedModel" class="field" placeholder="nomic-embed-text" autocomplete="off" spellcheck="false"></label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedHost"><span>Ollama address for embeddings (empty = the Ollama address above)</span><input type="text" id="sEmbedHost" class="field" placeholder="http://localhost:11434" autocomplete="off" spellcheck="false"></label>
+        <label class="flex flex-col gap-1 text-sm" for="sEmbedKey"><span>API key for that address (only if it needs one)</span><input type="password" id="sEmbedKey" class="field" autocomplete="off"></label>
+        <label class="flex items-center gap-2 text-sm" for="sEmbedNotes"><input type="checkbox" id="sEmbedNotes" class="accent-emerald-400 w-4 h-4"> Also index all my notes (so the embeddings tool can search the whole vault by meaning)</label>
+        <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnEmbedRebuild">Test and rebuild the index</button><span class="text-sm text-dim" id="embedStatus"></span></div>
+      </section>
+
       <section class="flex flex-col gap-3">
         <div class="pane-h">History compaction</div>""")
-rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
-rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)) });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
-rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sEmbedOn').checked = S.embedOn !== false; $('#sEmbedModel').value = S.embedModel || ''; $('#sEmbedHost').value = S.embedHost || ''; $('#sEmbedKey').value = S.embedKey || ''; $('#sEmbedNotes').checked = !!S.embedNotes;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)), embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };\n$('#btnEmbedRebuild').onclick = async () => {\n  const st = $('#embedStatus'); st.textContent = 'Working…';\n  Object.assign(S, { embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  try {\n    const r = await vmemRebuild(n => { st.textContent = `Embedded ${n} texts…`; }); const x = await vmemStatus();\n    st.textContent = (r.error ? 'Problem: ' + r.error + '. ' : 'Works. ') + `sqlite-vec ${x.vec} · ${x.model}${x.dim ? ' (' + x.dim + ')' : ''} · ` + (x.collections.map(c => `${c.name} ${c.embedded}/${c.chunks}`).join(', ') || 'nothing to index yet');\n  } catch (e) { st.textContent = 'Failed: ' + e.message; }\n};")
 rep("  if (!(await vfs.load())) seedFs();", "  if (!(await vfs.load())) seedFs();\n  ensureMemory();")
 rep("Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $ });", "Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell, Jade });")
 
@@ -906,6 +917,22 @@ rep("""      <section class="flex flex-col gap-3">
         <label class="flex items-center gap-2 text-sm" for="sBackupKeys"><input type="checkbox" id="sBackupKeys" class="accent-emerald-400 w-4 h-4"> Include API keys (keep that file private)</label>
         <div class="flex flex-wrap gap-2"><button type="button" class="btn btn-solid cut cut-sm" id="btnExportAll">Export everything</button><button type="button" class="btn" id="btnExportCfg">Export config</button><label class="btn btn-ghost" for="importBackup">Import…</label><input type="file" id="importBackup" accept=".json,application/json" hidden><button type="button" class="btn btn-ghost" id="btnBackupCopy" hidden>Copy JSON</button></div>
         <div class="hint" id="backupNote"></div>
+        <div class="mt-2 p-3 rounded border border-white/10" id="abBox">
+          <label class="flex items-center gap-2 text-sm" for="sAbOn"><input type="checkbox" id="sAbOn" class="accent-emerald-400 w-4 h-4"> <b>Scheduled backup to a server</b></label>
+          <div class="hint mt-1">Uploads a backup on a schedule to your own backup server (server/jade-backup-server.py; setup in docs/backup-server.md). It runs while the app is running, like the heartbeat.</div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div class="col-span-2"><label class="lbl" for="sAbUrl">Server address</label><input id="sAbUrl" class="field mt-1" placeholder="http://192.168.1.20:8787" autocomplete="off"></div>
+            <div class="col-span-2"><label class="lbl" for="sAbToken">Token</label><input id="sAbToken" type="password" class="field mt-1" autocomplete="off"></div>
+            <div><label class="lbl" for="sAbHours">Every (hours)</label><input id="sAbHours" type="number" min="1" max="720" class="field mt-1"></div>
+            <div><label class="lbl" for="sAbKind">What</label><select id="sAbKind" class="field mt-1"><option value="full">Everything</option><option value="config">Config only</option></select></div>
+          </div>
+          <label class="flex items-center gap-2 text-sm mt-2" for="sAbEncrypt"><input type="checkbox" id="sAbEncrypt" class="accent-emerald-400 w-4 h-4"> Encrypt on this device before sending (the server never sees your notes)</label>
+          <label class="flex items-center gap-2 text-sm mt-1" for="sAbKeys"><input type="checkbox" id="sAbKeys" class="accent-emerald-400 w-4 h-4"> Include API keys and SSH hosts (forces encryption)</label>
+          <div class="mt-1"><label class="lbl" for="sAbPass">Passphrase (needed to restore an encrypted backup; if you lose it the backup cannot be opened)</label><input id="sAbPass" type="password" class="field mt-1" autocomplete="off"></div>
+          <div class="flex flex-wrap items-center gap-2 mt-2"><button type="button" id="abNow" class="btn btn-solid cut cut-sm">Back up now</button><button type="button" id="abTest" class="btn btn-ghost">Test connection</button><button type="button" id="abPick" class="btn btn-ghost">Restore from server…</button></div>
+          <div id="abRestoreRow" class="flex gap-2 mt-2" hidden><select id="abSel" class="field flex-1"></select><button type="button" id="abRestore" class="btn">Restore this</button></div>
+          <div class="hint mt-1" id="abStatus"></div>
+        </div>
       </section>
 
       <section class="flex flex-col gap-3">
@@ -1142,7 +1169,7 @@ rep("  if (cmd === 'compact') {", "  if (cmd === 'context' || cmd === 'ctx') { s
 s = s.replace("['/compact', 'summarise old turns'],", "['/compact', 'summarise old turns'], ['/context', 'what fills the context'],", 1)
 rep("<b>/compact</b> summarise old turns ·", "<b>/compact</b> summarise old turns · <b>/context</b> what fills the context ·")
 rep("  const sys = vfs.isFile(SYSTEM_PATH) ? stripComments(parseFront(vfs.read(SYSTEM_PATH)).body) : '';", "  const sys = vfs.isFile(SYSTEM_PATH) ? clip(stripComments(parseFront(vfs.read(SYSTEM_PATH)).body), 24000, 'of SYSTEM.md left out: keep it shorter') : '';")
-rep("${st.skills.map(s => `- ${s.name}: ${s.description}`).join('\\n')}", "${st.skills.slice(0, 60).map(s => `- ${s.name}: ${String(s.description).slice(0, 160)}`).join('\\n')}${st.skills.length > 60 ? `\\n- (${st.skills.length - 60} more: /skills)` : ''}")
+rep("${st.skills.map(s => `- ${s.name}: ${s.description}`).join('\\n')}", "${skillLines(st.skills)}")
 rep("    out.push({ name: mcpToolName(srv.name, t.name), server: srv.name, tool: t.name, description: t.description || t.title || '', inputSchema: t.inputSchema || { type: 'object', properties: {} }, exposure: ex, annotations: t.annotations });\n  }\n  return out;",
 """    out.push({ name: mcpToolName(srv.name, t.name), server: srv.name, tool: t.name, description: t.description || t.title || '', inputSchema: t.inputSchema || { type: 'object', properties: {} }, exposure: ex, annotations: t.annotations });
   }
@@ -1410,6 +1437,79 @@ DC_HTML = """      <section class="flex flex-col gap-3" id="dcSection">
 
 """
 rep("""      <section class="flex flex-col gap-3" id="secretSection">""", DC_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+# v24: Voice & senses settings section
+WORLD_HTML = """      <section class="flex flex-col gap-3" id="senseSection">
+        <div class="pane-h">Voice &amp; senses</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Talk to Jade without touching the screen (the <span class="text-yl">Talk</span> button next to Voice), and let her use the phone's camera, microphone, location and sensors: <span class="text-yl">senses</span> (photos, video, sound level, GPS, accelerometer, gyroscope, magnetic field, light, battery, Wi-Fi signal…), <span class="text-yl">look</span> (open any image or video in the vault), <span class="text-yl">litert</span> (run .tflite models). Android asks you the first time. She can also build her own tools, skills and flows on top of these.</p>
+        <label class="flex items-center gap-2 text-sm" for="sSensesOn"><input type="checkbox" id="sSensesOn" class="accent-emerald-400 w-4 h-4"> Let Jade use the camera, microphone, location, sensors and the phone itself (alarms, sounds, calls, texts)</label>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <div><label class="lbl" for="sVoiceLang">Speech language (empty = the phone's)</label><input id="sVoiceLang" class="field mt-1" placeholder="en-US" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sWakeWords">Wake phrases for hands-free (empty = always listening)</label><input id="sWakeWords" class="field mt-1" placeholder="hey jade, hey choom" autocomplete="off" spellcheck="false"></div>
+          <div><label class="lbl" for="sVadMs">Pause that ends a sentence (ms, transcription model only)</label><input id="sVadMs" type="number" min="400" max="3000" step="100" class="field mt-1" placeholder="900"></div>
+          <div><label class="lbl" for="sSttProv">Speech to text (hands-free listening)</label><select id="sSttProv" class="field mt-1"></select></div>
+          <div><label class="lbl" for="sSttModel">Transcription model</label><input id="sSttModel" class="field mt-1" list="dlStt" placeholder="e.g. whisper-large-v3-turbo" autocomplete="off" spellcheck="false"><datalist id="dlStt"></datalist></div>
+          <div><label class="lbl" for="sVisProv">Picture understanding</label><select id="sVisProv" class="field mt-1"></select></div>
+          <div><label class="lbl" for="sVisModel">Vision model</label><input id="sVisModel" class="field mt-1" list="dlVis" placeholder="e.g. gemma3:12b" autocomplete="off" spellcheck="false"><datalist id="dlVis"></datalist></div>
+        </div>
+        <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSttScan">List transcription models</button><button type="button" class="btn btn-ghost" id="btnVisScan">List vision models</button></div>
+        <p class="hint leading-relaxed">When a vision model is picked, every picture (yours, from the camera, or from <span class="text-yl">look</span>) is described by it and the chat model reads the description, so the chat model does not need to see images. With a transcription model, Jade records each phrase and sends it there (Groq/OpenAI-style <span class="mono">/audio/transcriptions</span>, or an audio-capable chat model); it needs a connection to that provider.</p>
+        <label class="flex items-center gap-2 text-sm" for="sSttOffline"><input type="checkbox" id="sSttOffline" class="accent-emerald-400 w-4 h-4"> Prefer on-device speech recognition (works without internet when the phone has its offline language pack)</label>
+        <label class="flex items-center gap-2 text-sm" for="sHfSolo"><input type="checkbox" id="sHfSolo" class="accent-emerald-400 w-4 h-4"> Hands-free shows only her avatar and background (tap ✕, double-tap, or Back to leave)</label>
+        <label class="flex items-center gap-2 text-sm" for="sBrowserOn"><input type="checkbox" id="sBrowserOn" class="accent-emerald-400 w-4 h-4"> Let Jade use her own web browser (open pages, click, type, screenshots)</label>\n        <label class="flex items-center gap-2 text-sm" for="sScreenOn"><input type="checkbox" id="sScreenOn" class="accent-emerald-400 w-4 h-4"> Let Jade drive other apps on the phone (needs turning on in Android Accessibility settings too)</label>
+        <label class="flex items-center gap-2 text-sm" for="sPhoneOn"><input type="checkbox" id="sPhoneOn" class="accent-emerald-400 w-4 h-4"> Let Jade control the phone (alarms, calls, texts, Bluetooth, casting, apps)</label>
+        <div class="mt-3 p-3 rounded border border-white/10">
+          <label class="flex items-center gap-2 text-sm" for="sCuOn"><input type="checkbox" id="sCuOn" class="accent-emerald-400 w-4 h-4"> <b>Curiosity wake-ups</b>: Jade wakes at random times and chooses for herself what to do</label>
+          <div class="hint mt-1">Off by default. She picks from a ranked menu (learning progress + her track record), or rests, and what she does is measured by what actually changed in the vault. Needs the app to stay running, like the heartbeat. Write what you want her to know (interests, things to look into, things to keep away from) in CURIOSITY.md.</div>
+          <div class="grid grid-cols-2 gap-2 mt-2">
+            <div><label class="lbl" for="sCuMin">Soonest (minutes)</label><input id="sCuMin" type="number" min="1" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuMax">Latest (minutes)</label><input id="sCuMax" type="number" min="1" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuFrom">Active from</label><input id="sCuFrom" type="time" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuTo">Active until</label><input id="sCuTo" type="time" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuCap">At most per day</label><input id="sCuCap" type="number" min="1" max="48" class="field mt-1"></div>
+            <div><label class="lbl" for="sCuTools">Tools while awake</label><select id="sCuTools" class="field mt-1"><option value="notes">Notes and memory only</option><option value="web">Notes, memory and web</option><option value="all">All tools</option></select></div>
+          </div>
+          <div class="lbl mt-2">Things she may choose to do</div><div id="cuActs" class="mt-1 space-y-1"></div>
+          <div class="flex items-center gap-2 mt-2"><button type="button" id="cuEdit" class="btn btn-ghost">Edit CURIOSITY.md</button><button type="button" id="cuNow" class="btn btn-ghost">Wake her now</button><span id="cuStatus" class="hint"></span></div>
+        </div>
+        <label class="flex items-center gap-2 text-sm" for="sDelegateOn"><input type="checkbox" id="sDelegateOn" class="accent-emerald-400 w-4 h-4"> Let Jade hand side jobs to a sub-agent (its own clean context; read-only unless she says otherwise)</label>
+        <label class="flex items-center gap-2 text-sm" for="sThinkOn"><input type="checkbox" id="sThinkOn" class="accent-emerald-400 w-4 h-4"> Let Jade search several lines of reasoning and verify them (tree of thoughts)</label>
+        <label class="flex items-center gap-2 text-sm" for="sSentryPackOn"><input type="checkbox" id="sSentryPackOn" class="accent-emerald-400 w-4 h-4"> Let Jade set up Sentry rules (react to sensors, calls, texts, the camera…)</label>
+        <p class="hint leading-relaxed">Each switch above removes that whole set of tools from what Jade is told, which also saves some of the model's context (the estimate is on each line).</p>
+        <div class="flex flex-col gap-2 mt-2 p-3 rounded-lg" style="border:1px solid var(--bd,#2f6)" id="sentryBox">
+          <div class="lbl">Sentry: reacts to events by itself</div>
+          <label class="flex items-center gap-2 text-sm" for="sySentryOn"><input type="checkbox" id="sySentryOn" class="accent-emerald-400 w-4 h-4"> Sentry is on (runs the rules in /Jade/Config/Sentry.json)</label>
+          <div class="hint leading-relaxed">Systems: add or remove each source. A system only uses battery while it is ticked <em>and</em> a rule needs it.</div>
+          <div id="sySystems" class="flex flex-col gap-1"></div>
+          <div><label class="lbl" for="syAllow">Numbers Sentry may text or call by itself (emergency contacts)</label><textarea id="syAllow" class="field mt-1" rows="2" placeholder="one number per line" spellcheck="false"></textarea></div>
+          <div class="flex items-center gap-2 text-sm"><label for="syLimit">At most</label><input id="syLimit" type="number" min="1" max="60" class="field" style="width:5rem"><span>texts or calls per hour</span></div>
+          <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSyNotif">Notification access…</button><span class="text-sm text-dim" id="syStatus"></span></div>
+          <p class="hint leading-relaxed">Camera and microphone checks only measure change and loudness; nothing is recorded or sent anywhere. While Sentry is working, a notice lists what it is using. Jade cannot edit the numbers above.</p>
+        </div>
+        <div class="flex flex-col gap-2 mt-2 p-3 rounded-lg" style="border:1px solid var(--bd,#2f6)" id="sshBox">
+          <div class="lbl">SSH hosts: machines Jade can work on</div>
+          <label class="flex items-center gap-2 text-sm" for="sSshOn"><input type="checkbox" id="sSshOn" class="accent-emerald-400 w-4 h-4"> Let Jade open SSH sessions</label>
+          <div class="hint leading-relaxed">Jade asks for a machine by name. The password or key below is sent straight from here to the SSH connection &mdash; it is never shown to her and never appears in the chat. The first connection asks you to approve the machine's host-key fingerprint; after that a changed key is refused.</div>
+          <div id="sshList" class="flex flex-col gap-2"></div>
+          <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSshAdd">Add a machine</button><span class="text-sm text-dim" id="sshStatus"></span></div>
+          <p class="hint leading-relaxed">These are kept with your API keys, so a backup exported <em>with</em> keys contains them in the clear: treat that file like a private key. &ldquo;Ask before each command&rdquo; is on by default. Sentry-triggered flows cannot use a machine unless you tick it for them.</p>
+        </div>
+        <label class="flex items-center gap-2 text-sm" for="sAskRisky"><input type="checkbox" id="sAskRisky" class="accent-emerald-400 w-4 h-4"> Ask me before Jade places a call, sends a text or sends an email</label>
+        <div class="flex items-center gap-3 flex-wrap"><button type="button" class="btn btn-ghost" id="btnSenseTest">Check permissions</button><span class="text-sm text-dim" id="senseStatus"></span></div>
+        <p class="hint leading-relaxed">Hands-free listens while the app is open and the screen is on, and stops listening while Jade is talking so she does not hear herself. Some phones beep each time the recognizer restarts; turn the phone's system sounds down if that bothers you.</p>
+      </section>
+
+"""
+rep("""      <section class="flex flex-col gap-3" id="secretSection">""", WORLD_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
+DISK_HTML = """      <section class="flex flex-col gap-3" id="diskSection" hidden>
+        <div class="pane-h">Vault storage</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Every note and file is a real file on the phone, so other apps (a file manager, Pydroid, a sync app) can open and edit them. Jade only keeps the list of files in memory and reads a file when she needs it.</p>
+        <div class="text-sm flex flex-col gap-1" id="diskStatus"></div>
+        <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-ghost" id="btnDiskShared">Use the JadeVault folder</button><button type="button" class="btn btn-ghost" id="btnDiskRescan">Rescan the folder</button></div>
+        <p class="hint leading-relaxed">Changes made by other apps show up when you come back to Jade, or when you tap Rescan. Files over about 16 MB are not handed to shell commands, Python or scripts, but Jade can still open, move and delete them.</p>
+      </section>
+
+"""
+rep("""      <section class="flex flex-col gap-3" id="secretSection">""", DISK_HTML + """      <section class="flex flex-col gap-3" id="secretSection">""")
 s = s.replace('/* =====================================================================\n   BOOT', rd('discord.js') + '\n/* =====================================================================\n   BOOT', 1)
 rep("const activeTools = () => [...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...mcpToolDefs()];",
     "const activeTools = () => vecFilterTools([...OLLAMA_TOOLS.filter(t => (t.function.name !== 'decide' || (S.ollayaOn && S.ollayaModel)) && (t.function.name !== 'memory' || S.memoryOn)), ...VEC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]);")
@@ -1496,10 +1596,10 @@ rep("openSettings(); $('#sProvider').value = p; showProvFields(); return; }", "o
 # settings tabs: every section gets data-tab (an unknown section fails the build, so none is ever lost)
 TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect', 'Connect'), ('app', 'App')]
 TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
-          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
+          'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'Embeddings (sqlite-vec)': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
           'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
           'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect', 'Discord (Jade as a bot)': 'connect',
-          'Heartbeat': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
+          'Heartbeat': 'app', 'Voice & senses': 'app', 'Vault storage': 'app', 'Background': 'app', 'Jade companion': 'app', 'Backup': 'app', 'Danger zone': 'app'}
 a = s.index('<div class="modal-bg" id="settings" hidden>'); b = s.index('<div class="flex justify-end gap-2"><button class="btn" id="btnCancel">', a)
 blk = s[a:b]; seen = set()
 def tag(m):
@@ -1703,6 +1803,87 @@ rep("<b>/vector</b> bot settings ·", "<b>/vector</b> bot settings · <b>/discor
 rep("window.__vecSync?.();", "window.__vecSync?.(); window.__dcSync?.();")
 rep("'secrets', 'vecToken', 'aicKey'];", "'secrets', 'vecToken', 'aicKey', 'dcToken'];")
 rep("Object.assign(window, { tfjsSource,", "Object.assign(window, { DC, dcInviteUrl, dcConnect, dcStop, dcIncoming, dcPoll, dcCall, dcWake, dcScope, dcFilterTools, discordTool, dcInboxAdd, DC_INBOX, tfjsSource,")
+# ---------- v22: embeddings (Ollama) + sqlite-vec + FTS5 hybrid search, the embeddings tool ----------
+rep("  { name: 'notes_search', description:", """  { name: 'embeddings', description: 'Semantic search and storage on sqlite-vec, with embeddings from Ollama. Collections: "memory" and "journal" (kept in step automatically), "notes" (the vault, after the index action) and any collection name you choose for your own text. search: the closest texts to a query; mode hybrid (default: meaning + keywords, fused), semantic or keyword; collection limits it (default: all). add: store text (or texts) in a collection of your own so you can find it by meaning later. index: embed the vault\\'s notes (optional path = a folder). remove: delete by id, source or whole collection. compare: cosine similarity of two texts (a, b). status: model, sizes, problems. For facts about the user use the memory tool; use this for research, snippets, documents and anything you want to search by meaning.',
+    parameters: { type: 'object', properties: { action: { type: 'string', enum: ['search', 'add', 'index', 'remove', 'compare', 'status'] }, query: { type: 'string', description: 'search: what to look for' }, text: { type: 'string', description: 'add: the text to store' }, texts: { type: 'array', items: { type: 'string' }, description: 'add: several texts at once' }, collection: { type: 'string', description: 'search/add/remove: collection name (search takes a comma list)' }, source: { type: 'string', description: 'add: where the text came from (a note path, URL …); remove: delete everything from that source' }, head: { type: 'string', description: 'add: a short title for the text' }, k: { type: 'number', description: 'search: results (default 8, max 30)' }, mode: { type: 'string', enum: ['hybrid', 'semantic', 'keyword'] }, id: { type: 'number', description: 'remove: id from a search result' }, path: { type: 'string', description: 'index: only notes under this folder' }, a: { type: 'string', description: 'compare: first text' }, b: { type: 'string', description: 'compare: second text' } }, required: ['action'] } },
+  { name: 'notes_search', description:""")
+rep("(t.function.name !== 'memory' || S.memoryOn))", "(t.function.name !== 'memory' || S.memoryOn) && (t.function.name !== 'embeddings' || (S.memoryOn && S.embedOn !== false)))")
+rep("    case 'memory': return memoryTool(args);", "    case 'memory': return memoryTool(args);\n    case 'embeddings': return await embeddingsTool(args);")
+rep("skill: a => a.name || '',", "skill: a => a.name || '', embeddings: a => `${a.action || 'status'}${a.query || a.text ? ' “' + String(a.query || a.text).slice(0, 50) + '”' : ''}${a.collection ? ' in ' + a.collection : ''}`,")
+rep("skill: () => `Loading skill: ${short(a.name)}`,", "skill: () => `Loading skill: ${short(a.name)}`, embeddings: () => ({ search: 'Searching by meaning', add: 'Storing for later', index: 'Embedding the vault', remove: 'Removing embeddings', compare: 'Comparing meanings', status: 'Checking embeddings' }[a.action] || 'Embeddings') + (a.query || a.text ? ': ' + short(a.query || a.text, 50) : ''),")
+rep("${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list)\\n' : ''}", "${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list; search uses keywords and meaning together)\\n' : ''}${S.memoryOn && S.embedOn !== false ? '- embeddings: search by meaning with sqlite-vec (memory, journal, the vault after index, and collections of your own: search / add / index / remove / compare / status)\\n' : ''}")
+rep("  let runError = null, lastContent = '';", "  let runError = null, lastContent = '';\n  await skillPrefetch().catch(() => {});   // pick the skills that fit this message when there are many\n  await memoryPrefetch();                 // rank the memories for this message by keywords + meaning (the prompt builder is synchronous)")
+rep("  ensureMemory(); ensureSteering(); ensureHeartbeatFile(); ensureMcpFile();", "  ensureMemory(); ensureSteering(); ensureHeartbeatFile(); ensureMcpFile(); vmemSyncSoon();")
+rep("'secrets', 'vecToken', 'aicKey', 'dcToken'];", "'secrets', 'vecToken', 'aicKey', 'dcToken', 'embedKey'];")
+rep("'dcToken', 'embedKey'];", "'dcToken', 'embedKey', 'sshHosts'];")
+rep("'embedKey', 'sshHosts'];", "'embedKey', 'sshHosts', 'abToken', 'abPass'];")
+rep("Object.assign(window, { DC,", "window.__vmem = { sync: vmemSync, rebuild: vmemRebuild, status: vmemStatus, search: vmemSearch, prefetch: memoryPrefetch, reset: () => { vmemCtx = { q: '', hits: null }; } };\nObject.assign(window, { DC,")
+# ---------- v23: kiosk mode (Android app: Jade as the home screen of a dedicated device) ----------
+rep("""        <p class="hint leading-relaxed" id="bgWeb">""", """        <div id="kioskNative" class="flex flex-col gap-2" hidden>
+          <label class="flex items-center gap-2 text-sm" for="sKiosk"><input type="checkbox" id="sKiosk" class="accent-emerald-400 w-4 h-4"> Kiosk mode: Jade is the home screen, full screen and always in front</label>
+          <div class="text-sm flex items-center gap-2 flex-wrap" id="kioskStatus"></div>
+          <p class="hint leading-relaxed">For a computer or tablet that only runs Jade. She starts when it boots, and this switch is the way out. Without more setup Android pins the screen (hold Back and Overview to unpin). For a full lock, run this once from a computer with USB debugging on: <code>adb shell dpm set-device-owner app.netrunner.vault/app.netrunner.jade.AdminReceiver</code></p>
+        </div>
+        <p class="hint leading-relaxed" id="bgWeb">""")
+rep("function renderBgSettings() {", """function nativeKiosk() { return typeof window.NetrunnerAndroid?.setKiosk === 'function'; }
+function renderKiosk() {
+  const el = $('#kioskNative'); if (!el) return;
+  el.hidden = !nativeKiosk(); if (el.hidden) return;
+  let st = {}; try { st = JSON.parse(window.NetrunnerAndroid.kioskStatus()); } catch {}
+  $('#sKiosk').checked = !!st.on;
+  $('#kioskStatus').innerHTML = !st.on ? '<span class="dot"></span>Off.'
+    : st.locked ? '<span class="dot ok"></span>On and locked' + (st.owner ? ' (device owner: full kiosk).' : '.')
+    : st.pinned ? '<span class="dot ok"></span>On: the screen is pinned to Jade.'
+    : '<span class="dot bad"></span>On, not locked yet. Press Home and pick Jade, then “Always”.';
+}
+$('#sKiosk').addEventListener('change', e => { try { window.NetrunnerAndroid.setKiosk(e.target.checked); } catch {} setTimeout(renderKiosk, 800); });
+function renderBgSettings() {
+  renderKiosk();""")
+# ---------- v24: senses, look, LiteRT, hands-free voice ----------
+s = s.replace('/* =====================================================================\n   BOOT', rd('world.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]));", "...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...WORLD_TOOL_DEFS.filter(t => S.sensesOn !== false || t.name === 'look' || t.name === 'litert').map(f => ({ type: 'function', function: f })), ...mcpToolDefs()]));")
+rep("    case 'discord': return await discordTool(args);", "    case 'discord': return await discordTool(args);\n    case 'senses': case 'look': case 'litert': return await worldTool(name, args);")
+rep(r"${S.dcOn ? `- discord: you are also a bot on Discord", r"${S.sensesOn !== false ? '- senses: your senses (camera photo/video, microphone, GPS, every phone sensor incl. accelerometer, gyroscope, magnetic field/EMF, light, battery, Wi-Fi signal, device facts, and the flashlight and vibration motor: senses torch / vibrate); look: open an image or video from the vault and see it; litert: run .tflite models. Build tools, skills and flows on top of them (jade.tool(\'senses\', {...}) from scripts)\\n' : ''}${S.dcOn ? `- discord: you are also a bot on Discord")
+rep("saveSession(); TR.tool(name, result, isErr);", "saveSession(); TR.tool(name, result, isErr);\n        if (tc === asst.tool_calls[asst.tool_calls.length - 1]) { const lv = worldFlushViews(); if (lv) { cur.messages.push(lv); chatEl.appendChild(userBlock(lv.display, cur.messages.length - 1)); scrollDown(); saveSession(); } }")
+rep("const DEFAULTS = { tplOn: true,", "const DEFAULTS = { sensesOn: true, voiceLang: '', sttOffline: false, visProv: '', visModel: '', sttProv: '', sttModel: '', vadMs: 900, tplOn: true,")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { sensesOn: $('#sSensesOn').checked, voiceLang: $('#sVoiceLang').value.trim(), sttOffline: $('#sSttOffline').checked }, worldReadSettings());\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sSensesOn').checked = S.sensesOn !== false; $('#sVoiceLang').value = S.voiceLang || ''; $('#sSttOffline').checked = !!S.sttOffline; worldFillSettings();\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("      let apiMsgs = buildApiMessages(); const toolsNow = activeTools();", "      await visionPrepass();\n      let apiMsgs = buildApiMessages(); const toolsNow = activeTools();")
+rep("    if (m.images?.length && !cur._noImages) o.images = m.images;", "    if (m.images?.length && !cur._noImages) { if (visionOn() && m._vdesc) o.content = (o.content ? o.content + '\\n\\n' : '') + visionNote(m); else o.images = m.images; }")
+
+# ---------- v25: the vault lives on real storage (Android app) ----------
+rep_between("class VFS {", "const vfs = new VFS();", rd('vfs_disk.js').split('class VFS {', 1)[0].split('   VIRTUAL FILESYSTEM', 1)[1].split('*/', 1)[1].lstrip('\n') + 'class VFS {' + rd('vfs_disk.js').split('class VFS {', 1)[1] + '\n')
+s = s.replace('/* =====================================================================\n   BOOT', rd('vfs_disk_ui.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("window.__trajSync?.(); window.__vecSync?.(); window.__dcSync?.();", "window.__trajSync?.(); window.__vecSync?.(); window.__dcSync?.(); window.__diskSync?.();")
+# sizes without reading the file
+rep("const entriesForBb = () => vfs.entries().map(([p, n]) => [p, n.dir ? { dir: true } : { data: n.data }]);", "const BB_MAX = 16e6;   // bigger files stay on disk and are not copied into the shell\nconst entriesForBb = () => vfs.entries().filter(([p, n]) => n.dir || !vfs.diskOn || fsize(n) <= BB_MAX).map(([p, n]) => [p, n.dir ? { dir: true } : { data: n.data }]);")
+rep("      else { const s = old && !old.dir && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }\n    }\n    if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);",
+    "      else { const s = old && !old.dir && fsize(old) === n.data.length && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }\n    }\n    for (const [p, o] of vfs.nodes) if (!o.dir && vfs.diskOn && fsize(o) > BB_MAX && !next.has(p)) next.set(p, o);\n    if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);")
+rep("    if (n.dir) { if (!cur) { vfs.nodes.set(p, { dir: true, mtime: Date.now() }); changed = true; } continue; }\n    if (b && !b.dir && same(b.data, n.data)) continue;               // the command did not touch it: keep what is there now\n    if (cur && !cur.dir && same(cur.data, n.data)) continue;\n    vfs.nodes.set(p, { data: n.data, mtime: Date.now() }); changed = true;",
+    "    if (n.dir) { if (!cur) { vfs.mkdirp(p); changed = true; } continue; }\n    if (b && !b.dir && fsize(b) === n.data.length && same(b.data, n.data)) continue;               // the command did not touch it: keep what is there now\n    if (cur && !cur.dir && fsize(cur) === n.data.length && same(cur.data, n.data)) continue;\n    vfs.write(p, n.data, { mkdirs: true }); changed = true;")
+rep("for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b) { vfs.nodes.delete(p); changed = true; }", "for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b && !(vfs.diskOn && !b.dir && fsize(b) > BB_MAX)) { if (vfs.exists(p)) vfs.rm(p, true); changed = true; }")
+rep("if (vfs.isFile(p)) vfs.nodes.get(p).mtime = Date.now(), vfs.changed(); else vfs.write(p, '');", "if (vfs.isFile(p)) vfs.touch(p); else vfs.write(p, '');")
+# do not read every file just to learn how big it is
+rep("else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (n.data.length < 2e6) files[p] = dec.decode(n.data); }", "else if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\\.(db|sqlite3?)$/i.test(p))) continue; else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (fsize(n) < 2e6) files[p] = dec.decode(n.data); }")
+rep("[...vfs.nodes].some(([p, n]) => !n.dir && /\\.[cm]?js$/.test(p) && n.data.length < 2e6 && /sqlite/i.test(dec.decode(n.data))));", "[...vfs.nodes].some(([p, n]) => !n.dir && /\\.[cm]?js$/.test(p) && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(n.data))));")
+rep("    if (isSqliteBytes(n.data)) files[p] = n.data; else if (n.data.length < 2e6) files[p] = dec.decode(n.data);", "    if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\\.(db|sqlite3?)$/i.test(p))) continue;\n    if (isSqliteBytes(n.data)) files[p] = n.data; else if (fsize(n) < 2e6) files[p] = dec.decode(n.data);")
+rep("else if (n.data.length < 4e6) files[p] = n.data; }\n", "else if (fsize(n) < 4e6) files[p] = n.data; }\n")
+rep("!n.dir && p.endsWith('.py') && n.data.length < 2e6 &&", "!n.dir && p.endsWith('.py') && fsize(n) < 2e6 &&")
+rep("return { path: full, bytes: vfs.nodes.get(full)?.data.length || 0 };", "return { path: full, bytes: fsize(vfs.nodes.get(full) || { dir: true }) };")
+rep("const st = vfs.stat?.(p)?.size ?? vfs.nodes.get(p)?.data?.length ?? 0;", "const st = vfs.stat?.(p)?.size ?? 0;")
+# backups and restores
+rep("""    await dbRestore({ ...(data.db || {}), vfs: entries, pendingSettings: next }, true);   // settings ride along in IndexedDB (durable before reload)""",
+    """    if (vfs.diskOn) { vfs.replace(entries, true); if (!vfs.flush(true)) throw new Error('could not write the restored vault to storage'); await dbRestore({ ...(data.db || {}), pendingSettings: next }, true); }
+    else await dbRestore({ ...(data.db || {}), vfs: entries, pendingSettings: next }, true);   // settings ride along in IndexedDB (durable before reload)""")
+rep("await dbRestore({ vfs: [...vfs.nodes.entries()], pendingSettings: next }, false);", "if (vfs.diskOn) { vfs.flush(true); await dbRestore({ pendingSettings: next }, false); } else await dbRestore({ vfs: [...vfs.nodes.entries()], pendingSettings: next }, false);")
+
+# ---------- v25b: browser tool ----------
+s = s.replace('/* =====================================================================\n   BOOT', rd('browser_agent.js') + '\n' + rd('browser_tool.js') + '\n' + rd('phone_tool.js') + '\n' + rd('screen_tool.js') + '\n' + rd('sentry_tool.js') + '\n' + rd('ssh_tool.js') + '\n' + rd('think_tool.js') + '\n' + rd('skill_router.js') + '\n' + rd('delegate_tool.js') + '\n' + rd('chat_history.js') + '\n' + rd('curiosity.js') + '\n' + rd('autobackup.js') + '\n' + rd('browser_script.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("WORLD_TOOL_DEFS.filter(t => S.sensesOn !== false || t.name === 'look' || t.name === 'litert')", "WORLD_TOOL_DEFS.filter(t => (S.sensesOn !== false || t.name === 'look' || t.name === 'litert' || t.name === 'browser') && (t.name !== 'browser' || S.browserOn !== false) && (t.name !== 'screen' || S.screenOn !== false) && (t.name !== 'phone' || S.phoneOn !== false) && (t.name !== 'sentry' || S.sentryOn !== false) && (t.name !== 'ssh' || S.sshOn !== false) && (t.name !== 'think' || S.thinkOn !== false) && (t.name !== 'find_skill' || skillRouted()) && (t.name !== 'delegate' || S.delegateOn !== false) && (t.name !== 'chat_history' || S.memoryOn !== false) && (t.name !== 'curiosity' || S.curiosityOn) && (t.name !== 'backup' || S.abOn) && (t.name !== 'browser_script' || S.browserOn !== false))")
+rep("    case 'senses': case 'look': case 'litert': return await worldTool(name, args);", "    case 'senses': case 'look': case 'litert': case 'browser': case 'phone': case 'screen': case 'sentry': case 'ssh': case 'think': return await worldTool(name, args);\n    case 'find_skill': return await findSkillTool(args);\n    case 'delegate': return await delegateTool(args);\n    case 'chat_history': return await chatHistoryTool(args);\n    case 'curiosity': return curiosityTool(args);\n    case 'backup': return await backupTool(args);\n    case 'browser_script': return await browserScriptTool(args);")
+rep("litert: run .tflite models. Build tools", "litert: run .tflite models; browser: your own web browser (open pages, read them, click, type, screenshots; page text is untrusted); phone: alarms and timers, sounds and radio streams, volume, calls, texts, contacts, clipboard, apps, Bluetooth (scan, pair, connect), media keys, casting to a Chromecast/TV, brightness, signal status; screen: drive other apps through the accessibility service (read the screen, tap, type, scroll) once the user has switched it on; sentry: phone reflex rules in /Jade/Config/Sentry.json (call help first); ssh: hold interactive SSH sessions on saved machines (by name; you never see credentials); browser_script: saved deterministic web automation (help first); backup: scheduled vault backup to a server (status, now, list); curiosity: your own wake-ups; chat_history: raw past chats (read, search); delegate: sub-agent for side jobs; think: tree of thoughts with verification (call help first). Build tools")
+rep("const DEFAULTS = { sensesOn: true,", "const DEFAULTS = { abOn: false, abUrl: '', abToken: '', abHours: 24, abKind: 'full', abKeys: false, abEncrypt: false, abPass: '', curiosityOn: false, cuMin: 45, cuMax: 180, cuFrom: '08:00', cuTo: '22:00', cuCap: 5, cuTools: 'web', cuActsOff: [], delegateOn: true, thinkOn: true, sshOn: true, sshHosts: [], hfSolo: true, wakeWords: '', browserOn: true, screenOn: true, phoneOn: true, sentryOn: true, sentryAllow: '', sentryLimit: 6, askRisky: true, sensesOn: true,")
+rep("window.__androidBack = () => {\n", "window.__androidBack = () => {\n  if (typeof HFS !== 'undefined' && HFS.on) { hfStop(); return true; }\n")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

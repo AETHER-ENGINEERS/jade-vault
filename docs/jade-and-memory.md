@@ -22,17 +22,39 @@ Replies have Copy, thumbs-up/down, and Retry controls. Ratings work even with tr
 
 Ask `Remember that I prefer short weekly reviews` or use the memory tool's save, list, search, and forget actions. Memory is editable Markdown: review it for stale, incorrect, or sensitive facts. Journal generation is model-assisted and can use the configured provider; it is not a perfect transcript or guaranteed factual record.
 
-### Optional BM25 memory retrieval
+### Hybrid memory search (keywords + meaning)
 
-Under **Config → Memory → Long-term memory**, enable **Rank memories with BM25** to select memory bullets by relevance. It is **off by default**. Top-k defaults to **8**, bounded to **1–30**.
+Jade's memory search combines two rankings and fuses them (reciprocal rank fusion, k = 60):
 
-- Ranking runs locally with no embedding service or external vector database.
-- It matches memory bullets against the last two user messages (up to the last 1,500 characters), not against every note in the vault.
-- If no bullets match, it falls back to the five newest memory lines.
-- Recent journal text is added separately; use memory search to retrieve older journal content.
-- With BM25 disabled, the normal memory block is still budgeted (approximately 2,600 characters), so it does not necessarily include every stored fact.
+- **Keywords**: SQLite **FTS5** (BM25, stemmed, prefix matches).
+- **Meaning**: **embeddings from Ollama** (`/api/embed`) stored and searched with **sqlite-vec** (cosine distance, `vec0` table). "Caffeinated drink" finds "Likes oat milk lattes" although they share no word.
 
-Save the setting, then ask about a topic represented in your memory bullets. For important facts, explicitly ask Jade to search/read the relevant source rather than assuming it is present in the current prompt.
+What uses it:
+
+- The memory tool's **search** action (memory bullets and the journal, one entry per chat).
+- The **memory block in every chat**, when **Config → Memory → Long-term memory → Rank memories** is on (default **on**, top-k **8**, bounded **1–30**): only the bullets that match your last two messages are put in the prompt. They are ranked before each turn. If embeddings are unavailable it quietly uses keywords only, then the old BM25 ranking, then the five newest lines.
+- The **embeddings tool** (below).
+
+Set it up once: `ollama pull nomic-embed-text` on the Ollama Jade talks to (Config → Memory → Embeddings shows and tests the model, address and key; a different embedding model or address works too, and changing it rebuilds the index). Embedding model names that contain `nomic-embed` get the `search_document:` / `search_query:` prefixes they were trained with. Ollama Cloud does not serve embedding models, so with a cloud chat provider point the embeddings address at an Ollama you run.
+
+The index is the ordinary SQLite file `/Jade/.index/vectors.db` (chunks, an FTS5 table and a `vec0` table). It is a cache: delete it and it is rebuilt from the notes. Memory bullets and journal entries are kept in step automatically a few seconds after they change. Nothing leaves your Ollama.
+
+### The embeddings tool
+
+Jade can use the vectors herself. The tool has these actions:
+
+| Action | What it does |
+| --- | --- |
+| `search` | Closest texts to a `query`; `mode` hybrid (default), semantic or keyword; `collection` limits it (a comma list; default every collection); `k` results (max 30) |
+| `add` | Store `text` (or `texts`) in a collection of her own, with an optional `source` and `head`; embedded straight away, never stored twice |
+| `index` | Embed the vault's notes into the `notes` collection (optionally only under a `path`); notes are split by headings and paragraphs |
+| `remove` | Delete by `id` (from a search result), by `source`, or a whole `collection` |
+| `compare` | Cosine similarity of texts `a` and `b` |
+| `status` | sqlite-vec / SQLite versions, model, vector size, the size of each collection, the last problem |
+
+Collections: `memory` and `journal` are filled from the notes automatically, `notes` by the index action (or **Also index all my notes** in Config), and any other name is Jade's own (research, snippets, documents). Use the memory tool for facts about the user and this one for everything she wants to find by meaning.
+
+sqlite-vec 0.1.9 is built into the embedded SQLite, so it is also available in the `sqlite3` shell, Python's `sqlite3`, and `node:sqlite` / `better-sqlite3` scripts: `create virtual table v using vec0(e float[768]); select rowid, distance from v where e match vec_f32('[...]') and k = 5;`.
 
 ## Steering files
 

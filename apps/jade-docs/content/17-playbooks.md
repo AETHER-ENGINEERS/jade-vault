@@ -62,6 +62,15 @@ Any string may contain `{{ expression }}`; a string that is only one `{{ }}` kee
 
 `help`, `modules`, `save`, `run` (`vars`, `tags`, `skip_tags`, `seconds`), `plan` (shows the tasks without running), `list`, `show`, `validate`, `convert`, `delete`. From scripts, flows and schedules: `await jade.tool('playbook', {action:'run', name:'lamp', vars:{…}})`.
 
+## From flows and schedules
+
+Playbooks run on their own, with nobody there to approve them, so **only an approved, unchanged playbook runs** from a flow or a schedule. A new or edited one fails with "not approved" until you run it once from the Playbooks tab.
+
+- **Flows:** add a **▶ Playbook** step, pick the playbook and optionally give `vars` (JSON; `{{ }}` allowed). The step's output is the run result (`ok`, `recap`, `vars`, `log`); a failed playbook fails the step. The **Tool** step also lists `playbook` (and every other tool, phone and world ones included).
+- **Schedule tab:** *Run → A playbook*, pick it, optional vars (JSON). The result goes to `/Jade/Logs/cron.log`; a failure sends a notification.
+- **schedule tool:** `{action:"add", when:"every day at 8am", playbook:"lamp", vars:{…}}`.
+- **crontab:** `crontab add '@hourly' 'playbook run check-prices'` (vars as JSON after the name).
+
 ## Old browser scripts
 
 On first use, every `/Jade/Browser/Scripts/<name>.json` is converted into `/Jade/Playbooks/<name>.json` (the original is kept in `/Jade/Playbooks/legacy/<name>.json`) (steps become `browser.*` tasks, `as` becomes `register`, `if` becomes `browser.exists` plus `when` blocks, `each` becomes `loop`, `optional` becomes `ignore_errors`, `retry` becomes `retries`) and moved; converted playbooks need approving again. Output files written by the old scripts stay under `/Jade/Browser/`. The `convert` action shows the mapping for a script you paste.

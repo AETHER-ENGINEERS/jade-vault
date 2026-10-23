@@ -196,5 +196,23 @@ ok(/No problems/.test(await page.textContent('#pbErrs')) || true, 'Check validat
 const del = '#pbCards [data-name="selfie"] [data-pa="del"]'; await page.click(del); await page.click(del);
 ok(await E(() => !vfs.isFile('/Jade/Playbooks/selfie.json')), 'Delete asks twice, then removes the file');
 await page.click('[data-pa="back"]').catch(() => {}); await page.screenshot({ path: process.env.JV_SHOT || '/tmp/playbooks.png' });
+
+// ---- playbooks from flows and schedules ----
+await save({ vars: { who: 'nobody' }, tasks: [{ do: 'save', path: '/Jade/Playbooks/out/{{ who }}.txt', value: 'hi {{ who }}' }] }, 'greet');
+ok(await E(() => FLOW_TYPES.playbook && FLOW_TYPES.playbook.fields[0][2] === 'pbsel'), 'flows have a Playbook step type');
+ok(await E(() => { const n = flowValidate({ name: 't', steps: [{ type: 'tool', tool: 'playbook', args: { action: 'list' } }, { type: 'tool', tool: 'phone', args: {} }] }); return !n.some(e => /not a tool|unknown tool|no tool/.test(e)); }), 'the Tool step accepts playbook and the other phone/world tools');
+let fr = await E(async () => { const r = await flowRun({ name: 'pbflow', steps: [{ type: 'playbook', playbook: 'greet', vars: { who: 'ann' } }] }, {}, { via: 'test' }); return { status: r.status, error: r.error, out: vfs.isFile('/Jade/Playbooks/out/ann.txt') ? vfs.read('/Jade/Playbooks/out/ann.txt') : null }; });
+ok(fr.status === 'ok' && fr.out === 'hi ann', 'a flow runs a playbook step with vars: ' + JSON.stringify(fr));
+fr = await E(async () => { const r = await flowRun({ name: 'pbflow2', steps: [{ type: 'playbook', playbook: 'greet', vars: { nope: 1 } }] }, {}, { via: 'test' }); return r.status + ' ' + r.error; });
+ok(/only takes the vars it declares/.test(fr), 'undeclared vars are refused in a flow step');
+let sr = await E(async () => { const s = addScheduleKind({ name: 'greet job', when: 'every day at 9am', kind: 'playbook', playbook: 'greet', input: '{"who":"bob"}' }); await runScheduleKind(s, 'test'); return { kind: s.kind, status: s.lastStatus, out: vfs.isFile('/Jade/Playbooks/out/bob.txt') ? vfs.read('/Jade/Playbooks/out/bob.txt') : null, log: vfs.read(CRON_LOG).slice(-300), label: s.prompt }; });
+ok(sr.kind === 'playbook' && sr.status === 'ok' && sr.out === 'hi bob' && /playbook greet: ok/.test(sr.log), 'a schedule runs a playbook (vars, cron log): ' + JSON.stringify(sr));
+sr = await E(async () => { const c = { argv: ['add', '@hourly', 'playbook run greet {"who":"cy"}'], o: () => {}, e: () => {}, P: x => x }; await crontabShell(c); const s = Sched.list.find(x => x.kind === 'playbook' && x.input && x.input.who === 'cy'); return s ? crontabLine(s) : null; });
+ok(/playbook run greet/.test(sr || ''), 'crontab add ... "playbook run <name> <vars>" makes a playbook schedule: ' + sr);
+sr = await E(async () => { const r = await scheduleTool({ action: 'add', name: 'pb via tool', when: 'every monday at 6pm', playbook: 'greet', vars: { who: 'dee' } }); const s = Sched.list.find(x => x.name === 'pb via tool'); return { r: String(r).slice(0, 120), kind: s?.kind, input: s?.input }; });
+ok(sr.kind === 'playbook' && sr.input?.who === 'dee', 'the schedule tool adds playbook schedules: ' + JSON.stringify(sr));
+sr = await E(async () => { const p = '/Jade/Playbooks/greet.json'; const pb = JSON.parse(vfs.read(p)); pb.tasks.push({ do: 'debug', msg: 'changed' }); vfs.write(p, JSON.stringify(pb)); const s = Sched.list.find(x => x.name === 'greet job'); await runScheduleKind(s, 'test'); return s.lastStatus; });
+ok(/not approved/.test(sr), 'a changed (unapproved) playbook does not run from a schedule: ' + sr);
+ok(await E(() => { schedKindFill(null); return [...document.querySelectorAll('#schedKind option')].some(o => o.value === 'playbook') && /greet/.test(document.querySelector('#schedPb').innerHTML); }), 'the Schedule tab offers playbooks');
 ok(/deleted/.test(await T({ action: 'delete', name: 'x' })), 'delete');
 await done();

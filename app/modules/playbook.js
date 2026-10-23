@@ -589,6 +589,16 @@ async function pbApprove(pb, why) {
   const yes = await phoneApprove(why, `"${pb.name}": ${sm.tasks} tasks\nactions: ${sm.modules.join(', ')}${sm.risky.length ? '\nTAKES REAL ACTIONS: ' + sm.risky.join(', ') : ''}${sm.hosts.length ? '\nweb: ' + sm.hosts.join(', ') : ''}${pb.allow_hosts?.length ? '\nonly allowed on: ' + pb.allow_hosts.join(', ') : '\nno host limit'}\n\nIt will run without asking again, also from schedules and flows, until it is changed.`);
   if (yes) { const ok = ls.get('pbApproved', {}); ok[pb.name] = pbHash(pbCanon(pb)); ls.set('pbApproved', ok); } return yes;
 }
+// flows and schedules run playbooks with nobody there to approve: only an approved, unchanged playbook runs
+async function pbRunUnattended(name, vars, via) {
+  const pb = pbLoad(String(name || '').trim());
+  if (!pbIsApproved(pb)) throw new Error(`playbook "${pb.name}" is not approved (new, or changed since it was approved). Open it in the Playbooks tab and Run it once to approve it.`);
+  if (typeof vars === 'string') { if (!vars.trim()) vars = {}; else try { vars = JSON.parse(vars); } catch { throw new Error('the playbook vars must be a JSON object'); } }
+  vars = vars && typeof vars === 'object' && !Array.isArray(vars) ? vars : {};
+  const bad = Object.keys(vars).filter(k => !Object.prototype.hasOwnProperty.call(pb.vars || {}, k));
+  if (bad.length) throw new Error(`playbook "${pb.name}" only takes the vars it declares (${Object.keys(pb.vars || {}).join(', ') || 'none'}); not: ${bad.join(', ')}`);
+  return await pbRun(pb, { vars, via });
+}
 function pbList() {
   const rows = []; for (const k of [...vfs.nodes.keys()].sort()) if (k.startsWith(PB_DIR + '/') && k.slice(PB_DIR.length + 1).indexOf('/') < 0 && k.endsWith('.json') && vfs.isFile(k)) {
     const nm = k.slice(PB_DIR.length + 1, -5);
@@ -651,4 +661,4 @@ WORLD_TOOL_DEFS.push({
   description: 'Deterministic automation without the model, like Ansible in JSON: a saved list of tasks that call any of your tools (and drive the browser), with variables, when/loop/register/retries/rescue. Save once, run exactly the same way any time, also from schedules and flows. Use for repeating chores; the user can read and edit them in the Playbooks tab. action help prints the format.',
   parameters: { type: 'object', properties: { action: { type: 'string', enum: ['help', 'modules', 'save', 'run', 'plan', 'list', 'show', 'validate', 'convert', 'delete'] }, name: { type: 'string' }, playbook: { type: 'object', description: '{description, vars, allow_hosts, tasks}' }, vars: { type: 'object', description: 'run: values for {{var}}' }, tags: { type: 'array', items: { type: 'string' } }, seconds: { type: 'number', description: 'run: time cap (default 300, at most 900)' } }, required: ['action'] },
 });
-Object.assign(window, { playbookTool, pbRun, pbValidate, pbParse, pbCompile, pbEval, pbExpr, pbInterp, pbScope, pbHash, pbCanon, pbSummary, pbFromLegacy, pbLoad, pbList, pbApprove, pbIsApproved, pbPlan, pbMigrate, pbPath, PB_DIR, PB_RUNS, PB_UNDEF });
+Object.assign(window, { pbRunUnattended, playbookTool, pbRun, pbValidate, pbParse, pbCompile, pbEval, pbExpr, pbInterp, pbScope, pbHash, pbCanon, pbSummary, pbFromLegacy, pbLoad, pbList, pbApprove, pbIsApproved, pbPlan, pbMigrate, pbPath, PB_DIR, PB_RUNS, PB_UNDEF });

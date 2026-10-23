@@ -1,12 +1,9 @@
 # Changelog
 
-## 2.18.1
+## 2.18.2
 
-- **Text-to-speech fixed.** Speech calls (speak, stop, ttsAvailable, openTtsSettings) no longer sit behind the bridge key, and the key can no longer be rotated by a late page-start event right after the page claimed it.
-
-## 2.18.1
-
-- **Text-to-speech fixed.** Speech calls (speak, stop, ttsAvailable, openTtsSettings) no longer sit behind the bridge key, and a late page-start event can no longer rotate the key right after the page claimed it.
+- **Playbooks from flows and schedules.** Flows have a **Playbook** step (pick it, give vars); the Schedule tab, the `schedule` tool and `crontab` (`playbook run <name>`) can run playbooks. Only approved, unchanged playbooks run there; results go to the flow output or `/Jade/Logs/cron.log`, failures notify.
+- The flow **Tool** step now lists every tool, including `playbook` and the phone/world tools (it only showed the core ones).
 
 ## 2.18.1
 

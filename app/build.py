@@ -1660,11 +1660,7 @@ rep_between('function applyBbEntries(entries) {', 'async function loadEmbeddedBu
 rep("    const r = await bbRun([name, ...args], stdin, this.timeoutMs, this.cwd);", "    const base = new Map(vfs.nodes); const r = await bbRun([name, ...args], stdin, this.timeoutMs, this.cwd);")
 rep("    applyBbEntries(r.entries);", "    applyBbEntries(r.entries, base);")
 
-# ---------- bridge key: the Android bridge is injected into EVERY frame (apps, previews), so calls carry a key only the main page can claim ----------
-BRIDGE_KEY_JS = """(function(){var raw=window.NetrunnerAndroid;if(!raw||typeof raw.claim!=='function')return;var key;try{key=raw.claim();}catch(e){return;}
-var p=new Proxy({},{get:function(_,k){if(typeof k!=='string')return undefined;var v=raw[k];if(typeof v==='function'){return function(){var a=[key];for(var i=0;i<arguments.length;i++)a.push(arguments[i]);return v.apply(raw,a);};}return v;},has:function(_,k){return k in raw;},set:function(_,k,v){raw[k]=v;return true;}});
-try{Object.defineProperty(window,'NetrunnerAndroid',{value:p,configurable:true,writable:true});}catch(e){try{window.NetrunnerAndroid=p;}catch(e2){}}})();"""
-rep("<title>Jade Vault</title>", "<script>" + BRIDGE_KEY_JS + "</script><title>Jade Vault</title>")
+
 
 # ---------- v18: flows (n8n-light), jade.* bridge for scripts, shell/flow schedules + crontab, note scripts & templates ----------
 rep("const DEFAULTS = { apiOn: false,", "const DEFAULTS = { tplOn: true, tplTools: false, tplDir: '/Templates', apiOn: false,")

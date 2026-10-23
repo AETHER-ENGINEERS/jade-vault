@@ -1,5 +1,17 @@
 # Changelog
 
+## 2.18.1
+
+- **Text-to-speech fixed.** Speech calls (speak, stop, ttsAvailable, openTtsSettings) no longer sit behind the bridge key, and the key can no longer be rotated by a late page-start event right after the page claimed it.
+
+## 2.18.1
+
+- **Text-to-speech fixed.** Speech calls (speak, stop, ttsAvailable, openTtsSettings) no longer sit behind the bridge key, and a late page-start event can no longer rotate the key right after the page claimed it.
+
+## 2.18.1
+
+- **Text-to-speech and the Android bridge work again.** The 2.18.0 bridge key made the phone refuse the page's own calls on a real device (TTS showed "not ready"; notifications, phone tools, sensors, disk and the API server were affected too). It is removed; the bridge works as in 2.17. It will come back later with on-device diagnostics.
+
 ## 2.18.0
 
 - **Playbooks replace browser scripts.** One deterministic system for everything Jade can do, shaped like Ansible and written in JSON: a list of tasks, each naming an action (`do`) and its arguments. Any tool is an action (`{"do":"notes_search","query":"inbox"}`), the old page-driving steps are `browser.goto`, `browser.click`, `browser.extract` and friends, and `set`, `assert`, `fail`, `debug`, `wait`, `save` and `playbook` (run another) are built in. Around every task: `when`, `loop`/`loop_var`, `register`, `retries`/`delay`/`until`, `failed_when`, `ignore_errors`, `timeout`, `tags`, and `block`/`rescue`/`always`. Strings take `{{ expressions }}` in a small safe language (arithmetic, `and or not in`, `is defined`, filters like `float`, `len`, `join`, `regex_find`, `default`); secrets work as before and stay out of logs. No model in the loop: `delegate`, `think`, `curiosity` and `find_skill` are refused. `allow_hosts` now covers any task with a `url`. A run returns a recap (ok, skipped, failed, ignored, rescued), the failing task and why, the variables and a log. Actions: `help`, `modules`, `save`, `run`, `plan`, `list`, `show`, `validate`, `convert`, `delete`.

@@ -98,6 +98,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
         phone = new PhoneHost(this);
         cast = new CastHost(this);
         ssh = new SshHost();
+        newBridgeKey();
         web.addJavascriptInterface(new Bridge(this), "NetrunnerAndroid");
 
         tts = new TextToSpeech(this, new TextToSpeech.OnInitListener() {
@@ -221,7 +222,23 @@ public class MainActivity extends Activity implements ApiServer.Host {
         @Override public void onError(String id) { js("window.__jadeTTS&&window.__jadeTTS('error'," + quote(id) + ")"); }
     }
 
+    // ---- bridge key: addJavascriptInterface puts the bridge into EVERY frame (apps and previews included), so each call must carry a key
+    // that only the main page can have: it is handed out once per page load (claim) and replaced on the next load.
+    private volatile String bridgeKey = "";
+    private volatile boolean bridgeClaimed = true;
+    void newBridgeKey() {
+        byte[] b = new byte[16]; new java.security.SecureRandom().nextBytes(b);
+        StringBuilder k = new StringBuilder(); for (byte x : b) k.append(String.format("%02x", x & 0xFF));
+        bridgeKey = k.toString(); bridgeClaimed = false;
+    }
+    synchronized String claimKey() { if (bridgeClaimed) return ""; bridgeClaimed = true; return bridgeKey; }
+    boolean tokOk(String t) { String k = bridgeKey; return t != null && t.length() == 32 && java.security.MessageDigest.isEqual(t.getBytes(), k.getBytes()); }
+    String denied() { return "{\"error\":\"denied: this call did not come from Jade's own page\"}"; }
+
     class Client extends WebViewClient {
+        @Override
+        public void onPageStarted(WebView view, String url, android.graphics.Bitmap favicon) { super.onPageStarted(view, url, favicon); newBridgeKey(); }
+
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest req) {
             Uri u = req.getUrl();
@@ -291,104 +308,104 @@ public class MainActivity extends Activity implements ApiServer.Host {
         public Bridge(MainActivity a) { this.a = a; }
 
         @JavascriptInterface
-        public boolean speak(String uid, String text, double pitch, double rate) { return a.nativeSpeak(uid, text, pitch, rate); }
+        public boolean speak(String t, String uid, String text, double pitch, double rate) { if (!a.tokOk(t)) return false; return a.nativeSpeak(uid, text, pitch, rate); }
 
         @JavascriptInterface
-        public void stop() { if (a.tts != null) a.tts.stop(); }
+        public void stop(String t) { if (!a.tokOk(t)) return; if (a.tts != null) a.tts.stop(); }
 
         @JavascriptInterface
-        public boolean ttsAvailable() { return a.ttsReady; }
+        public boolean ttsAvailable(String t) { if (!a.tokOk(t)) return false; return a.ttsReady; }
 
         @JavascriptInterface
-        public void openTtsSettings() { a.openTtsSettings(); }
+        public void openTtsSettings(String t) { if (!a.tokOk(t)) return; a.openTtsSettings(); }
 
         @JavascriptInterface
-        public void requestNotifications() { a.requestNotifications(); }
+        public void requestNotifications(String t) { if (!a.tokOk(t)) return; a.requestNotifications(); }
 
         @JavascriptInterface
-        public void notify(String title, String body) { a.showNotification(title, body); }
+        public void notify(String t, String title, String body) { if (!a.tokOk(t)) return; a.showNotification(title, body); }
 
         /** Ask the user where to save a file (system "Save as" dialog), then write text to it. Result via window.__jadeSaved(ok, msg). */
         @JavascriptInterface
-        public void saveFile(String name, String mime, String text) { a.saveFile(name, mime, text); }
+        public void saveFile(String t, String name, String mime, String text) { if (!a.tokOk(t)) return; a.saveFile(name, mime, text); }
 
         /** Start/update (on=true) or stop the foreground service that keeps Jade running in the background. */
         @JavascriptInterface
-        public boolean keepAlive(boolean on, String text) { return a.keepAlive(on, text); }
+        public boolean keepAlive(String t, boolean on, String text) { if (!a.tokOk(t)) return false; return a.keepAlive(on, text); }
 
         @JavascriptInterface
-        public boolean batteryOptimized() { return a.batteryOptimized(); }
+        public boolean batteryOptimized(String t) { if (!a.tokOk(t)) return false; return a.batteryOptimized(); }
 
         @JavascriptInterface
-        public void openBatterySettings() { a.openBatterySettings(); }
+        public void openBatterySettings(String t) { if (!a.tokOk(t)) return; a.openBatterySettings(); }
 
         /** Start/restart/stop Jade's HTTP API to match the settings. Returns its status as JSON text. */
         @JavascriptInterface
-        public String apiConfigure(boolean enabled, int port, boolean lan, String token) { return a.api.configure(enabled, port, lan, token); }
+        public String apiConfigure(String t, boolean enabled, int port, boolean lan, String token) { if (!a.tokOk(t)) return a.denied(); return a.api.configure(enabled, port, lan, token); }
 
         @JavascriptInterface
-        public String apiStatus() { return a.api.status(); }
+        public String apiStatus(String t) { if (!a.tokOk(t)) return a.denied(); return a.api.status(); }
 
         /** JS hands back the finished answer for an API request (id from window.__jadeApi). */
         @JavascriptInterface
-        public void apiResult(String id, int status, String body) { a.api.deliver(id, status, body); }
+        public void apiResult(String t, String id, int status, String body) { if (!a.tokOk(t)) return; a.api.deliver(id, status, body); }
 
         // ---------- Jade's senses ----------
         /** Which of these Android permissions are granted, e.g. "android.permission.CAMERA,android.permission.RECORD_AUDIO" -> {"android.permission.CAMERA":true,...} */
         @JavascriptInterface
-        public String permStatus(String csv) { return a.permStatus(csv.split(",")); }
+        public String permStatus(String t, String csv) { if (!a.tokOk(t)) return a.denied(); return a.permStatus(csv.split(",")); }
 
         /** Ask for permissions; the answer comes back as window.__jadePerms({perm:bool}). */
         @JavascriptInterface
-        public void requestPerms(final String csv) {
+        public void requestPerms(String t, final String csv) { if (!a.tokOk(t)) return;
             a.runOnUiThread(new Runnable() { @Override public void run() { a.requestPermissions(csv.split(","), REQ_PERMS); } });
         }
 
         // ----- the vault on real storage (see DiskHost) -----
-        @JavascriptInterface public String diskInfo() { return a.diskHost.info(); }
-        @JavascriptInterface public String diskScan() { return a.diskHost.scan(); }
-        @JavascriptInterface public String diskGet(String path, double off, int len) { return a.diskHost.get(path, off, len); }
-        @JavascriptInterface public String diskPut(String path, String b64, boolean first, boolean last) { return a.diskHost.put(path, b64, first, last); }
-        @JavascriptInterface public String diskMkdir(String path) { return a.diskHost.mkdir(path); }
-        @JavascriptInterface public String diskDel(String path) { return a.diskHost.del(path); }
-        @JavascriptInterface public String diskMove(String from, String to) { return a.diskHost.move(from, to); }
-        @JavascriptInterface public String diskTouch(String path, double mtime) { return a.diskHost.touch(path, mtime); }
-        @JavascriptInterface public String diskClear() { return a.diskHost.clear(); }
-        @JavascriptInterface public String diskUseShared() { return a.diskHost.useShared(); }
+        @JavascriptInterface public String diskInfo(String t) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.info(); }
+        @JavascriptInterface public String diskScan(String t) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.scan(); }
+        @JavascriptInterface public String diskGet(String t, String path, double off, int len) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.get(path, off, len); }
+        @JavascriptInterface public String diskPut(String t, String path, String b64, boolean first, boolean last) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.put(path, b64, first, last); }
+        @JavascriptInterface public String diskMkdir(String t, String path) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.mkdir(path); }
+        @JavascriptInterface public String diskDel(String t, String path) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.del(path); }
+        @JavascriptInterface public String diskMove(String t, String from, String to) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.move(from, to); }
+        @JavascriptInterface public String diskTouch(String t, String path, double mtime) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.touch(path, mtime); }
+        @JavascriptInterface public String diskClear(String t) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.clear(); }
+        @JavascriptInterface public String diskUseShared(String t) { if (!a.tokOk(t)) return a.denied(); return a.diskHost.useShared(); }
 
-        @JavascriptInterface public String sensorList() { return a.world.sensorList(); }
-        @JavascriptInterface public String sensorStart(String key, int periodMs) { return a.world.sensorStart(key, periodMs); }
-        @JavascriptInterface public String sensorRead(String key) { return a.world.sensorRead(key); }
-        @JavascriptInterface public String sensorStop(String key) { return a.world.sensorStop(key); }
-        @JavascriptInterface public String battery() { return a.world.battery(); }
+        @JavascriptInterface public String sensorList(String t) { if (!a.tokOk(t)) return a.denied(); return a.world.sensorList(); }
+        @JavascriptInterface public String sensorStart(String t, String key, int periodMs) { if (!a.tokOk(t)) return a.denied(); return a.world.sensorStart(key, periodMs); }
+        @JavascriptInterface public String sensorRead(String t, String key) { if (!a.tokOk(t)) return a.denied(); return a.world.sensorRead(key); }
+        @JavascriptInterface public String sensorStop(String t, String key) { if (!a.tokOk(t)) return a.denied(); return a.world.sensorStop(key); }
+        @JavascriptInterface public String battery(String t) { if (!a.tokOk(t)) return a.denied(); return a.world.battery(); }
         /** Jade's browser (see BrowserHost). The answer arrives as window.__jbr(id, result). */
-        @JavascriptInterface public void browser(int id, String op, String arg) { a.browser.cmd(id, op, arg); }
+        @JavascriptInterface public void browser(String t, int id, String op, String arg) { if (!a.tokOk(t)) return; a.browser.cmd(id, op, arg); }
         /** Alarms, ringing, volume, calls, texts, contacts, clipboard, apps, radio… (see PhoneHost). */
-        @JavascriptInterface public String phone(String op, String json) { return a.phone.run(op, json); }
+        @JavascriptInterface public String phone(String t, String op, String json) { if (!a.tokOk(t)) return a.denied(); return a.phone.run(op, json); }
         /** Slow phone work (casting to a TV, scanning Bluetooth): runs off the page's thread and answers via window.__jcast(id, result). */
-        @JavascriptInterface public void cast(final int id, final String op, final String json) {
+        @JavascriptInterface public void cast(String t, final int id, final String op, final String json) { if (!a.tokOk(t)) return;
             new Thread(new Runnable() { public void run() { String r; try { r = op.startsWith("cast_") ? a.cast.run(op, json) : a.phone.run(op, json); } catch (Throwable e) { r = "{\"error\":" + World.json(String.valueOf(e.getMessage())) + "}"; } a.js("window.__jcast&&window.__jcast(" + id + "," + quote(r) + ")"); } }, "jade-cast").start();
         }
         /** Driving other apps through the accessibility service (see JadeAccess). Runs off the page thread; answers via window.__jscreen(id, result). */
-        @JavascriptInterface public void screen(final int id, final String op, final String json) {
+        @JavascriptInterface public void screen(String t, final int id, final String op, final String json) { if (!a.tokOk(t)) return;
             new Thread(new Runnable() { public void run() { String r; try { r = a.screenRun(op, json); } catch (Throwable e) { r = "{\"error\":" + World.json(String.valueOf(e.getMessage())) + "}"; } a.js("window.__jscreen&&window.__jscreen(" + id + "," + quote(r) + ")"); } }, "jade-screen").start();
         }
         // ---- Sentry: the event rules engine (see SentryCore). The page owns the rules; the phone runs the watchers. ----
-        @JavascriptInterface public String sentryConfigure(String json) { return SentryCore.configure(a, json); }
-        @JavascriptInterface public String sentryStatus() { return SentryCore.status(a); }
-        @JavascriptInterface public String sentrySystems() { return SentrySystems.catalogue(); }
+        @JavascriptInterface public String sentryConfigure(String t, String json) { if (!a.tokOk(t)) return a.denied(); return SentryCore.configure(a, json); }
+        @JavascriptInterface public String sentryStatus(String t) { if (!a.tokOk(t)) return a.denied(); return SentryCore.status(a); }
+        @JavascriptInterface public String sentrySystems(String t) { if (!a.tokOk(t)) return a.denied(); return SentrySystems.catalogue(); }
         /** Events the phone queued while the page was away: {"items":[…],"expired":[…]}. Calling this also marks the page as ready for live delivery. */
-        @JavascriptInterface public String sentryPending() { return SentryCore.pending(); }
-        @JavascriptInterface public void sentryAck(String qid) { SentryCore.ack(qid); }
-        @JavascriptInterface public void sentryEmit(String name, String json) { try { SentryCore.emit(name, MiniJson.obj(json == null || json.length() == 0 ? "{}" : json)); } catch (Throwable ignored) { } }
-        @JavascriptInterface public void sentrySet(String json) { try { SentryCore.set(MiniJson.obj(json)); } catch (Throwable ignored) { } }
-        @JavascriptInterface public void sentryTouch() { SentryCore.touch(); }
+        @JavascriptInterface public String sentryPending(String t) { if (!a.tokOk(t)) return a.denied(); return SentryCore.pending(); }
+        @JavascriptInterface public void sentryAck(String t, String qid) { if (!a.tokOk(t)) return; SentryCore.ack(qid); }
+        @JavascriptInterface public void sentryEmit(String t, String name, String json) { if (!a.tokOk(t)) return; try { SentryCore.emit(name, MiniJson.obj(json == null || json.length() == 0 ? "{}" : json)); } catch (Throwable ignored) { } }
+        @JavascriptInterface public void sentrySet(String t, String json) { if (!a.tokOk(t)) return; try { SentryCore.set(MiniJson.obj(json)); } catch (Throwable ignored) { } }
+        @JavascriptInterface public void sentryTouch(String t) { if (!a.tokOk(t)) return; SentryCore.touch(); }
         /**
          * SSH sessions. Runs off the page thread (the handshake and reads block); answers via window.__jssh(id, result).
          * The page passes the host's credentials straight through from settings: the model asks for a host by name
          * and never receives the password or key back in a tool result.
          */
-        @JavascriptInterface public void ssh(final int id, final String op, final String json) {
+        @JavascriptInterface public void ssh(String t, final int id, final String op, final String json) { if (!a.tokOk(t)) return;
             new Thread(new Runnable() { public void run() {
                 String r;
                 try { r = a.ssh.run(op, json); } catch (Throwable e) { r = "{\"error\":" + World.json(String.valueOf(e.getMessage())) + "}"; }
@@ -397,26 +414,26 @@ public class MainActivity extends Activity implements ApiServer.Host {
         }
 
         /** Open Android's notification-access screen (only the user can grant it). */
-        @JavascriptInterface public void sentryNotifAccess() { a.runOnUiThread(new Runnable() { public void run() { try { Intent i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); a.startActivity(i); } catch (Exception ignored) { } } }); }
+        @JavascriptInterface public void sentryNotifAccess(String t) { if (!a.tokOk(t)) return; a.runOnUiThread(new Runnable() { public void run() { try { Intent i = new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"); i.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK); a.startActivity(i); } catch (Exception ignored) { } } }); }
         /** Is Jade allowed to drive the screen? {"enabled":bool,"running":bool} */
-        @JavascriptInterface public String screenStatus() { return a.screenStatus(); }
+        @JavascriptInterface public String screenStatus(String t) { if (!a.tokOk(t)) return a.denied(); return a.screenStatus(); }
         /** Open Android's Accessibility settings so the user can switch Jade on (she cannot turn it on herself). */
-        @JavascriptInterface public void screenEnable() { a.screenEnable(); }
-        @JavascriptInterface public String torch(boolean on) { return a.world.torch(on); }
-        @JavascriptInterface public String vibrate(String csv) { return a.world.vibrate(csv); }
-        @JavascriptInterface public String wifi() { return a.world.wifi(); }
+        @JavascriptInterface public void screenEnable(String t) { if (!a.tokOk(t)) return; a.screenEnable(); }
+        @JavascriptInterface public String torch(String t, boolean on) { if (!a.tokOk(t)) return a.denied(); return a.world.torch(on); }
+        @JavascriptInterface public String vibrate(String t, String csv) { if (!a.tokOk(t)) return a.denied(); return a.world.vibrate(csv); }
+        @JavascriptInterface public String wifi(String t) { if (!a.tokOk(t)) return a.denied(); return a.world.wifi(); }
 
         /** On-device speech recognition. Events: window.__jadeSTT(ready|begin|end|partial|final|error, text). */
-        @JavascriptInterface public boolean sttAvailable() { return a.world.sttAvailable(); }
-        @JavascriptInterface public void sttStart(String lang, boolean partial, boolean offline) { a.world.sttStart(lang, partial, offline); }
-        @JavascriptInterface public void sttStop(boolean cancel) { a.world.sttStop(cancel); }
+        @JavascriptInterface public boolean sttAvailable(String t) { if (!a.tokOk(t)) return false; return a.world.sttAvailable(); }
+        @JavascriptInterface public void sttStart(String t, String lang, boolean partial, boolean offline) { if (!a.tokOk(t)) return; a.world.sttStart(lang, partial, offline); }
+        @JavascriptInterface public void sttStop(String t, boolean cancel) { if (!a.tokOk(t)) return; a.world.sttStop(cancel); }
 
         /** Kiosk mode: {"on","home","locked","pinned","owner"} */
         @JavascriptInterface
-        public String kioskStatus() { return a.kioskStatus(); }
+        public String kioskStatus(String t) { if (!a.tokOk(t)) return a.denied(); return a.kioskStatus(); }
 
         @JavascriptInterface
-        public void setKiosk(final boolean on) {
+        public void setKiosk(String t, final boolean on) { if (!a.tokOk(t)) return;
             a.runOnUiThread(new Runnable() { @Override public void run() { a.setKiosk(on); } });
         }
     }

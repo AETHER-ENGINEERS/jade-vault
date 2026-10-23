@@ -50,7 +50,7 @@ for stem, (parent, level, order, era) in GUIDES.items():
     md = open(p).read()
     md = re.sub(r'^\*\*Jade Vault [\d.]+\*\*.*\n', '', md, count=1, flags=re.M)
     md = fix_links(md)
-    note = '> Written for Jade Vault 2.9.0. It is still right about what it covers; newer features are in the pages written for 2.17.0 and in the changelog.\n\n' if era == 'old' else ''
+    note = '> Written for Jade Vault 2.9.0. It is still right about what it covers; newer features are in the pages written for 2.18.0 and in the changelog.\n\n' if era == 'old' else ''
     t = title_of(md, stem); md = re.sub(r'^#\s+.+\n', '', md, count=1)
     add(stem, t, f'# {t}\n\n{note}{md}', parent, level, order, [stem.replace('-', ' ')], 'docs/' + stem + '.md')
 add('guides', 'Guides', '# Guides\n\nTask-oriented guides. The first sixteen were written for 2.9.0 (they say so); the backup-server guide is new in 2.17.0.\n\n' +
@@ -133,7 +133,7 @@ TESTDESC = {
  'kiosk_test': 'kiosk mode behaviour', 'world_test': 'senses, look, litert (a real .tflite model), hands-free voice, wake phrase', 'disk_test': 'the on-disk vault layer with a fake folder', 'browser_test': 'the browser tool against a second Chromium page standing in for the WebView',
  'phone_test': 'phone tool: alarms, sound, calls, SMS, Bluetooth, media, casting', 'screen_test': 'screen tool: read, tap, type, keyboard, screenshots', 'sentry_test': 'Sentry rules, systems, cooldowns, safety limits', 'ssh_test': 'ssh tool: hosts, sessions, host-key pinning, approvals',
  'think_test': 'think: tree search, verifiers, budgets, persistence', 'think_vault_test': 'the vault-resident think.js and its skill', 'skill_router_test': 'skill router: ranking, strict mode, stats', 'delegate_test': 'sub-agent: limits, read-only default, nesting guard',
- 'chat_history_test': 'raw chat list, read and hybrid search', 'curiosity_test': 'curiosity: scoring, learning progress, CURIOSITY.md, wake runs, safety', 'browser_script_test': 'browser scripts: validation, running, retries, secrets, approvals, host limits', 'backup_test': 'scheduled backup against a fake server: gzip, encryption, backoff, restore',
+ 'chat_history_test': 'raw chat list, read and hybrid search', 'curiosity_test': 'curiosity: scoring, learning progress, CURIOSITY.md, wake runs, safety', 'playbook_test': 'playbooks: expression language, validation, tool tasks, when/loop/rescue/until, browser tasks, approvals, old-script conversion, the Playbooks tab', 'backup_test': 'scheduled backup against a fake server: gzip, encryption, backoff, restore',
  'docs_app_test': 'this docs app: BM25 ranking, UI, ask and answer round trip, docs_tool.js validation', 'aicord_test': 'the AICord provider', 'discord_test': 'Discord bridge client in the app', 'discord_archive_py': 'the Discord archive, backfill and render (Python)', 'backup_server_py': 'the backup server: auth, checksums, retention (Python)',
 }
 rows = []

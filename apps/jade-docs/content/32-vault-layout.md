@@ -15,7 +15,7 @@
 | `/Jade/Flows/<name>.flow.json` | flows |
 | `/Jade/Config/Sentry.json` | Sentry rules |
 | `/Jade/mcp.json` | MCP servers |
-| `/Jade/Browser/Scripts/<name>.json` | browser scripts; outputs under `/Jade/Browser/…` |
+| `/Jade/Playbooks/<name>.json` | playbooks (outputs under `/Jade/Playbooks/out/`); old browser scripts were converted from `/Jade/Browser/Scripts/` |
 | `/Jade/Tot/…` | think trees and `episodes.jsonl` |
 | `/Jade/Logs/cron.log` | output of command and flow schedules |
 | `/Jade/.index/vectors.db` | the vector/FTS index (a cache) |

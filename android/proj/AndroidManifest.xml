@@ -52,7 +52,7 @@
     </queries>
     <application android:label="@string/app_name" android:icon="@mipmap/ic_launcher" android:roundIcon="@mipmap/ic_launcher_round"
         android:theme="@style/Theme.Netrunner" android:usesCleartextTraffic="true" android:hardwareAccelerated="true"
-        android:allowBackup="true" android:supportsRtl="true" android:largeHeap="true" android:requestLegacyExternalStorage="true">
+        android:allowBackup="false" android:supportsRtl="true" android:largeHeap="true" android:requestLegacyExternalStorage="true">
         <activity android:name="app.netrunner.jade.MainActivity" android:exported="true" android:launchMode="singleTask"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|keyboardHidden|keyboard|uiMode|density"
             android:windowSoftInputMode="adjustResize" android:lockTaskMode="if_whitelisted">

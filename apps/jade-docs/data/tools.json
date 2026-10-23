@@ -2084,8 +2084,8 @@
    ]
   },
   {
-   "name": "browser_script",
-   "description": "Deterministic browser automation without the model: save a list of steps (CSS selectors, waits, assertions, extraction, screenshots) once, then run it exactly the same way any time, also from schedules and flows. Use for repeating web chores; use the browser tool to explore. action help prints the format.",
+   "name": "playbook",
+   "description": "Deterministic automation without the model, like Ansible in JSON: a saved list of tasks that call any of your tools (and drive the browser), with variables, when/loop/register/retries/rescue. Save once, run exactly the same way any time, also from schedules and flows. Use for repeating chores; the user can read and edit them in the Playbooks tab. action help prints the format.",
    "params": [
     {
      "name": "action",
@@ -2093,11 +2093,14 @@
      "description": "",
      "enum": [
       "help",
+      "modules",
       "save",
       "run",
+      "plan",
       "list",
       "show",
       "validate",
+      "convert",
       "delete"
      ]
     },
@@ -2108,15 +2111,21 @@
      "enum": null
     },
     {
-     "name": "script",
+     "name": "playbook",
      "type": "object",
-     "description": "{description, vars, allow_hosts, steps}",
+     "description": "{description, vars, allow_hosts, tasks}",
      "enum": null
     },
     {
      "name": "vars",
      "type": "object",
      "description": "run: values for {{var}}",
+     "enum": null
+    },
+    {
+     "name": "tags",
+     "type": "array",
+     "description": "",
      "enum": null
     },
     {

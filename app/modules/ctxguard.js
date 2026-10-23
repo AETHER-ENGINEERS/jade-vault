@@ -90,8 +90,8 @@ function contextReport() {
   add(custom ? 'Custom system prompt (/Jade/SYSTEM.md)' : 'Built-in instructions', sp.length - soulC - agC - skC - memC - mcpC);
   add('SOUL.md persona', soulC); for (const a of st.agents) add(`AGENTS: ${a.p}`, a.t.length); add(`Skills list (${st.skills.length})`, skC);
   add('Memory + journal', memC); add('MCP server list', mcpC);
-  const tools = activeTools(); const builtin = tools.filter(t => !mcpHandles(t.function.name) && !/^mcp__/.test(t.function.name));
-  add(`Built-in tools (${builtin.length})`, toolsChars(builtin));
+  const all = activeTools(), tools = typeof routeTools === 'function' ? routeTools(all) : all; const builtin = tools.filter(t => !mcpHandles(t.function.name) && !/^mcp__/.test(t.function.name));
+  add(`Built-in tools (${builtin.length}${all.length > tools.length ? ' sent of ' + all.filter(t => !mcpHandles(t.function.name) && !/^mcp__/.test(t.function.name)).length : ''})`, toolsChars(builtin));
   const bySrv = {}; for (const t of tools) if (!builtin.includes(t)) { const s = /^mcp__([^_]+(?:_[^_]+)*?)__/.exec(t.function.name)?.[1] || 'mcp helpers'; bySrv[s] = (bySrv[s] || 0) + JSON.stringify(t).length; }
   for (const [s, c] of Object.entries(bySrv)) add(`MCP tools: ${s}`, c);
   const msgs = cur ? buildApiMessages().slice(1) : [];

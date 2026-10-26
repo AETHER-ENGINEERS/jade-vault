@@ -1,0 +1,28 @@
+[package]
+name = "jade-android"
+version.workspace = true
+edition.workspace = true
+[lib]
+name = "jade"
+crate-type = ["cdylib"]
+[dependencies]
+jade-core = { path = "../core" }
+jni-sys = "0.4"
+serde_json = { version = "1", features = ["preserve_order"] }
+libc = "0.2"
+# the phone gets regex's fast engines (the browser build leaves them out to stay small)
+regex = { version = "1", default-features = false, features = ["std", "perf"] }
+tokio = { version = "1", features = ["rt-multi-thread", "net", "time", "sync", "macros"] }
+hyper = { version = "1", features = ["client", "http1", "http2"] }
+hyper-util = { version = "0.1", features = ["tokio"] }
+http-body-util = "0.1"
+bytes = "1"
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }
+tokio-rustls = { version = "0.26", default-features = false, features = ["ring", "tls12"] }
+webpki-roots = "1"
+flate2 = "1"
+base64 = "0.22"
+
+[dev-dependencies]
+hyper = { version = "1", features = ["server"] }
+rustls = { version = "0.23", default-features = false, features = ["ring", "std", "tls12"] }

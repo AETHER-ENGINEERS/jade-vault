@@ -20,7 +20,7 @@
 | Control | Where |
 | --- | --- |
 | Which tools she is told about | Config → World switches (browser, screen, phone, Sentry, SSH, think, sub-agent), each shows its context cost |
-| What she must ask first | calls, texts, SSH commands, new browser scripts, restore (always you) |
+| What she must ask first | calls, texts, SSH commands, new playbooks, restore (always you) |
 | What she may spend | max tool rounds, context size, compaction, provider fallbacks |
 | What she does on her own | heartbeat, curiosity, Sentry, schedules: each off until you turn it on |
 | Her steering | SOUL.md, AGENTS.md, SYSTEM.md, HEARTBEAT.md, CURIOSITY.md, Sentry.json |

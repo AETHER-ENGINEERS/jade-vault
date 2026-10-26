@@ -17,6 +17,9 @@ fetch https://github.com/patrickfav/uber-apk-signer/releases/download/v1.3.0/ube
 fetch https://github.com/pxb1988/dex2jar/releases/download/v2.4/dex-tools-v2.4.zip dex-tools.zip ee7c45eb3c1d2474a6145d8d447e651a736a22d9664b6d3d3be5a5a817dda23a
 [ -f "$T/dx.jar" ] || unzip -p "$T/dex-tools.zip" dex-tools-v2.4/lib/dx-30.0.2.jar > "$T/dx.jar"
 [ -f proj/assets/index.html ] || { echo "Build the web app first: scripts/build-web.sh"; exit 1; }
+# the Rust core (libjade.so); rebuilt when a Rust toolchain is here, else the built copies in proj/lib are used
+if command -v cargo >/dev/null && [ -d "$HOME/.cargo" ]; then ../rust/build-android.sh; fi
+[ -f proj/lib/arm64-v8a/libjade.so ] || { echo "Build the Rust core first: rust/build-android.sh"; exit 1; }
 
 rm -rf build && mkdir -p build/stubs build/classes build/out
 cp -r proj build/proj

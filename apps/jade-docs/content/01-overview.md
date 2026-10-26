@@ -3,7 +3,7 @@
 
 Jade Vault is an Obsidian-style markdown vault with an AI agent, **Jade**, built in. It runs as one HTML page in any modern browser and as an Android app (a thin native shell around that same page). Everything the agent does goes through the page: it reads and writes your notes, runs code in WebAssembly sandboxes, calls tools, remembers you, wakes on schedules, and on the phone it can use the camera, microphone, sensors, calls, texts, a second browser, other apps' screens and SSH.
 
-**This documentation describes version 2.17.0.** The pages marked *Guides* from "Install and get started" to "Troubleshooting" were written for 2.9.0 and are still right about what they cover; everything added since is in the pages written for this edition and in the changelog.
+**This documentation describes version 2.18.0.** The pages marked *Guides* from "Install and get started" to "Troubleshooting" were written for 2.9.0 and are still right about what they cover; everything added since is in the pages written for this edition and in the changelog.
 
 ## The pieces, in one paragraph
 

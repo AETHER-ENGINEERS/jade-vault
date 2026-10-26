@@ -43,7 +43,7 @@ export async function start({ settings = {}, init = '' } = {}) {
     if (url === 'http://localhost:11434/api/chat') {
       const b = JSON.parse(req.postData());
       if (!b.stream) { model.oneShot.push(b.messages); return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ message: { role: 'assistant', content: model.answer(b.messages) }, done: true }) }); }
-      model.chats.push(b.messages);
+      model.chats.push(b.messages); (model.tools ||= []).push(b.tools || []);
       if (model.hold) await model.hold;
       const userText = [...b.messages].reverse().find(m => m.role === 'user')?.content.replace(/^\[[^\]]*\]\s*/, '') || '';
       const custom = model.chatReply ? model.chatReply(b.messages, userText) : null;   // a test can script the reply

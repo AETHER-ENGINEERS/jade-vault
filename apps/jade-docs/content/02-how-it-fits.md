@@ -21,7 +21,7 @@
 
 1. **One page, many layers.** `dist/jade-vault.html` is built by applying ordered, exact-match patches (`app/build.py`) to a base agent page and injecting feature modules. There is no bundler and no server. If a patch no longer matches the base, the build fails instead of producing something half-patched.
 2. **The vault is the memory and the interface.** Settings that shape her (SOUL.md, AGENTS.md, HEARTBEAT.md, CURIOSITY.md, skills, flows, Sentry rules) are ordinary files she can read and, mostly, write. Her work products are notes.
-3. **Everything risky is gated.** Secrets are written as `{{NAME}}` and filled in outside the model; calls, texts, SSH commands, new browser scripts and restores ask you; web pages, SSH output and screen text are labelled as untrusted data; some settings she cannot edit at all.
+3. **Everything risky is gated.** Secrets are written as `{{NAME}}` and filled in outside the model; calls, texts, SSH commands, new playbooks and restores ask you; web pages, SSH output and screen text are labelled as untrusted data; some settings she cannot edit at all.
 
 ## Who can start a turn
 

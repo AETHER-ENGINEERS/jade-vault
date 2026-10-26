@@ -1,5 +1,47 @@
 # Changelog
 
+## 2.20.0
+
+- **A Rust core, where Rust is faster.** Same screens, same answers; measured before keeping each piece.
+  - **The phone's network is native.** Every request the app makes to another site (model providers, web search, web pages, embeddings) now runs in Rust on native threads: many at once, HTTP/2 when the server offers it, gzip, kept-alive connections, TLS checked against the Mozilla roots. There are no browser CORS rules on the phone any more, so a computer running Ollama no longer needs `OLLAMA_ORIGINS`, only to listen on an address the phone can reach. If a request cannot start natively, or a server's certificate is one only the phone trusts, that request goes through the WebView as before.
+  - **`web_fetch` reads pages itself on the phone.** It fetches the page directly and turns it into Markdown in Rust (title, headings, paragraphs, lists, links, code, tables; no scripts, menus or hidden parts), instead of sending the address to a third-party reader. The reader is still the fallback, and still used in the browser, where sites' CORS rules block direct reads.
+  - **Web tools asked for together run at the same time.** When the model asks for several `web_search` / `web_fetch` calls in one round, they run in parallel (on the phone, each on its own native connection); results are recorded in the order the model asked.
+  - **On the phone:** the vault folder, the link/tag index (parsing notes on all cores straight from storage instead of pulling each through the WebView) and note search (the same, while the notes are not already in memory) run in Rust, and so does Sentry's rules engine.
+  - **Tried and left in JavaScript:** in the browser, note parsing and search, and trimming long chats to the context window, measured slower through WebAssembly than in the page's own JavaScript (copying notes or the chat history across cost more than the work), so they stay JavaScript there. The browser's WebAssembly is now 88 KB and does only the web page conversion.
+  - If the native library cannot load, the app still starts: the vault falls back to the browser database, the network to the WebView, and Sentry reports why its rules are not running.
+  - Sources in `rust/` (see `rust/README.md`). The Java tests for the vault folder, Sentry and the network run against the Rust library; the Rust tests start local HTTP, HTTPS and HTTP/2 servers; page tests check the native network path, web page conversion, parallel web tools, and that Rust and JavaScript give identical note parsing and search results.
+
+## 2.18.3
+
+- **Faster replies: the tool list no longer changes between turns.** The tool router picked tools per message, and because the tool list is the start of the prompt, a list that changed every turn made the model re-read the whole conversation instead of reusing its prompt cache (slow on a phone, and on cloud models it cost cached tokens). A tool offered earlier in a chat now stays offered; the set only grows and keeps one fixed order. The page itself measures the same as 2.17 (startup, tabs, rendering, vault index).
+
+## 2.18.3
+
+- **Big vaults stay fast.** The link/tag index used to be rebuilt from every note after any write, so each chat turn that followed a write got slower the bigger the vault was (5,000 notes: about 160 ms per turn here, several times that on a phone). It now keeps what it parsed per note and re-reads only the notes that changed; link lookups are hash lookups and note names sort with a collator. After a write the system prompt now costs about 11 ms instead of 160 ms,; the cache holds only links, tags and word counts per note, never note text, so the vault stays on the phone's storage. Note search builds snippets only for the results it returns.
+- **The tool list no longer changes between turns.** The tool router picked tools per message, and the tool list is the start of the prompt, so a list that changed each turn made the model re-read the whole conversation instead of reusing its prompt cache. A tool offered earlier in a chat now stays offered: the set only grows, in one fixed order.
+
+## 2.18.2
+
+- **Playbooks from flows and schedules.** Flows have a **Playbook** step (pick it, give vars); the Schedule tab, the `schedule` tool and `crontab` (`playbook run <name>`) can run playbooks. Only approved, unchanged playbooks run there; results go to the flow output or `/Jade/Logs/cron.log`, failures notify.
+- The flow **Tool** step now lists every tool, including `playbook` and the phone/world tools (it only showed the core ones).
+
+## 2.18.1
+
+- **Text-to-speech and the Android bridge work again.** The 2.18.0 bridge key made the phone refuse the page's own calls on a real device (TTS showed "not ready"; notifications, phone tools, sensors, disk and the API server were affected too). It is removed; the bridge works as in 2.17. It will come back later with on-device diagnostics.
+
+## 2.18.0
+
+- **Playbooks replace browser scripts.** One deterministic system for everything Jade can do, shaped like Ansible and written in JSON: a list of tasks, each naming an action (`do`) and its arguments. Any tool is an action (`{"do":"notes_search","query":"inbox"}`), the old page-driving steps are `browser.goto`, `browser.click`, `browser.extract` and friends, and `set`, `assert`, `fail`, `debug`, `wait`, `save` and `playbook` (run another) are built in. Around every task: `when`, `loop`/`loop_var`, `register`, `retries`/`delay`/`until`, `failed_when`, `ignore_errors`, `timeout`, `tags`, and `block`/`rescue`/`always`. Strings take `{{ expressions }}` in a small safe language (arithmetic, `and or not in`, `is defined`, filters like `float`, `len`, `join`, `regex_find`, `default`); secrets work as before and stay out of logs. No model in the loop: `delegate`, `think`, `curiosity` and `find_skill` are refused. `allow_hosts` now covers any task with a `url`. A run returns a recap (ok, skipped, failed, ignored, rescued), the failing task and why, the variables and a log. Actions: `help`, `modules`, `save`, `run`, `plan`, `list`, `show`, `validate`, `convert`, `delete`.
+- **Playbooks tab in the bottom bar.** The playbooks are plain JSON in `/Jade/Playbooks/<name>.json`. The tab lists them (approved or not, last run), opens them as JSON, checks and plans, runs them with a live task log and the variables, duplicates and deletes them, and starts from examples. Saving in the tab counts as your approval; a file changed elsewhere asks again before it runs on its own.
+- **Old browser scripts convert themselves.** On first use, `/Jade/Browser/Scripts/*.json` become playbooks (`if` becomes `browser.exists` plus `when` blocks, `each` becomes `loop`, `as` becomes `register`) and are moved; they need approving again. The `browser_script` tool is gone.
+- The Jade Docs app has a Playbooks page and an expression-language page; `docs/` and the tool reference are regenerated.
+- **Tool router (token saving).** Only the core tools plus the few optional ones that fit the current message are sent to the model (matched by keywords, skill text and what was used earlier in the chat); `more_tools` lets Jade pull in any other tool. On plain messages the tool definitions shrink by about three quarters. Setting `toolRouter`: `auto` (default) or off. Context report shows "sent of".
+- **Android bridge key (security).** `addJavascriptInterface` puts the bridge into every frame, including sandboxed app frames. The page now claims a one-time key at load and every bridge call must carry it; calls from app frames are refused. Not yet tried on a real device.
+- **Backup off.** `android:allowBackup` is now false, so Android cloud/adb backup no longer copies the app's data (tokens, API key).
+- **Faster vault index.** Link resolution uses hash lookups instead of scanning every note per link: rebuilding the index of a 3,000-note vault went from about 3.4 s to about 0.1 s.
+- **Vector Mini Apps fixed.** The tool router could hide the `vector` tool in a Vector chat (and `discord` in Discord), so Jade could not join or answer an app; the channel tool and `notify_owner` are now always offered in those chats. Joining a Mini App now hands Jade the app's own README and manifest, so she knows its frame format.
+- Playbook audit fixes: only declared variables in run scope, loop cap error, `skip_tags` on blocks, legacy backup copy, reserved names, ReDoS guard on regex/text helpers, `timeout` passthrough.
+
 ## 2.17.0
 
 - **Skill router.** With more than 15 skills, only the ones that fit the current message are listed in Jade's instructions (found by meaning plus whole-word match over the skills' descriptions, using the vector index), and a new `find_skill` tool searches the rest. With 15 or fewer, nothing changes. Skills are counted as offered, found and used (`skillStats`), so later work can learn which ones earn their place.

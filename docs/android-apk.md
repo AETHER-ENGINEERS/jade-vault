@@ -15,6 +15,7 @@ Required:
 - JDK **17+**, including `java`, `javac`, and `keytool` (a JRE alone is insufficient).
 - Bash, `curl`, `unzip`, `sha256sum`, `sed`, `find`, `grep`, and standard Unix file utilities.
 - Internet access to npm and GitHub release assets on the first build.
+- Optional, only to rebuild the native core (`libjade.so`): Rust 1.80+ with the targets `aarch64-linux-android`, `armv7-linux-androideabi` and `x86_64-linux-android`, and clang with the Android NDK sysroot (see [`rust/README.md`](../rust/README.md)). Without Rust, the APK packages the libraries already in `android/proj/lib/`.
 
 Check tools:
 
@@ -68,6 +69,7 @@ bash android/build-apk.sh
 | `android/proj/assets/index.html` | Generated inlined page loaded by the Android WebView |
 | `android/.tools/` | Downloaded packaging tools and local debug keystore |
 | `android/build/` | Temporary classes, dex, APK assembly/signing output |
+| `android/proj/lib/<abi>/libjade.so` | The Rust core for each phone CPU type |
 | `dist/jade-vault-<version>.apk` | Final signed APK |
 
 The APK filename/version comes from `VERSION` (**2.9.0**). The Android version code comes from `android/VERSION_CODE` (**23**). The expected final artifact is `dist/jade-vault-2.9.0.apk`. The script patches the copied manifest/apktool metadata during assembly; it does not require manually patching those templates for each local build.
@@ -77,6 +79,7 @@ Without release-signing variables, the script creates/reuses `android/.tools/deb
 ### What the APK script does
 
 1. Download/cache apktool 2.10.0, uber-apk-signer 1.3.0, and dex-tools 2.4; verify pinned SHA-256 hashes.
+1. When `cargo` is installed, rebuild the Rust core for arm64, armv7 and x86_64 (`rust/build-android.sh`) into `android/proj/lib/<abi>/libjade.so`; apktool packages that folder.
 2. Extract `dx.jar` from dex-tools.
 3. Check that the generated Android page exists.
 4. Recreate `android/build`, copy resources, and set version metadata.

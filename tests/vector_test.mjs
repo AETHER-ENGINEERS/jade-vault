@@ -18,7 +18,7 @@ const OWNER = 'npub1owner000000000000000000000000000000000000000000000000000', A
 const CAT = fs.readFileSync('xdcfix/cat.png');
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, timezoneId: 'America/New_York' });
-await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', journalOn: false })); });
+await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ toolRouter: 'off', model: 'qwen3:8b', journalOn: false })); });
 const page = autoTabs(await ctx.newPage()); page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 const calls = [];   // model requests
 await ctx.route('**/*', async route => {
@@ -130,12 +130,17 @@ await settle();
 L = (await ctl('/')).log;
 ok(L.some(x => x.op === 'accept' && x.community_id === 'cmC') && !L.some(x => x.op === 'accept' && x.community_id === 'cmD') && /Spam Club/.test(await page.evaluate(() => vfs.read(VEC_INBOX))), 'admin invites auto-accepted; others wait in the inbox');
 // ---- 8. Mini Apps ----
+import { execFileSync } from 'node:child_process';
+fs.writeFileSync('ttt-readme.md', 'Frames are JSON: {"move": 0-8}. FRAMEFORMAT-MARKER');
+const XDC_ZIP = execFileSync('python3', ['-c', "import zipfile,base64,sys;z=zipfile.ZipFile('ttt.xdc','w');z.writestr('index.html','<html></html>');z.writestr('README.md',open('ttt-readme.md').read());z.writestr('manifest.toml','name = \"TTT\"');z.close();print(base64.b64encode(open('ttt.xdc','rb').read()).decode())"]).toString().trim();
 await ctl('/reset_log', {});
-const xm = await ctl('/message', { chat_id: ALICE, npub: ALICE, content: 'jade, play with me', xdc: true, files: [{ name: 'tictactoe.xdc', base64: Buffer.from('PK').toString('base64') }] });
+const xm = await ctl('/message', { chat_id: ALICE, npub: ALICE, content: 'jade, play with me', xdc: true, files: [{ name: 'tictactoe.xdc', base64: XDC_ZIP }] });
 await settle();
 const topic = 'TOPIC' + xm.id;
 L = (await ctl('/')).log;
 ok(L.some(x => x.op === 'xdc_join' && x.topic === topic) && await page.evaluate(t => !!VEC.xdc[t], topic), 'joins a Mini App someone shared');
+ok(calls.some(c => /FRAMEFORMAT-MARKER/.test(c.lastTool || '')), 'the join result hands Jade the app README (its frame format)');
+ok(calls.filter(c => /Mini App session|play with me/.test(c.u)).every(c => c.tools.includes('vector')), 'the vector tool is always offered in a Vector chat (tool router)');
 await ctl('/reset_log', {});
 await ctl('/frame', { topic, from: ALICE, text: '{"move":0}' });
 await settle(); await page.waitForTimeout(2500); await waitIdle();

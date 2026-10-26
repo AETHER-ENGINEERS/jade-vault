@@ -25,6 +25,7 @@ The app is a generated HTML application, not a conventional React/Vite frontend 
 | `app/vendor/` | Embedded SQLite WebAssembly and TensorFlow.js assets |
 | `scripts/build-web.sh` | Web build orchestration |
 | `scripts/pack_xdc.py` | Mini-app packaging |
+| `rust/` | The Rust core: `core` (vault parsing/search, Sentry rules, HTML to Markdown), `android` (libjade.so: storage, native network, JNI), `wasm` (the browser's WebAssembly); see [`rust/README.md`](../rust/README.md) |
 | `android/src/` | WebView activity, foreground service, inbound API server |
 | `android/stubs/` | Compile-time Android API stubs; not packaged as Android OS implementation |
 | `android/proj/` | APK resources and manifest template |
@@ -62,9 +63,10 @@ Use `npm install`; the repository does not include a root package lockfile. The 
 ### Build pipeline
 
 1. Package `apps/jade-link` as `dist/jade-link.xdc`.
-2. `app/build.py` reads the base page, applies transformations/inserts feature fragments and embedded assets, and writes `dist/jade-vault.html`.
-3. Compile Tailwind into `dist/tw.css`.
-4. `app/tools/build_index.py` writes `android/proj/assets/index.html` with core rendering dependencies inlined.
+2. When Rust is installed, `rust/build-wasm.sh` rebuilds `app/vendor/jade_core.wasm` (otherwise the checked-in copy is used).
+3. `app/build.py` reads the base page, applies transformations/inserts feature fragments and embedded assets, and writes `dist/jade-vault.html`.
+4. Compile Tailwind into `dist/tw.css`.
+5. `app/tools/build_index.py` writes `android/proj/assets/index.html` with core rendering dependencies inlined.
 
 The exact-match build deliberately fails with `MISSING`, `AMBIGUOUS`, or `RANGE MISSING` when assumptions drift. Fix the source/transformation pair rather than bypassing a failed assertion. Never edit generated HTML to implement a source feature.
 
@@ -92,6 +94,8 @@ npx playwright install chromium
 npm run test:quick
 npm test
 ```
+
+The Rust core has its own tests (`cd rust && cargo test`), and `android/test/run.sh` runs the Java tests against a build of `libjade.so` for the host machine.
 
 Run selected suites without the npm wrapper:
 

@@ -57,6 +57,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
     ApiServer api;
     World world;
     PermissionRequest pendingMedia;
+    Net.Waker netWaker;
     String[] pendingMediaPerms;
     GeolocationPermissions.Callback pendingGeo;
     String pendingGeoOrigin;
@@ -64,6 +65,9 @@ public class MainActivity extends Activity implements ApiServer.Host {
     @Override
     protected void onCreate(Bundle state) {
         super.onCreate(state);
+        Net.waker = netWaker = new Net.Waker() {
+            @Override public void wake() { runOnUiThread(new Runnable() { @Override public void run() { Net.woke(); js("window.__netWake&&window.__netWake()"); } }); }
+        };
         try { SentryCore.init(getApplicationContext()); SentryCore.sink = this; SentryCore.pageReady = false; SentryCore.resume(this); } catch (Throwable ignored) { }
         Window w = getWindow();
         w.setStatusBarColor(BG);
@@ -130,6 +134,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
         if (phone != null) phone.destroy();
         if (cast != null) cast.destroy();
         if (ssh != null) ssh.closeAll();
+        if (Net.waker == netWaker) Net.waker = null;
         if (SentryCore.sink == this) { SentryCore.sink = null; SentryCore.pageReady = false; }
         if (tts != null) { tts.stop(); tts.shutdown(); }
         if (web != null) web.destroy();
@@ -347,6 +352,11 @@ public class MainActivity extends Activity implements ApiServer.Host {
         // ----- the vault on real storage (see DiskHost) -----
         @JavascriptInterface public String diskInfo() { return a.diskHost.info(); }
         @JavascriptInterface public String diskScan() { return a.diskHost.scan(); }
+        @JavascriptInterface public String vaultParse(String req) { return a.diskHost.parse(req); }
+        @JavascriptInterface public String vaultSearch(String req) { return a.diskHost.search(req); }
+        @JavascriptInterface public String netStart(String req) { return Net.start(req); }
+        @JavascriptInterface public String netPoll(double id) { return Net.poll((long) id); }
+        @JavascriptInterface public void netAbort(double id) { Net.abort((long) id); }
         @JavascriptInterface public String diskGet(String path, double off, int len) { return a.diskHost.get(path, off, len); }
         @JavascriptInterface public String diskPut(String path, String b64, boolean first, boolean last) { return a.diskHost.put(path, b64, first, last); }
         @JavascriptInterface public String diskMkdir(String path) { return a.diskHost.mkdir(path); }

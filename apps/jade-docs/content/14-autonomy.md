@@ -23,9 +23,9 @@ Phone events run flows: 15 systems (battery, network, screen, headset, bluetooth
 
 At random times inside a window you choose, Jade wakes in her own chat "✦ Curiosity" and picks one of: **explore**, **reflect**, **connect** notes, **practice** a skill, **anticipate** (prepare something for you), **ask** you one question, or **rest**. Steer it with `/Jade/CURIOSITY.md`. Details: [Curiosity engine](#doc:curiosity).
 
-## Browser scripts
+## Playbooks
 
-Deterministic web chores that run without the model: [Browser scripts](#doc:browser-scripts).
+Deterministic automation that runs without the model, in the shape of Ansible: [Playbooks](#doc:playbooks) (any tool, the browser, variables, when/loop/rescue), edited in the Playbooks tab.
 
 ## Scheduled backup
 

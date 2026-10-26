@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.20.0
+
+- **A Rust core, where Rust is faster.** Same screens, same answers; measured before keeping each piece.
+  - **The phone's network is native.** Every request the app makes to another site (model providers, web search, web pages, embeddings) now runs in Rust on native threads: many at once, HTTP/2 when the server offers it, gzip, kept-alive connections, TLS checked against the Mozilla roots. There are no browser CORS rules on the phone any more, so a computer running Ollama no longer needs `OLLAMA_ORIGINS`, only to listen on an address the phone can reach. If a request cannot start natively, or a server's certificate is one only the phone trusts, that request goes through the WebView as before.
+  - **`web_fetch` reads pages itself on the phone.** It fetches the page directly and turns it into Markdown in Rust (title, headings, paragraphs, lists, links, code, tables; no scripts, menus or hidden parts), instead of sending the address to a third-party reader. The reader is still the fallback, and still used in the browser, where sites' CORS rules block direct reads.
+  - **Web tools asked for together run at the same time.** When the model asks for several `web_search` / `web_fetch` calls in one round, they run in parallel (on the phone, each on its own native connection); results are recorded in the order the model asked.
+  - **On the phone:** the vault folder, the link/tag index (parsing notes on all cores straight from storage instead of pulling each through the WebView) and note search (the same, while the notes are not already in memory) run in Rust, and so does Sentry's rules engine.
+  - **Tried and left in JavaScript:** in the browser, note parsing and search, and trimming long chats to the context window, measured slower through WebAssembly than in the page's own JavaScript (copying notes or the chat history across cost more than the work), so they stay JavaScript there. The browser's WebAssembly is now 88 KB and does only the web page conversion.
+  - If the native library cannot load, the app still starts: the vault falls back to the browser database, the network to the WebView, and Sentry reports why its rules are not running.
+  - Sources in `rust/` (see `rust/README.md`). The Java tests for the vault folder, Sentry and the network run against the Rust library; the Rust tests start local HTTP, HTTPS and HTTP/2 servers; page tests check the native network path, web page conversion, parallel web tools, and that Rust and JavaScript give identical note parsing and search results.
+
+## 2.18.3
+
+- **Faster replies: the tool list no longer changes between turns.** The tool router picked tools per message, and because the tool list is the start of the prompt, a list that changed every turn made the model re-read the whole conversation instead of reusing its prompt cache (slow on a phone, and on cloud models it cost cached tokens). A tool offered earlier in a chat now stays offered; the set only grows and keeps one fixed order. The page itself measures the same as 2.17 (startup, tabs, rendering, vault index).
+
+## 2.18.3
+
+- **Big vaults stay fast.** The link/tag index used to be rebuilt from every note after any write, so each chat turn that followed a write got slower the bigger the vault was (5,000 notes: about 160 ms per turn here, several times that on a phone). It now keeps what it parsed per note and re-reads only the notes that changed; link lookups are hash lookups and note names sort with a collator. After a write the system prompt now costs about 11 ms instead of 160 ms,; the cache holds only links, tags and word counts per note, never note text, so the vault stays on the phone's storage. Note search builds snippets only for the results it returns.
+- **The tool list no longer changes between turns.** The tool router picked tools per message, and the tool list is the start of the prompt, so a list that changed each turn made the model re-read the whole conversation instead of reusing its prompt cache. A tool offered earlier in a chat now stays offered: the set only grows, in one fixed order.
+
 ## 2.18.2
 
 - **Playbooks from flows and schedules.** Flows have a **Playbook** step (pick it, give vars); the Schedule tab, the `schedule` tool and `crontab` (`playbook run <name>`) can run playbooks. Only approved, unchanged playbooks run there; results go to the flow output or `/Jade/Logs/cron.log`, failures notify.

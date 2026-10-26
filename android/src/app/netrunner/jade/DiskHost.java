@@ -59,12 +59,16 @@ final class DiskHost {
     String info() {
         try {
             Disk d = disk();
-            return "{\"root\":" + Disk.json(d.root().getPath()) + ",\"mode\":\"" + mode + "\",\"sharedOk\":" + sharedOk()
-                + ",\"free\":" + d.free() + ",\"warn\":" + Disk.json(warn) + ",\"sdk\":" + Build.VERSION.SDK_INT + "}";
+            return "{\"root\":" + MiniJson.quote(d.root().getPath()) + ",\"mode\":\"" + mode + "\",\"sharedOk\":" + sharedOk()
+                + ",\"free\":" + d.free() + ",\"warn\":" + MiniJson.quote(warn) + ",\"sdk\":" + Build.VERSION.SDK_INT + "}";
         } catch (Exception e) { return err(e); }
     }
 
     String scan() { try { return disk().scan(); } catch (Exception e) { return err(e); } }
+    /** Parse notes on all cores, straight from storage (Rust). */
+    String parse(String req) { try { return disk().parse(req); } catch (Exception e) { return err(e); } }
+    /** Search notes on all cores, straight from storage (Rust). */
+    String search(String req) { try { return disk().search(req); } catch (Exception e) { return err(e); } }
 
     String get(String p, double off, int len) {
         try { return Base64.encodeToString(disk().read(p, (long) off, len), Base64.NO_WRAP); } catch (Exception e) { return err(e); }

@@ -51,6 +51,15 @@ ok(await E(() => cur.messages.some(m => m.role === 'tool' && m.tool_name === 'pl
 await E(() => { newSession(); cur.messages.push({ role: 'user', content: 'use my routine' }, { role: 'tool', tool_name: 'skill', content: 'Step 1: call the ssh tool to check the server.' }); });
 ok(await E(() => routeTools(activeTools()).some(t => t.function.name === 'ssh')), 'a tool named in a loaded skill is sent');
 
+// the tool list must not change from turn to turn (it is the start of the prompt: a changing list defeats the prompt cache)
+await E(() => { newSession(); });
+model.chatReply = () => ({ content: 'ok' });
+await send('set an alarm for 7am'); const a1 = lastTools();
+await send('thanks, what is the capital of France?'); const a2 = lastTools();
+await send('and Spain?'); const a3 = lastTools();
+ok(a1.includes('phone') && a2.join() === a1.join() && a3.join() === a1.join(), 'tools offered earlier in a chat stay offered, in the same order (' + a1.length + ' / ' + a2.length + ' / ' + a3.length + ')');
+await send('ssh into my server'); const a4 = lastTools();
+ok(a1.every(n => a4.includes(n)) && a4.includes('ssh') && a4.length > a1.length, 'the set only grows');
 // switching it off, and small sets
 await E(() => { S.toolRouter = 'off'; });
 await send('hello'); ok(lastTools().length === full.length && !lastTools().includes('more_tools'), 'toolRouter off sends everything');

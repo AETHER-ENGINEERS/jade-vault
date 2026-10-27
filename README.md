@@ -6,7 +6,8 @@ schedules, and lives on [Vector](https://vectorapp.io) messenger as your bot and
 
 **Get it:** download the APK from [Releases](../../releases) (Android 7+), or open `jade-vault.html`
 from a release in any modern browser. Point it at Ollama on your computer, or at Ollama Cloud, Groq,
-llama.cpp or any OpenAI-compatible endpoint.
+llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native, so Ollama needs no
+`OLLAMA_ORIGINS`: it only has to listen on an address the phone can reach.
 
 ## What Jade can do
 
@@ -17,6 +18,8 @@ llama.cpp or any OpenAI-compatible endpoint.
 - **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
 - **Scripting Jade:** `jade.tool()`, `jade.decide()`, `jade.ask()`, `jade.flow()` … in the shell's `node`, plus `jade` and `flow` shell commands.
 - **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
+- **Playbooks:** reusable, approved step lists that Jade can run from chat, a flow, a schedule or `crontab`; only unchanged, approved playbooks run unattended.
+- **Rust core:** the phone's network (many requests at once, HTTP/2, gzip, kept-alive connections), the vault folder, note indexing and search, Sentry's rules and web pages to Markdown run in Rust. See [`rust/README.md`](rust/README.md).
 - **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
 - **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
 - **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
@@ -126,6 +129,7 @@ with its notification.
 | `app/tools/` | Tailwind compile, and the Android page (CDN-free basics inlined). |
 | `apps/jade-link/` | Source of the built-in Jade Link webxdc app. |
 | `android/` | Android wrapper (WebView, foreground service, TTS, file save), built without the Android SDK. |
+| `rust/` | The Rust core: `core/` (shared logic), `android/` (`libjade.so`: network, vault folder, Sentry), `wasm/` (web pages to Markdown for the page). Built copies are checked in under `android/proj/lib/` and `app/vendor/`. |
 | `jade-vector/` | The Vector bridge: patch for Vector's vector-agent, the HTTP bridge, setup script, Docker. |
 | `sqlite-wasm/` | How `app/vendor/sqlite3.min.wasm` is built. |
 | `tests/` | Playwright suites (headless Chromium) and engine tests; `node tests/run.mjs`. |
@@ -138,9 +142,13 @@ Needs Node 20+, Python 3.9+, and for the APK a JDK 17+ (no Android SDK).
 npm install
 npx playwright install chromium     # for the tests
 npm run build                       # dist/jade-vault.html, android/proj/assets/index.html
-npm test                            # 15 suites, ~8 minutes
+npm test                            # 49 suites
 bash android/build-apk.sh           # dist/jade-vault-<version>.apk (debug key)
 ```
+
+Rust is optional: the build scripts rebuild `libjade.so` and the WebAssembly when `cargo` is installed and
+otherwise use the checked-in copies. To rebuild them, see [`rust/README.md`](rust/README.md)
+(`rust/build-android.sh`, `rust/build-wasm.sh`, `cd rust && cargo test`).
 
 To sign a release APK:
 

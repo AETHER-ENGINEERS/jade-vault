@@ -97,6 +97,19 @@ await E(() => { const u = new Uint8Array(17e6); u[5] = 7; vfs.write('/huge.bin',
 r = await sh('ls / && rm /sh.txt'); await settle();
 ok(await E(() => vfs.exists('/huge.bin') && __disk.bytes('/huge.bin') === 17e6 && !vfs.exists('/sh.txt') && !__disk.has('/sh.txt')), 'a file too big to hand to the shell is left alone by it (not deleted), and rm works');
 await E(() => vfs.rm('/huge.bin')); await settle();
+// a file the vault lists but storage cannot read (removed behind the app's back, or a case-only rename) must not
+// break every command: it is skipped, never deleted by the run, and a rescan drops it once it is really gone
+await E(() => { vfs.write('/Jade/Tools/debug_nws.js', 'x', { mkdirs: true }); vfs.write('/Jade/Tools/keep.js', 'k'); vfs.flush(true); const n = vfs.nodes.get('/Jade/Tools/debug_nws.js'); n._d = null; LRU.drop(n); delete __disk.files['/Jade/Tools/debug_nws.js']; vfs._scanned = Date.now(); });
+r = await sh('echo hello');
+ok(r.out === 'hello\n' && !/no such file/.test(r.out + r.err), 'a vanished file does not break shell commands: ' + JSON.stringify(r.out + r.err));
+r = await sh('node -e "console.log(require(\'fs\').readFileSync(\'/Jade/Tools/keep.js\',\'utf8\'))"');
+ok(r.out.trim() === 'k', 'nor node: ' + JSON.stringify(r.out + r.err));
+await settle();
+ok(await E(() => !vfs.exists('/Jade/Tools/debug_nws.js') && vfs.exists('/Jade/Tools/keep.js') && !__disk.calls.some(c => c.startsWith('del /Jade/Tools/keep'))), 'the rescan then drops the missing file and nothing else');
+await E(() => { __disk.files['/Jade/Tools/odd.js'] = { b: btoa('o'), m: 1 }; vfs.rescan(true); __disk.fail = (k, a) => k === 'get' && a[0] === '/Jade/Tools/odd.js'; __disk.failMsg = 'Permission denied'; });
+r = await sh('echo again');
+await E(() => { __disk.fail = null; }); await settle();
+ok(r.out === 'again\n' && await E(() => vfs.exists('/Jade/Tools/odd.js') && __disk.has('/Jade/Tools/odd.js')), 'a file that is there but cannot be read right now is kept, not deleted');
 
 // ---- changes made by other apps ----
 await E(() => { __disk.put('/from-pydroid.py', 'print(1)'); __disk.put('/project/b.md', 'edited outside'); __disk.del('/project/src/a.md'); });

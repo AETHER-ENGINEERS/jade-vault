@@ -1,5 +1,9 @@
 # Changelog
 
+## 2.20.1
+
+- **One unreadable file no longer breaks the shell.** Before each BusyBox command the app hands it the vault's files; if one file the vault listed could not be read from storage (removed or renamed by another app, or a rename that only changed letter case), every command failed with `<applet>: no such file: <that file>`, while `pwd` and `true` still worked. Such a file is now skipped for that command and is never deleted by it, and the vault list is re-read so a file that is really gone disappears from it. `node`, `python`, scripts and backups skip it the same way.
+
 ## 2.20.0
 
 - **A Rust core, where Rust is faster.** Same screens, same answers; measured before keeping each piece.

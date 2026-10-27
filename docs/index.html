@@ -3809,7 +3809,19 @@ async function loadMainThreadHost() {
   }
 }
 const BB_MAX = 16e6;   // bigger files stay on disk and are not copied into the shell
-const entriesForBb = () => vfs.entries().filter(([p, n]) => n.dir || !vfs.diskOn || fsize(n) <= BB_MAX).map(([p, n]) => [p, n.dir ? { dir: true } : { data: n.data }]);
+// A file the vault lists but storage cannot read (removed or renamed by another app, a case-only rename) is left out
+// of the run and marked, so the run cannot delete it and the command still works; a rescan then drops it if it is gone.
+const entriesForBb = () => {
+  const out = []; let bad = 0;
+  for (const [p, n] of vfs.entries()) {
+    if (n.dir) { out.push([p, { dir: true }]); continue; }
+    if (vfs.diskOn && fsize(n) > BB_MAX) continue;
+    let d; try { d = n.data; if (n._unread) n._unread = false; } catch (e) { n._unread = true; bad++; console.warn('shell: skipped unreadable file', p, e.message); continue; }
+    out.push([p, { data: d }]);
+  }
+  if (bad) setTimeout(() => { try { vfs.rescan?.(true); } catch {} }, 0);
+  return out;
+};
 async function bbRun(args, stdin = '', timeoutMs = 30000, cwd = '/') {
   if (bb.host === 'main') {
     try { return await Promise.race([bb.mainFns.__bbExec(bb.mainFns.BusyBoxModule, bb.module, { args, stdin, entries: entriesForBb(), cwd }), sleep(timeoutMs).then(() => ({ ok: false, timeout: true, error: `timed out after ${timeoutMs / 1000}s` }))]); }
@@ -3833,7 +3845,7 @@ function applyBbEntries(entries, base) {
       if (n.dir) next.set(p, old?.dir ? old : (changed = true, { dir: true, mtime: Date.now() }));
       else { const s = old && !old.dir && fsize(old) === n.data.length && same(old.data, n.data); if (!s) changed = true; next.set(p, s ? old : { data: n.data, mtime: Date.now() }); }
     }
-    for (const [p, o] of vfs.nodes) if (!o.dir && vfs.diskOn && fsize(o) > BB_MAX && !next.has(p)) next.set(p, o);
+    for (const [p, o] of vfs.nodes) if (!o.dir && (o._unread || (vfs.diskOn && fsize(o) > BB_MAX)) && !next.has(p)) next.set(p, o);
     if (changed || next.size !== vfs.nodes.size) vfs.replace([...next.entries()]);
     return;
   }
@@ -3845,7 +3857,7 @@ function applyBbEntries(entries, base) {
     if (cur && !cur.dir && fsize(cur) === n.data.length && same(cur.data, n.data)) continue;
     vfs.write(p, n.data, { mkdirs: true }); changed = true;
   }
-  for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b && !(vfs.diskOn && !b.dir && fsize(b) > BB_MAX)) { if (vfs.exists(p)) vfs.rm(p, true); changed = true; }   // the command removed it (and nobody changed it since)
+  for (const [p, b] of base) if (p !== '/' && !seen.has(p) && vfs.nodes.get(p) === b && !b._unread && !(vfs.diskOn && !b.dir && fsize(b) > BB_MAX)) { if (vfs.exists(p)) vfs.rm(p, true); changed = true; }   // the command removed it (and nobody changed it since)
   if (changed) vfs.changed();
 }
 async function loadEmbeddedBusybox() {
@@ -7256,7 +7268,8 @@ async function buildBackup(kind, withKeys) {
   for (const [p, n] of vfs.nodes) {
     if (p === '/') continue; if (kind === 'config' && !isConfigPath(p)) continue;
     if (n.dir) { if (kind === 'full') dirs.push(p); continue; }
-    files[p] = isText(n.data) ? dec.decode(n.data) : { base64: b64enc(n.data) };
+    const d = nodeBytes(n); if (!d) continue;
+    files[p] = isText(d) ? dec.decode(d) : { base64: b64enc(d) };
   }
   const out = { app: 'jade-vault', format: 1, kind, exportedAt: new Date().toISOString(), includesKeys: !!withKeys, settings, storage, vault: { files, dirs: dirs.sort() } };
   if (kind === 'full') { saveSession(); await new Promise(r => setTimeout(r, 450)); out.db = await dbDump(); }
@@ -8179,10 +8192,10 @@ async function runPython(c) {
   if (!String(code).trim()) { c.e('python: no script given. Use python file.py or python -c "code"\n'); return 2; }
   let assets; try { assets = await mpyAssets(); } catch (e) { c.e(`python: ${e.message}\n`); return 1; }
   const files = {}, dirs = [];
-  for (const [p, n] of vfs.nodes) { if (n.dir) dirs.push(p); else if (fsize(n) < 4e6) files[p] = n.data; }
+  for (const [p, n] of vfs.nodes) { if (n.dir) dirs.push(p); else if (fsize(n) < 4e6) { const d = nodeBytes(n); if (d) files[p] = d; } }
   // SQLite rides along only when something mentions it (the script or any .py it may import)
   let sqMod = null;
-  if (/sqlite/i.test(code) || [...vfs.nodes].some(([p, n]) => !n.dir && p.endsWith('.py') && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(n.data)))) {
+  if (/sqlite/i.test(code) || [...vfs.nodes].some(([p, n]) => !n.dir && p.endsWith('.py') && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(nodeBytes(n) || new Uint8Array())))) {
     try { sqMod = await sqliteModule(); } catch (e) { c.e(`python: could not load SQLite (${e.message})\n`); }
   }
   const wurl = URL.createObjectURL(new Blob(sqMod ? [assets.factory, SQLITE_GLUE_SRC, '\n', SQLITE_PY_BRIDGE, '\n', MPY_WORKER] : [assets.factory, MPY_WORKER], { type: 'text/javascript' }));
@@ -10542,6 +10555,7 @@ const FLOW_MAX_DEPTH = 5;
 
 // what changed in the vault while a tool ran
 function vfsStamp() { const m = new Map(); for (const [p, n] of vfs.nodes) m.set(p, n.dir ? 'd' : n); return m; }
+function nodeBytes(n) { try { return n.data; } catch (e) { console.warn('vault: unreadable file', n && n.p, e.message); return null; } }
 function vfsChangesSince(before) {
   const files = {}, deleted = [], dirs = [], rmdirs = [];
   for (const [p, n] of vfs.nodes) {
@@ -10571,8 +10585,8 @@ const cloneSafe = v => { if (v === undefined) return null; try { return JSON.par
 async function runNodeScript({ code, argv = ['[eval]'], cwd = '/', globals = null, timeoutMs = 60000, readOnly = false, bridge = true, bridgeWhy = '', allow = null, ui = false, noNet = false, signal = null, depth = 0, via = 'script', lineShift = 0, onErr = null } = {}) {
   code = String(code ?? '').replace(/^#!.*\n/, '');
   if (/^\s*(import|export)\s/m.test(code)) code = code.replace(/^\s*import\s+\*\s+as\s+(\w+)\s+from\s+['"]([^'"]+)['"];?/gm, 'const $1 = require("$2");').replace(/^\s*import\s+(\w+)\s+from\s+['"]([^'"]+)['"];?/gm, 'const $1 = require("$2");').replace(/^\s*import\s+\{([^}]+)\}\s+from\s+['"]([^'"]+)['"];?/gm, (x, a, b) => 'const {' + a.replace(/\s+as\s+/g, ': ') + '} = require("' + b + '");').replace(/^\s*import\s+['"]([^'"]+)['"];?/gm, 'require("$1");').replace(/^\s*export\s+(default\s+)?/gm, '');
-  const useSq = !noNet && (/sqlite/i.test(code) || [...vfs.nodes].some(([p, n]) => !n.dir && /\.[cm]?js$/.test(p) && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(n.data))));
-  const files = {}, dirs = [], bins = {}; for (const [p, n] of vfs.nodes) { if (n.dir) dirs.push(p); else if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\.(db|sqlite3?)$/i.test(p))) continue; else if (isSqliteBytes(n.data)) { bins[p] = n.data; files[p] = n.data; } else if (fsize(n) < 2e6) files[p] = dec.decode(n.data); }
+  const useSq = !noNet && (/sqlite/i.test(code) || [...vfs.nodes].some(([p, n]) => !n.dir && /\.[cm]?js$/.test(p) && fsize(n) < 2e6 && /sqlite/i.test(dec.decode(nodeBytes(n) || new Uint8Array()))));
+  const files = {}, dirs = [], bins = {}; for (const [p, n] of vfs.nodes) { if (n.dir) dirs.push(p); else if (fsize(n) >= 2e6 && !(fsize(n) < 4e7 && /\.(db|sqlite3?)$/i.test(p))) continue; else { const d = nodeBytes(n); if (!d) continue; if (isSqliteBytes(d)) { bins[p] = d; files[p] = d; } else if (fsize(n) < 2e6) files[p] = dec.decode(d); } }
   let sqMod = null; if (useSq) { try { sqMod = await sqliteModule(); } catch (e) { onErr?.(`node: could not load SQLite (${e.message})\n`); } }
   // TensorFlow.js 4.22 (embedded): loaded when the script (or a local .js it may require) uses tf; not in note scripts
   const useTf = !noNet && tfUsed(code, argv[0] && String(argv[0]).startsWith('/') ? vfs.parent(argv[0]) : cwd);

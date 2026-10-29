@@ -50,10 +50,12 @@ const VAULT = path.join(tmp, 'vault');
 const port = 20000 + Math.floor(Math.random() * 20000);
 const TOKEN = 'fleet-test-token';
 const broker = spawn(BIN, [], { env: { ...process.env, FLEET_BIND: `127.0.0.1:${port}`, FLEET_DATA: path.join(tmp, 'data'), FLEET_VAULT: VAULT, FLEET_WEB: web, FLEET_TOKEN: TOKEN,
-  OLLAMA_URL: X, OLLAYA_URL: X, LLM_URL: X + '/v1', VISION_URL: X, EMBED_MODEL: 'nomic-embed-text', EMBED_DIM: '64', FLEET_LOG: 'jade_fleet=warn' }, stdio: ['ignore', 'inherit', 'inherit'] });
+  OLLAMA_URL: X, OLLAYA_URL: X, LLM_URL: X + '/v1', VISION_URL: X, EMBED_MODEL: 'nomic-embed-text', EMBED_DIM: '64', FLEET_LOG: 'jade_fleet=warn' }, stdio: ['ignore', 'pipe', 'pipe'] });
+// its own pipes: a broker that outlived the test must not keep the test runner waiting on ours
+broker.stdout.on('data', d => process.stdout.write(d)); broker.stderr.on('data', d => process.stderr.write(d));
 const B = `http://127.0.0.1:${port}`;
 for (let i = 0; ; i++) { try { if ((await fetch(B + '/health')).ok) break; } catch {} if (i > 100) { console.log('FAIL the broker did not start'); broker.kill(); process.exit(1); } await new Promise(r => setTimeout(r, 100)); }
-const cleanup = () => { try { broker.kill(); } catch {} xavier.close(); };
+const cleanup = () => { try { broker.kill('SIGKILL'); } catch {} xavier.close(); };
 process.on('exit', cleanup);
 
 const browser = await pw.chromium.launch();

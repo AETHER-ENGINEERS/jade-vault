@@ -197,5 +197,20 @@ await page.reload(); await page.waitForFunction(() => typeof flowRun === 'functi
 ok(await E(() => Sched.list.some(s => s.kind === 'shell' && s.command === 'echo synced >> /out/sync.md')), 'command schedules are saved');
 ok(await E(() => /jade tool <name>/.test(document.body.textContent) || true), 'reloaded');
 r = await sh('help'); ok(/Flows: flow list/.test(r.out) && /crontab -l/.test(r.out) && /\bjade\b/.test(r.out), 'the shell help mentions jade, flow and crontab');
+// decisions can come from Ollama 0.35+ instead of Ollaya (same /v1/systemone API)
+const n0 = ollaya.calls.length;
+const viaOllama = await E(async () => { S.decideProv = 'ollama'; S.decideOllamaHost = 'http://localhost:9911'; try { return (await decideData({ state: 'x', question: 'Pick', options: ['a', 'b'] })).choice; } finally { S.decideProv = 'ollaya'; S.decideOllamaHost = ''; } });
+ok(viaOllama === 'a' && ollaya.calls.length === n0 + 1, 'decisions through Ollama: ' + viaOllama);
+const viaHost = await E(async () => { const h = S.host; S.decideProv = 'ollama'; S.decideOllamaHost = ''; S.host = 'http://localhost:9911'; try { return (await decideData({ state: 'x', question: 'Pick', options: ['a', 'b'] })).choice; } finally { S.host = h; S.decideProv = 'ollaya'; } });
+ok(viaHost === 'a' && ollaya.calls.length === n0 + 2, 'Ollama decisions default to the Ollama address: ' + viaHost);
+const ui = await E(async () => {
+  openSettings(); const sel = document.querySelector('#sDecideProv'); const addr = document.querySelector('#sOllayaHost');
+  const before = addr.value; sel.value = 'ollama'; sel.onchange(); const blank = addr.value; addr.value = 'http://xavier:11434';
+  sel.value = 'ollaya'; sel.onchange(); const back = addr.value; sel.value = 'ollama'; sel.onchange();
+  document.querySelector('#btnSave').click(); await new Promise(r => setTimeout(r, 300));
+  const out = { before, blank, back, prov: S.decideProv, ollama: S.decideOllamaHost, ollayaHost: S.ollayaHost, chip: document.querySelector('#txtOllaya').textContent };
+  S.decideProv = 'ollaya'; S.decideOllamaHost = ''; saveSettings(); return out;
+});
+ok(ui.before === 'http://localhost:9911' && ui.blank === '' && ui.back === 'http://localhost:9911' && ui.prov === 'ollama' && ui.ollama === 'http://xavier:11434' && ui.ollayaHost === 'http://localhost:9911', 'Config: the decision server switch keeps each address: ' + JSON.stringify(ui));
 ok(await E(() => /jade\.tool\(name, args\)/.test(systemPrompt()) && /scheduled shell commands \(command\)/.test(systemPrompt())), 'Jade\'s instructions mention jade.* in node and command schedules');
 await done();

@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.21.0
+
+- **Jade Fleet client.** A second build of the app, for a fleet: phones and browsers share one vault on a small server (the [jade-fleet](https://github.com/lucky-edgelord/jade-fleet) broker), and the models run on another machine behind it. `dist/jade-fleet.html` is the browser client (the broker serves it at its own address) and `android/build-apk.sh fleet` makes the Jade Fleet APK (`app.netrunner.fleet`, installs next to Jade Vault). In it:
+  - the vault is the broker's shared folder; notes are fetched in bulk at start, and changes from other phones, from commands or from the server itself show up live;
+  - `bash`, `python3` and `node` are the server's real ones, run in the shared vault (loops, network, packages installed there); the terminal is a real one on the server when xterm is available, and the shell keeps its folder between commands; vault commands (`search`, `open` …) still run in the page;
+  - chat, embeddings, decisions and vision go through the broker; the first connection points every model setting at it;
+  - new tools: `vault_search` (meaning-based search over the whole fleet's notes and memories) and `vision` (object detection and classification on the fleet's vision service);
+  - a connect screen (address, token, device name), a FLEET chip with who else is online, `/fleet` to reconnect; when the broker cannot be reached the page says so instead of falling back to a local vault.
+- **Decisions from Ollama too.** Config → Decision models has a Server choice: Ollaya, or Ollama 0.35 and newer (same `/v1/systemone` API). Each keeps its own address; a blank Ollama address uses the Ollama address above. The `decide` tool, `jade.decide()` and flow Decide steps use whichever is chosen.
+
 ## 2.20.1
 
 - **One unreadable file no longer breaks the shell.** Before each BusyBox command the app hands it the vault's files; if one file the vault listed could not be read from storage (removed or renamed by another app, or a rename that only changed letter case), every command failed with `<applet>: no such file: <that file>`, while `pwd` and `true` still worked. Such a file is now skipped for that command and is never deleted by it, and the vault list is re-read so a file that is really gone disappears from it. `node`, `python`, scripts and backups skip it the same way.

@@ -10,3 +10,4 @@ if command -v cargo >/dev/null && [ -x "$HOME/bin/wasm-bindgen" -o -n "$(command
 python3 app/build.py
 node app/tools/twbuild.mjs dist/jade-vault.html dist/tw.css
 python3 app/tools/build_index.py
+python3 app/tools/build_fleet.py      # dist/jade-fleet.html: the Jade Fleet client (browser + APK)

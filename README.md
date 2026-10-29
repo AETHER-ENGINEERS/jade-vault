@@ -15,7 +15,7 @@ llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native,
 - **Agent:** read/write/edit notes, a BusyBox shell (WebAssembly), `node` with `fs`, `fetch` and `https`, MicroPython, SQLite (`sqlite3`, `node:sqlite`, Python `sqlite3`), web search and fetch, `http_request` for any API (secrets as `{{NAME}}`), MCP servers (pi-style codemode, deferred or direct), skills.
 - **Memory and steering:** long-term memory, a journal of past chats, and steering through SOUL.md, AGENTS.md and SYSTEM.md.
 - **Running on its own:** schedules in plain English (a prompt, a shell command or a flow), `crontab`, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
-- **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
+- **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, decisions (Ollaya or Ollama), AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
 - **Scripting Jade:** `jade.tool()`, `jade.decide()`, `jade.ask()`, `jade.flow()` … in the shell's `node`, plus `jade` and `flow` shell commands.
 - **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
 - **Playbooks:** reusable, approved step lists that Jade can run from chat, a flow, a schedule or `crontab`; only unchanged, approved playbooks run unattended.
@@ -31,6 +31,14 @@ llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native,
   - Secretary: messages for you land in an inbox, or reach you at once.
 - **Chat:** Copy · 👍 · 👎 · Retry under each reply; copy and edit your own messages; copy code blocks or the whole chat.
 - **Avatar:** Live2D Jade, with voice (TTS).
+
+## Jade Fleet
+
+The same app as one terminal of a fleet: phones and browsers share one vault on a small server running the
+[jade-fleet](https://github.com/lucky-edgelord/jade-fleet) broker, run real `bash`, `python3` and `node` there,
+and reach the models (chat, embeddings, decisions, vision) through it. The build makes `dist/jade-fleet.html`
+(the broker serves it at its own address) and `bash android/build-apk.sh fleet` makes the Jade Fleet APK, which
+installs next to Jade Vault. Open it, enter the broker's address and token, and give the device a name.
 
 ## Flows
 

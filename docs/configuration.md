@@ -44,7 +44,7 @@ Under **Customize Jade's appearance**, hair, clothes, stockings, and boots can e
 
 ## Other model settings
 
-Choose context and generation settings conservatively for your model and hardware. Ollaya decisions are a separate classification/decision capability used by `jade.decide()` and flow Decide steps; configure that service before relying on them. Heartbeat can use its own provider/model settings. A separate compaction model can also be selected; choose one suitable for summarizing the same private context as the chat model.
+Choose context and generation settings conservatively for your model and hardware. Decision models (Ollaya, or Ollama 0.35+ on the same `/v1/systemone` API; Config → Decision models → Server) are a separate classification/decision capability used by `jade.decide()` and flow Decide steps; configure that service before relying on them. Heartbeat can use its own provider/model settings. A separate compaction model can also be selected; choose one suitable for summarizing the same private context as the chat model.
 
 ## Credentials and secrets
 

@@ -2,7 +2,10 @@
 # Build and sign the Android APK (no Android SDK needed: API stubs + dx + apktool).
 #   Release signing:  JADE_KEYSTORE=path.jks JADE_KEYSTORE_PASSWORD=... [JADE_KEY_ALIAS=netrunner] ./android/build-apk.sh
 #   Without those, a local debug key is made (that APK cannot update one signed with the release key).
+#   ./android/build-apk.sh fleet   builds the Jade Fleet client instead (dist/jade-fleet-<version>.apk, package
+#   app.netrunner.fleet, so it installs next to Jade Vault); its page is dist/jade-fleet.html.
 set -euo pipefail
+VARIANT="${1:-vault}"
 cd "$(dirname "$0")"
 ROOT="$(cd .. && pwd)"; T=.tools; mkdir -p "$T"
 VERSION="$(cat ../VERSION)"; CODE="$(cat VERSION_CODE)"
@@ -23,6 +26,15 @@ if command -v cargo >/dev/null && [ -d "$HOME/.cargo" ]; then ../rust/build-andr
 
 rm -rf build && mkdir -p build/stubs build/classes build/out
 cp -r proj build/proj
+NAME=jade-vault
+if [ "$VARIANT" = fleet ]; then
+  [ -f "$ROOT/dist/jade-fleet.html" ] || { echo "Build the web app first: scripts/build-web.sh"; exit 1; }
+  cp "$ROOT/dist/jade-fleet.html" build/proj/assets/index.html
+  sed -i 's/renameManifestPackage: null/renameManifestPackage: app.netrunner.fleet/' build/proj/apktool.yml
+  sed -i 's#<string name="app_name">Jade Vault</string>#<string name="app_name">Jade Fleet</string>#' build/proj/res/values/strings.xml
+  grep -q 'renameManifestPackage: app.netrunner.fleet' build/proj/apktool.yml && grep -q '>Jade Fleet<' build/proj/res/values/strings.xml || { echo "could not make the fleet variant"; exit 1; }
+  NAME=jade-fleet
+fi
 sed -i.bak -E "s/android:versionCode=\"[0-9]+\"/android:versionCode=\"$CODE\"/; s/android:versionName=\"[^\"]+\"/android:versionName=\"$VERSION\"/" build/proj/AndroidManifest.xml
 sed -i.bak -E "s/versionCode: .*/versionCode: $CODE/; s/versionName: .*/versionName: \"$VERSION\"/" build/proj/apktool.yml
 rm -f build/proj/*.bak
@@ -39,5 +51,5 @@ else
   echo "Signing with a DEBUG key (set JADE_KEYSTORE for a release build)."
 fi
 java -jar "$T/uber-apk-signer.jar" -a build/out/unsigned.apk --ks "$KS" --ksAlias "$ALIAS" --ksPass "$PASS" --ksKeyPass "$PASS" -o build/out/signed | grep -E "signature verified|SHA256:" || true
-mkdir -p "$ROOT/dist"; cp build/out/signed/*-aligned-signed.apk "$ROOT/dist/jade-vault-$VERSION.apk"
-echo "dist/jade-vault-$VERSION.apk"
+mkdir -p "$ROOT/dist"; cp build/out/signed/*-aligned-signed.apk "$ROOT/dist/$NAME-$VERSION.apk"
+echo "dist/$NAME-$VERSION.apk"

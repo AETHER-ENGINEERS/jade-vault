@@ -159,8 +159,8 @@ async function jadeBridge(op, a, ctx = {}) {
 
 /* ---------- decisions (Ollaya) as data, not prose ---------- */
 async function decideData({ state, question, type = 'choice', options } = {}) {
-  if (!S.ollayaOn) throw new Error('Ollaya is turned off (Config → Model → Ollaya decisions).');
-  if (!S.ollayaModel) throw new Error('No Ollaya model is selected (Config → Model → Ollaya decisions → Scan).');
+  if (!S.ollayaOn) throw new Error('Decisions are turned off (Config → Model → Decision models).');
+  if (!S.ollayaModel) throw new Error('No decision model is selected (Config → Model → Decision models → Scan).');
   const t = type === 'yesno' ? 'noul' : type;
   const q = { type: t, instructions: String(question || '') };
   const opts = (Array.isArray(options) ? options : typeof options === 'string' ? options.split('\n') : []).map(String).map(x => x.trim()).filter(Boolean);
@@ -171,7 +171,7 @@ async function decideData({ state, question, type = 'choice', options } = {}) {
   const r = await ollayaFetch('/v1/systemone', { method: 'POST', body: JSON.stringify(body) });
   if (!r.ok) throw new Error(await ollayaErr(r));
   const j = await r.json(); const ans = j.answers?.q;
-  if (!ans) throw new Error('Ollaya returned no answer');
+  if (!ans) throw new Error(decName() + ' returned no answer');
   const probs = Array.isArray(ans.probabilities) ? Object.fromEntries(ans.probabilities.map((v, i) => [String(i), +v])) : Object.fromEntries(Object.entries(ans.probabilities || {}).map(([k, v]) => [k, +v]));
   const out = { type: type === 'yesno' ? 'yesno' : t, confidence: ans.confidence != null ? +ans.confidence : null, probabilities: probs, model: j.model || S.ollayaModel };
   if ('choice' in ans) { out.choice = ans.choice; out.result = ans.choice; }

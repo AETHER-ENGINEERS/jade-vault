@@ -1597,7 +1597,7 @@ for sec_id in ('trajSection', 'vecSection', 'mcpSection'):
 rep("openSettings(); $('#sProvider').value = p; showProvFields(); return; }", "openSettings(); showSettingsSection('#sProvider'); $('#sProvider').value = p; showProvFields(); return; }")
 # settings tabs: every section gets data-tab (an unknown section fails the build, so none is ever lost)
 TABS = [('model', 'Model'), ('memory', 'Memory'), ('tools', 'Tools'), ('connect', 'Connect'), ('app', 'App')]
-TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Ollaya decisions': 'model',
+TAB_OF = {'Model provider': 'model', 'Web search': 'model', 'Decision models': 'model',
           'Persona, instructions & skills': 'memory', 'Long-term memory': 'memory', 'Embeddings (sqlite-vec)': 'memory', 'History compaction': 'memory', 'Trajectory log (fine-tuning data)': 'memory',
           'MCP servers': 'tools', 'Secrets (API keys for Jade\'s HTTP requests)': 'tools', 'BusyBox WASM': 'tools',
           'API endpoint': 'connect', 'Vector messenger (Jade as a bot)': 'connect', 'Discord (Jade as a bot)': 'connect',

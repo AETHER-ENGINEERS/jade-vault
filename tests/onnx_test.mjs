@@ -44,4 +44,38 @@ await E(b => { vfs.write('/models/add.tflite', new Uint8Array(b), { mkdirs: true
 const lt = await J('litert', { action: 'load', model: '/models/add.tflite', id: 'adder' });
 const lr = await J('litert', { action: 'run', id: 'adder', inputs: [{ data: [1, 2, 3, 4] }, { data: [10, 20, 30, 40] }] });
 ok((lt.accelerator === 'webgpu' || /webgpu failed/.test(lt.note || '')) && lr.outputs?.[0]?.first?.join() === '11,22,33,44', `LiteRT tries WebGPU by default (${lt.accelerator}${lt.note ? ", " + lt.note.slice(0, 80) : ""}) and computes: ` + JSON.stringify(lr).slice(0, 400));
+const lst = await J('litert', { action: 'status' });
+ok(lst.webgpu === (lt.accelerator === 'webgpu' || /webgpu failed/.test(lt.note || '')), 'litert status reports WebGPU the same way load decides it (it used to always say false): ' + JSON.stringify(lst));
+
+// files that are not models are named for what they are, instead of "Failed to load model from buffer"
+const XML_ERR = "<?xml version='1.0' encoding='UTF-8'?><Error><Code>NoSuchKey</Code><Message>The specified key does not exist.</Message></Error>";
+await E(x => {
+  vfs.write('/models/bad.tflite', new TextEncoder().encode(x), { mkdirs: true });
+  vfs.write('/models/bad.onnx', new TextEncoder().encode('<!DOCTYPE html><html><body>404 Not Found</body></html>'));
+  vfs.write('/models/lfs.tflite', new TextEncoder().encode('version https://git-lfs.github.com/spec/v1\noid sha256:4d7a\nsize 14000000\n'));
+  vfs.write('/models/junk.tflite', new Uint8Array(64).map((_, i) => (i * 37 + 3) & 255));
+  vfs.write('/models/json.onnx', new TextEncoder().encode('{"error":"Repository not found","status":401}'));
+}, XML_ERR);
+ok(/bad\.tflite is not a \.tflite model: it is an XML page .*NoSuchKey/.test(await T('litert', { action: 'load', model: '/models/bad.tflite' })), 'an XML error page saved as .tflite is reported as one');
+ok(/bad\.onnx is not a \.onnx model: it is an HTML page/.test(await T('onnx', { action: 'load', model: '/models/bad.onnx' })), 'an HTML page saved as .onnx is reported as one');
+ok(/git-LFS pointer/.test(await T('litert', { action: 'load', model: '/models/lfs.tflite' })), 'a git-LFS pointer is reported as one');
+ok(/bytes 4 to 8 should be "TFL3"/.test(await T('litert', { action: 'load', model: '/models/junk.tflite' })), 'a binary file without the TFLite header is refused');
+ok(/JSON text/.test(await T('onnx', { action: 'load', model: '/models/json.onnx' })), 'a JSON error saved as .onnx is reported as one');
+
+// downloads: an error answer is never saved as a model, and the same model downloaded again is reused
+await page.route('https://models.example/**', (route) => {
+  const u = route.request().url();
+  if (u.endsWith('/add.tflite')) return route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(tflite), headers: { 'access-control-allow-origin': '*' } });
+  if (u.endsWith('/tiny.onnx')) return route.fulfill({ status: 200, contentType: 'application/octet-stream', body: Buffer.from(model), headers: { 'access-control-allow-origin': '*' } });
+  return route.fulfill({ status: 200, contentType: 'application/xml', body: XML_ERR, headers: { 'access-control-allow-origin': '*' } });
+});
+const dl1 = await J('litert', { action: 'load', model: 'https://models.example/m/add.tflite', id: 'd1' });
+const dl2 = await J('litert', { action: 'load', model: 'https://models.example/m/add.tflite', id: 'd2' });
+const copies = await E(() => [...vfs.nodes.keys()].filter(p => /^\/models\/add(-\d+)?\.tflite$/.test(p)));
+ok(dl1.model === '/models/add.tflite' && dl2.model === '/models/add.tflite' && copies.length === 1, 'downloading the same .tflite twice reuses the saved file, no add-2.tflite: ' + JSON.stringify({ a: dl1.model, b: dl2.model, copies }));
+const ox1 = await J('onnx', { action: 'load', model: 'https://models.example/m/tiny.onnx', id: 'o1' });
+const ox2 = await J('onnx', { action: 'load', model: 'https://models.example/m/tiny.onnx', id: 'o2' });
+ok(ox1.model === '/models/tiny.onnx' && ox2.model === '/models/tiny.onnx', 'the same for .onnx (the vault already has this exact file, so it is reused): ' + JSON.stringify([ox1.model, ox2.model]));
+const bad = await T('litert', { action: 'load', model: 'https://models.example/m/mobilenet_v2.tflite' });
+ok(/the download from https:\/\/models\.example\/m\/mobilenet_v2\.tflite is not a \.tflite model: it is an XML page/.test(bad) && await E(() => !vfs.exists('/models/mobilenet_v2.tflite')), 'an error answer from the server is refused and not saved: ' + bad.slice(0, 160));
 await done();

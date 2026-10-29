@@ -130,9 +130,33 @@ async function senseRead({ sensor, seconds = 1, hz = 10, raw = false }) {
 }
 
 /* ---------- camera and microphone ---------- */
-async function wSave(bytes, dir, name) {
-  let p = `${dir}/${name}`, i = 2; const m = /^(.*?)(\.[^.]+)?$/.exec(name); while (vfs.exists(p)) p = `${dir}/${m[1]}-${i++}${m[2] || ''}`;
+async function wSave(bytes, dir, name, reuse = false) {
+  let p = `${dir}/${name}`, i = 2; const m = /^(.*?)(\.[^.]+)?$/.exec(name);
+  while (vfs.exists(p)) { if (reuse && wSameBytes(p, bytes)) return p; p = `${dir}/${m[1]}-${i++}${m[2] || ''}`; }
   vfs.write(p, bytes, { mkdirs: true }); return p;
+}
+// a download of a file that is already in the vault, byte for byte, reuses it instead of saving another copy
+function wSameBytes(p, bytes) {
+  try { const n = vfs.nodes.get(p); if (!n || n.dir || fsize(n) !== bytes.length) return false; const d = n.data; if (!d || d.length !== bytes.length) return false; for (let i = 0; i < d.length; i++) if (d[i] !== bytes[i]) return false; return true; } catch { return false; }
+}
+/* A model file must be a model: a download that failed quietly (an XML or HTML error page, a JSON error, a git-LFS
+   pointer) is caught here, with what it actually is, instead of the runtime's "Failed to load model from buffer". */
+function wModelCheck(bytes, kind, where) {
+  const n = bytes?.length || 0; const what = (m) => `${where} is not a ${kind === 'tflite' ? '.tflite' : '.onnx'} model: ${m}`;
+  if (n < 16) throw new Error(what(n ? `it is only ${n} bytes` : 'it is empty'));
+  const head = new TextDecoder('utf-8', { fatal: false }).decode(bytes.subarray(0, Math.min(n, 400)));
+  const snip = () => JSON.stringify(head.replace(/\s+/g, ' ').trim().slice(0, 160));
+  const t = /[\x00-\x08\x0e-\x1f]/.test(head.slice(0, 64)) ? '' : head.replace(/^\uFEFF/, '').trimStart();   // binary models fail this, text answers pass
+  if (/^version https:\/\/git-lfs/i.test(t)) throw new Error(what('it is a git-LFS pointer file, not the model itself (download the file\'s "resolve" or raw link instead) ' + snip()));
+  if (/^<\?xml|^<!doctype|^<html|^<error|^<[a-z]/i.test(t)) throw new Error(what(`it is an ${/^<\?xml|^<error/i.test(t) ? 'XML' : 'HTML'} page (${n} bytes), usually a server's error answer: ` + snip()));
+  if (/^[{[]\s*["{[\]]/.test(t)) throw new Error(what('it is a JSON text, usually an error answer: ' + snip()));
+  if (kind === 'tflite' && String.fromCharCode(...bytes.subarray(4, 8)) !== 'TFL3') throw new Error(what(`bytes 4 to 8 should be "TFL3" and are ${JSON.stringify(String.fromCharCode(...bytes.subarray(4, 8)))} (${n} bytes)`));
+}
+async function wModelFetch(url, kind) {
+  const r = await fetch(url); if (!r.ok) throw new Error(`download failed (${r.status})`);
+  const bytes = new Uint8Array(await r.arrayBuffer()); wModelCheck(bytes, kind, 'the download from ' + url.split('?')[0]);
+  const fn = decodeURIComponent(url.split('?')[0].split('/').pop() || 'model.' + kind); const ext = new RegExp('\\.' + kind + '$', 'i');
+  return { bytes, name: await wSave(bytes, '/models', ext.test(fn) ? fn : fn + '.' + kind, true) };
 }
 async function openCamera({ facing = 'back', width = 1280, audio = false } = {}) {
   sensesAllowed(); if (!navigator.mediaDevices?.getUserMedia) throw new Error('this view cannot reach the camera');
@@ -340,8 +364,8 @@ async function onnxTool(a) {
   if (action === 'status') return JSON.stringify({ runtime: 'onnxruntime-web ' + (ort.env.versions?.web || ORT_VER), webgpu: await ortGpu(), threads: ort.env.wasm.numThreads, models: [...WOX.models].map(([id, m]) => ({ id, name: m.name, accelerator: m.acc })) });
   if (action === 'load') {
     let bytes, name = String(a.model || ''); if (!name) throw new Error('model is required: a .onnx path in the vault, or a URL to download it from');
-    if (/^https?:\/\//i.test(name)) { const r = await fetch(name); if (!r.ok) throw new Error(`download failed (${r.status})`); bytes = new Uint8Array(await r.arrayBuffer()); const fn = decodeURIComponent(name.split('?')[0].split('/').pop() || 'model.onnx'); name = await wSave(bytes, '/models', /\.onnx$/i.test(fn) ? fn : fn + '.onnx'); }
-    else { const p = resolveFile(name, '/'); if (!p) throw new Error(`${name} is not in the vault`); bytes = vfs.nodes.get(p).data; name = p; }
+    if (/^https?:\/\//i.test(name)) ({ bytes, name } = await wModelFetch(name, 'onnx'));
+    else { const p = resolveFile(name, '/'); if (!p) throw new Error(`${name} is not in the vault`); bytes = vfs.nodes.get(p).data; name = p; wModelCheck(bytes, 'onnx', p); }
     let acc = a.accelerator || ((await ortGpu()) ? 'webgpu' : 'wasm'), note;
     const make = (ac) => ort.InferenceSession.create(bytes, { executionProviders: ac === 'webgpu' ? ['webgpu', 'wasm'] : ['wasm'], graphOptimizationLevel: 'all' });
     let session; try { session = await make(acc); } catch (e) { if (acc === 'wasm') throw e; note = `${acc} failed (${e.message}); using wasm`; acc = 'wasm'; session = await make('wasm'); }
@@ -386,11 +410,11 @@ const WLG = { gpu: null };
 async function litertGpu(L) { if (WLG.gpu == null) { try { WLG.gpu = !!(await L.isWebGPUSupported?.()); } catch { WLG.gpu = false; } } return WLG.gpu; }
 async function litertTool(a) {
   const action = a.action || 'info'; const { L, variant } = await litertLoad();
-  if (action === 'status') return JSON.stringify({ runtime: variant, webgpu: !!(await L.isWebGPUSupported?.().catch?.(() => false)), models: [...WRL.models].map(([id, m]) => ({ id, name: m.name, accelerator: m.acc })) });
+  if (action === 'status') return JSON.stringify({ runtime: variant, webgpu: await litertGpu(L), models: [...WRL.models].map(([id, m]) => ({ id, name: m.name, accelerator: m.acc })) });
   if (action === 'load') {
     let bytes, name = String(a.model || ''); if (!name) throw new Error('model is required: a .tflite path in the vault, or a URL to download it from');
-    if (/^https?:\/\//i.test(name)) { const r = await fetch(name); if (!r.ok) throw new Error(`download failed (${r.status})`); bytes = new Uint8Array(await r.arrayBuffer()); const fn = decodeURIComponent(name.split('?')[0].split('/').pop() || 'model.tflite'); const sp = await wSave(bytes, '/models', /\.tflite$/i.test(fn) ? fn : fn + '.tflite'); name = sp; }
-    else { const p = resolveFile(name, '/'); if (!p) throw new Error(`${name} is not in the vault`); bytes = vfs.nodes.get(p).data; name = p; }
+    if (/^https?:\/\//i.test(name)) ({ bytes, name } = await wModelFetch(name, 'tflite'));
+    else { const p = resolveFile(name, '/'); if (!p) throw new Error(`${name} is not in the vault`); bytes = vfs.nodes.get(p).data; name = p; wModelCheck(bytes, 'tflite', p); }
     let acc = a.accelerator || ((await litertGpu(L)) ? 'webgpu' : 'wasm'), note;
     let model; try { model = await L.loadAndCompile(bytes, { accelerator: acc }); } catch (e) { if (acc === 'wasm') throw e; note = `${acc} failed (${e.message}); using wasm`; acc = 'wasm'; model = await L.loadAndCompile(bytes, { accelerator: 'wasm' }); }
     while (WRL.models.size >= 4) { const [k, m] = WRL.models.entries().next().value; try { m.model.delete(); } catch {} WRL.models.delete(k); }

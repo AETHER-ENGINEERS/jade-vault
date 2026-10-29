@@ -95,6 +95,11 @@ app asks for the GPU that way when a plain request comes back empty (full WebGPU
   `.json`/`.f32` file, or `{image: path}` for a picture), `info`, `status`, `unload`. WebGPU by default; layers WebGPU
   cannot run use the CPU. FP32 models are the safest on phone GPUs; INT8 layers mostly run on the CPU, and phones
   without `shader-f16` gain nothing from FP16.
+- Both check a model file before loading it: an error page, a JSON error or a git-LFS pointer saved under a model's
+  name is reported as what it is, and a download that comes back as one is not saved. Downloading the same model again
+  reuses the file already in `/models`.
+- Scripts only see vault files up to a size: `node` 2 MB, `python` 4 MB, `bash` on the phone 16 MB. Larger models
+  are still loaded by `litert` and `onnx` directly; look at them with `bash` (`ls -l /models`).
 
 The APK carries LiteRT's and ONNX Runtime's WebAssembly in its own files; a browser loads them from jsDelivr.
 WebGPU needs a secure page in a browser (https or localhost).

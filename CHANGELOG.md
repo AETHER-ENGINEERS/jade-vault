@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.22.1
+
+- **Fixed: `litert status` always said `webgpu: false`** on phones where LiteRT does run on WebGPU. It checked differently from `litert load`; both now use the same answer, so `status` and the `accelerator` a model loads with agree.
+- **Model files are checked before loading.** `litert` and `onnx` say what a file really is when it is not a model (an XML or HTML error page, a JSON error, a git-LFS pointer, a `.tflite` without its `TFL3` header) instead of LiteRT's "Failed to load model from buffer". A download that comes back as an error page is refused and not saved to `/models`.
+- **Downloading the same model again reuses it.** `litert load` and `onnx load` with a URL no longer save `name-2.tflite`, `name-3.tflite` … when the vault already has the identical file.
+
 ## 2.22.0
 
 - **WebGPU on phones.** Android's WebView offers WebGPU in "compatibility mode": a plain request for the GPU can come back empty there. Every request for a GPU adapter in the app now retries in compatibility mode, and asks for full WebGPU when the adapter can do it.

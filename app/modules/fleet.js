@@ -14,7 +14,8 @@
 const FLEET = (() => {
   const LS = 'jadeFleet';
   const read = () => { try { return JSON.parse(localStorage.getItem(LS) || 'null'); } catch { return null; } };
-  const served = /^https?:$/.test(location.protocol) && !/\.html$/.test(location.pathname);   // the broker served this page
+  // the broker serves this page over plain http at its own address; a copy on an https host (GitHub Pages) is not the broker
+  const served = location.protocol === 'http:' && !/\.html$/.test(location.pathname);
   const cfg = Object.assign({ url: served ? location.origin : '', token: '', device: '' }, read() || {});
   if (!cfg.device) cfg.device = (window.NetrunnerAndroid ? 'phone-' : 'browser-') + Math.random().toString(36).slice(2, 6);
   cfg.url = String(cfg.url || '').replace(/\/+$/, '');
@@ -226,7 +227,7 @@ const FLEET = (() => {
     const v = s => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
     el.innerHTML = `<form id="fleetForm" style="width:100%;max-width:420px;border:1px solid #1fe5a5;padding:20px;background:#06100c">
       <div style="font:700 18px ui-monospace,monospace;color:#1fe5a5;letter-spacing:.08em">JADE FLEET</div>
-      <p style="margin:8px 0 14px;color:#9fb8ae">${msg ? '<span style="color:#ff8fb1">' + v(msg) + '</span><br>' : ''}Connect this ${window.NetrunnerAndroid ? 'phone' : 'browser'} to your fleet's broker (the OptiPlex). The token is printed by <code style="color:#e9d27a">sudo -u jade jade-fleet token</code>.</p>
+      <p style="margin:8px 0 14px;color:#9fb8ae">${msg ? '<span style="color:#ff8fb1">' + v(msg) + '</span><br>' : ''}Connect this ${window.NetrunnerAndroid ? 'phone' : 'browser'} to your fleet's broker (the OptiPlex). The token is printed by <code style="color:#e9d27a">sudo -u jade jade-fleet token</code>.${location.protocol === 'https:' ? '<br><span style="color:#e9d27a">This page was opened over https, so the browser will block a plain-http broker: open the client from the broker itself instead (http://OPTIPLEX:8765/).</span>' : ''}</p>
       <label style="display:block;font-size:12px;color:#9fb8ae">Broker address</label><input id="fgUrl" value="${v(cfg.url)}" placeholder="http://192.168.1.50:8765" style="width:100%;margin:4px 0 10px;padding:8px;background:#000;border:1px solid #2a3b35;color:#dceee7">
       <label style="display:block;font-size:12px;color:#9fb8ae">Fleet token</label><input id="fgTok" type="password" value="${v(cfg.token)}" style="width:100%;margin:4px 0 10px;padding:8px;background:#000;border:1px solid #2a3b35;color:#dceee7">
       <label style="display:block;font-size:12px;color:#9fb8ae">This device's name</label><input id="fgDev" value="${v(cfg.device)}" style="width:100%;margin:4px 0 14px;padding:8px;background:#000;border:1px solid #2a3b35;color:#dceee7">

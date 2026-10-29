@@ -5,7 +5,7 @@
 - **Fixed: `litert status` always said `webgpu: false`** on phones where LiteRT does run on WebGPU. It checked differently from `litert load`; both now use the same answer, so `status` and the `accelerator` a model loads with agree.
 - **Model files are checked before loading.** `litert` and `onnx` say what a file really is when it is not a model (an XML or HTML error page, a JSON error, a git-LFS pointer, a `.tflite` without its `TFL3` header) instead of LiteRT's "Failed to load model from buffer". A download that comes back as an error page is refused and not saved to `/models`.
 - **Fixed: a setting could be lost** if it was changed while a background model call (the journal, the heartbeat, a decision) was running: saving was skipped for that moment. It is now saved, keeping the chat model.
-- **Fixed: settings could be lost on a reload.** The browser (and Android's WebView) can drop localStorage writes that were not yet flushed when the page reloads or the app is killed, which reset the theme, appearance and other settings. Settings are now also kept in IndexedDB, and at start the newer copy wins.
+- **Fixed: settings could be lost on a reload.** The browser (and Android's WebView) can drop localStorage writes that were not yet flushed when the page reloads or the app is killed, which reset the theme, appearance and other settings. Settings are now also kept in IndexedDB, and at start the newer copy wins. That copy is left out of backups, so keys stay out of backups as before.
 - **Downloading the same model again reuses it.** `litert load` and `onnx load` with a URL no longer save `name-2.tflite`, `name-3.tflite` … when the vault already has the identical file.
 
 ## 2.22.0

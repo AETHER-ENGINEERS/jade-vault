@@ -2,7 +2,7 @@ package android.content;
 public abstract class Context {
   public static final String NOTIFICATION_SERVICE = "notification";
   public static final String POWER_SERVICE = "power";
-  public static final String SENSOR_SERVICE = "sensor", WIFI_SERVICE = "wifi", CONNECTIVITY_SERVICE = "connectivity", LOCATION_SERVICE = "location", CAMERA_SERVICE = "camera", VIBRATOR_SERVICE = "vibrator";
+  public static final String SENSOR_SERVICE = "sensor", WIFI_SERVICE = "wifi", CONNECTIVITY_SERVICE = "connectivity", LOCATION_SERVICE = "location", CAMERA_SERVICE = "camera", VIBRATOR_SERVICE = "vibrator", USB_SERVICE = "usb";
   public static final int RECEIVER_NOT_EXPORTED = 4, RECEIVER_EXPORTED = 2;
   public Intent registerReceiver(BroadcastReceiver r, IntentFilter f, int flags) { throw new RuntimeException(); }
   public Intent registerReceiver(BroadcastReceiver r, IntentFilter f) { throw new RuntimeException(); }

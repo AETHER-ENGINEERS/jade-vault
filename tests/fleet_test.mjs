@@ -110,6 +110,12 @@ try {
   const t0 = Date.now(); const to = await E(a, () => runTool('bash', { command: 'sleep 20', timeout: 1 }));
   ok(/timed out/.test(to) && Date.now() - t0 < 8000, 'a time limit stops the command on the server');
 
+  // --- the terminal: xterm is in the page now, so it is a real pseudo-terminal on the broker
+  ok(await waitFor(a, () => FLEET.pty.live, null, 8000), 'the terminal is a live shell on the broker');
+  await E(a, () => FLEET.ptyLine('echo pty-$((6*7)) && cd Trips && pwd'));
+  ok(await waitFor(a, () => { const b = term._t.buffer.active; let txt = ''; for (let i = 0; i < b.length; i++) txt += (b.getLine(i)?.translateToString(true) || '') + '\n'; return /pty-42/.test(txt) && /\/Trips/.test(txt); }, null, 8000), 'typing into it runs bash there (echo, cd)');
+  ok(await E(a, () => /SH/.test(document.getElementById('txtFleet').textContent)), 'the chip shows the shell is connected');
+
   // --- the models through the broker
   ok(await waitFor(a, () => S.provider === 'llamacpp' && S.lcppHost === location.origin && S.ollayaHost === location.origin + '/ollaya' && S.model === 'gemma4-e2b-custom'), 'the first connection points the models at the broker');
   await a.fill('#input', 'hello fleet'); await E(a, () => document.querySelector('#btnSend').click());

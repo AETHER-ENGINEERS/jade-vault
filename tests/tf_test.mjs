@@ -6,7 +6,7 @@ const E = (fn, arg) => page.evaluate(fn, arg);
 const t0 = Date.now();
 let r = await sh(`node -e "await tf.ready(); console.log(tf.version.tfjs, tf.getBackend())"`, 60000);
 const [ver, backend] = r.out.trim().split(' ');
-ok(r.code === 0 && ver === '4.22.0' && ['cpu', 'webgl', 'wasm'].includes(backend), `tf is there in node: TensorFlow.js ${ver}, backend ${backend} (${Date.now() - t0} ms): ` + JSON.stringify(r));
+ok(r.code === 0 && ver === '4.22.0' && ['cpu', 'webgl', 'webgpu', 'wasm'].includes(backend), `tf is there in node: TensorFlow.js ${ver}, backend ${backend} (${Date.now() - t0} ms): ` + JSON.stringify(r));
 r = await sh(`node -e "const x = tf.tensor([1, 2, 3]); console.log(x.square().sum().dataSync()[0], tf.matMul(tf.tensor2d([[1, 2]]), tf.tensor2d([[3], [4]])).dataSync()[0])"`);
 ok(r.out.trim() === '14 11', 'tensor maths works: ' + r.out.trim() + r.err);
 r = await sh(`node -e "const t = require('@tensorflow/tfjs'); console.log(t === tf, typeof t.sequential)"`);

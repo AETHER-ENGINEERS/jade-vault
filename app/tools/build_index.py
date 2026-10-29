@@ -36,6 +36,19 @@ TK2 = '<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.11/dist/katex.
 assert s.count(TK2) == 1
 s = s.replace(TK2, '<script id="katex-js">' + kjs + '</script>')
 
+# the terminal (xterm.js) is in the page too, so it works offline (2.22)
+V = os.path.join(ROOT, 'app', 'vendor')
+for tag, f in [('<script defer src="https://cdn.jsdelivr.net/npm/@xterm/xterm@5.5.0/lib/xterm.js"></script>', 'xterm/xterm.js'),
+               ('<script defer src="https://cdn.jsdelivr.net/npm/@xterm/addon-fit@0.10.0/lib/addon-fit.js"></script>', 'xterm/addon-fit.js')]:
+    js = open(os.path.join(V, f)).read().replace('//# sourceMappingURL=', '//# sourceMappingURL_removed=')
+    assert s.count(tag) == 1 and '</script' not in js.lower(), f
+    s = s.replace(tag, '<script>' + js + '</script>')
+# ONNX Runtime ships as the app's own files (too big to inline): assets/ort/
+import shutil
+os.makedirs(os.path.join(ROOT, 'android', 'proj', 'assets', 'ort'), exist_ok=True)
+for f in os.listdir(os.path.join(V, 'ort')):
+    shutil.copyfile(os.path.join(V, 'ort', f), os.path.join(ROOT, 'android', 'proj', 'assets', 'ort', f))
+
 s = '<!doctype html>\n<html lang="en">\n' + s + '\n</html>\n'
 os.makedirs(os.path.join(ROOT, 'android', 'proj', 'assets'), exist_ok=True)
 open(os.path.join(ROOT, 'android', 'proj', 'assets', 'index.html'), 'w').write(s); print('index.html', len(s))

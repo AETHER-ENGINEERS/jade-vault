@@ -13,6 +13,7 @@ public class Intent {
   public String getAction() { throw new RuntimeException(); }
   public <T> T getParcelableExtra(String name) { throw new RuntimeException(); }
   public Intent(String action) { throw new RuntimeException(); }
+  public Intent setPackage(String p) { throw new RuntimeException(); }
   public Intent(String action, android.net.Uri uri) { throw new RuntimeException(); }
   public Intent(Context c, Class<?> cls) { throw new RuntimeException(); }
   public Intent putIntegerArrayListExtra(String name, java.util.ArrayList<Integer> v) { throw new RuntimeException(); }

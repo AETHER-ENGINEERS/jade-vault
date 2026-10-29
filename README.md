@@ -20,6 +20,7 @@ llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native,
 - **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
 - **Playbooks:** reusable, approved step lists that Jade can run from chat, a flow, a schedule or `crontab`; only unchanged, approved playbooks run unattended.
 - **Rust core:** the phone's network (many requests at once, HTTP/2, gzip, kept-alive connections), the vault folder, note indexing and search, Sentry's rules and web pages to Markdown run in Rust. See [`rust/README.md`](rust/README.md).
+- **On-device AI and hardware:** TensorFlow.js in scripts, `.tflite` models (LiteRT) and `.onnx` models (ONNX Runtime) on the phone's GPU through WebGPU (or the CPU); USB devices over OTG through `navigator.usb` and the `usb` tool.
 - **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
 - **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
 - **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
@@ -72,7 +73,7 @@ In `node` (the shell, a flow's JavaScript step, or Jade's own bash): `await jade
 `jade.agent(message)`, `jade.flow(name, input)`, `jade.shell('ls | wc -l')`, `jade.notify(title, body)`, `jade.kv.get/set`.
 Files the script writes are visible to the tools it calls and the other way round.
 **TensorFlow.js 4.22** is built in for scripts: `tf` (or `import * as tf from '@tensorflow/tfjs'`) in `node`, flow
-JavaScript steps and Jade's bash. It uses the GPU (WebGL) when the WebView offers it in a worker, else the CPU. Keep a
+JavaScript steps and Jade's bash. It runs on the GPU with WebGPU when the device offers it (Android's WebView does, in compatibility mode), else WebGL, else the CPU; `tf.getBackend()` says which. Keep a
 trained model with `await model.save('indexeddb://name')` and `tf.loadLayersModel('indexeddb://name')`. It is loaded only
 into scripts that use it (not note scripts), and needs no download.
 Shell commands: `jade tool <name> [json | key=value …]`, `jade decide`, `jade ask`, `jade agent`, `jade notify`, `jade kv`;

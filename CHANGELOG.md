@@ -1,5 +1,14 @@
 # Changelog
 
+## 2.22.0
+
+- **WebGPU on phones.** Android's WebView offers WebGPU in "compatibility mode": a plain request for the GPU can come back empty there. Every request for a GPU adapter in the app now retries in compatibility mode, and asks for full WebGPU when the adapter can do it.
+  - **TensorFlow.js runs on WebGPU.** The WebGPU backend (`@tensorflow/tfjs-backend-webgpu` 4.22) is embedded next to TensorFlow.js; scripts use WebGPU when the device has it, else WebGL, else the CPU (`tf.getBackend()` says which; `S.tfBackend = 'webgl'` keeps them off WebGPU).
+  - **LiteRT uses WebGPU by default** when the device has it, falling back to WebAssembly. Fixed: results of a model run on WebGPU could not be read ("Cannot convert a Tensor with WebGPU memory to a TypedArray"); they are now copied back first.
+- **ONNX models: the `onnx` tool.** ONNX Runtime Web 1.31.1 runs any `.onnx` model on WebGPU (layers WebGPU cannot run fall back to the CPU) or on the CPU: load from the vault or a URL, see the inputs and outputs, run with numbers, vault files or pictures, get each output summarised (with top-5 and labels) and big outputs saved to `/models/out`. The APK carries the runtime in its own files; a browser takes it from jsDelivr.
+- **USB.** Android's WebView has no working WebUSB, so the app now provides `navigator.usb` itself on top of Android's USB host API: `getDevices`, `requestDevice` (Android asks once per device), `open`, `claimInterface`, control and bulk/interrupt transfers, connect/disconnect events. Ordinary WebUSB code runs unchanged. Jade gets a `usb` tool (list, request, open, claim, control and data transfers in hex or text, save what comes back). In a browser it uses the browser's own WebUSB; only a person can pick a device there, so Jade asks with an "Allow a USB device" button.
+- **The terminal works offline.** xterm.js is in the phone page instead of coming from a CDN, so the terminal is a full terminal on the phone too, and the Jade Fleet client's terminal is a real shell on the broker even without internet.
+
 ## 2.21.0
 
 - **Jade Fleet client.** A second build of the app, for a fleet: phones and browsers share one vault on a small server (the [jade-fleet](https://github.com/lucky-edgelord/jade-fleet) broker), and the models run on another machine behind it. `dist/jade-fleet.html` is the browser client (the broker serves it at its own address) and `android/build-apk.sh fleet` makes the Jade Fleet APK (`app.netrunner.fleet`, installs next to Jade Vault). In it:

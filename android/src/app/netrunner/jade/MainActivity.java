@@ -101,6 +101,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
         diskHost = new DiskHost(this);
         phone = new PhoneHost(this);
         cast = new CastHost(this);
+        usb = new UsbHost(this);
         ssh = new SshHost();
         web.addJavascriptInterface(new Bridge(this), "NetrunnerAndroid");
 
@@ -133,6 +134,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
         if (world != null) world.destroy();
         if (phone != null) phone.destroy();
         if (cast != null) cast.destroy();
+        if (usb != null) usb.destroy();
         if (ssh != null) ssh.closeAll();
         if (Net.waker == netWaker) Net.waker = null;
         if (SentryCore.sink == this) { SentryCore.sink = null; SentryCore.pageReady = false; }
@@ -375,6 +377,10 @@ public class MainActivity extends Activity implements ApiServer.Host {
         @JavascriptInterface public void browser(int id, String op, String arg) { a.browser.cmd(id, op, arg); }
         /** Alarms, ringing, volume, calls, texts, contacts, clipboard, apps, radio… (see PhoneHost). */
         @JavascriptInterface public String phone(String op, String json) { return a.phone.run(op, json); }
+        /** USB devices on the phone's port (see UsbHost): runs off the page's thread, answers via window.__jusb(id, result). */
+        @JavascriptInterface public void usb(final int id, final String op, final String json) {
+            new Thread(new Runnable() { public void run() { String r; try { r = a.usb.run(op, json); } catch (Throwable e) { r = "{\"error\":" + World.json(String.valueOf(e.getMessage())) + "}"; } a.js("window.__jusb&&window.__jusb(" + id + "," + quote(r) + ")"); } }, "jade-usb").start();
+        }
         /** Slow phone work (casting to a TV, scanning Bluetooth): runs off the page's thread and answers via window.__jcast(id, result). */
         @JavascriptInterface public void cast(final int id, final String op, final String json) {
             new Thread(new Runnable() { public void run() { String r; try { r = op.startsWith("cast_") ? a.cast.run(op, json) : a.phone.run(op, json); } catch (Throwable e) { r = "{\"error\":" + World.json(String.valueOf(e.getMessage())) + "}"; } a.js("window.__jcast&&window.__jcast(" + id + "," + quote(r) + ")"); } }, "jade-cast").start();
@@ -438,6 +444,7 @@ public class MainActivity extends Activity implements ApiServer.Host {
     BrowserHost browser;
     PhoneHost phone;
     CastHost cast;
+    UsbHost usb;
     SshHost ssh;
 
     SharedPreferences prefs() { return getSharedPreferences("jade", 0); }

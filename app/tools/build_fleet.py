@@ -32,8 +32,6 @@ rep("      try { this.info = DK.info(); this.applyScan(DK.scan()); }\n      catc
 rep('    await this.migrate();\n', '')                       # never copy a browser's old local vault into the shared one
 rep('native: (() => { try { const A = window.NetrunnerAndroid;', 'native: (() => { try { const A = window.FleetDisk ? null : window.NetrunnerAndroid;')   # the phone's own folder is not the vault here
 # the terminal: a real pseudo-terminal on the broker
-rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };',
-    'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
 rep('} else term.onData(async d => {\n  const S_ = termState;', '} else term.onData(async d => {\n  if (FLEET.ptyInput(d)) return;\n  const S_ = termState;')
 rep('async function termExec(cmd) {\n', 'async function termExec(cmd) {\n  if (FLEET.ptyLine(cmd)) return;\n')
 # boot: after the settings load, before connecting to the model

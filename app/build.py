@@ -1940,6 +1940,8 @@ rep("...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...WORLD_TOO
 rep("    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':", "    case 'usb': return await usbTool(args);\n    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':")
 rep("onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU);", "onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU); usb: USB devices plugged into the phone (OTG) or the computer: list, ask the user to allow one, open, claim, control and bulk transfers;")
 rep("  onnx: 'onnx model", "  usb: 'usb device otg plugged arduino microcontroller serial adapter dongle port firmware endpoint',\n  onnx: 'onnx model")
+# the xterm instance itself, for the Fleet client's real terminal and for reading the whole scrollback
+rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };', 'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

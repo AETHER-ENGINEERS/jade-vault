@@ -84,6 +84,33 @@ or a **flow**. Command and flow schedules run on their own, without the model an
 output goes to `/Jade/Logs/cron.log` and a failure sends a notification. Like the rest of the app, schedules fire while
 the app is open (on Android, keep it in the background with Config → App → Background).
 
+## On-device AI: WebGPU, LiteRT and ONNX
+
+Jade runs models on the phone's GPU through WebGPU. Android's WebView offers WebGPU in "compatibility mode", and the
+app asks for the GPU that way when a plain request comes back empty (full WebGPU when the GPU can do it).
+
+- **TensorFlow.js** in scripts uses WebGPU, else WebGL, else the CPU; `tf.getBackend()` says which.
+- **`litert`** runs `.tflite` models (LiteRT.js 2.5), on WebGPU by default when the phone has it, else WebAssembly.
+- **`onnx`** runs `.onnx` models with ONNX Runtime Web 1.31: `load` (a vault path or a URL), `run` (numbers, a vault
+  `.json`/`.f32` file, or `{image: path}` for a picture), `info`, `status`, `unload`. WebGPU by default; layers WebGPU
+  cannot run use the CPU. FP32 models are the safest on phone GPUs; INT8 layers mostly run on the CPU, and phones
+  without `shader-f16` gain nothing from FP16.
+
+The APK carries LiteRT's and ONNX Runtime's WebAssembly in its own files; a browser loads them from jsDelivr.
+WebGPU needs a secure page in a browser (https or localhost).
+
+## USB
+
+Android's WebView has no working WebUSB, so the app provides `navigator.usb` itself, on top of Android's USB host API:
+`getDevices`, `requestDevice` (Android asks once per device), `open`, `claimInterface`, `selectAlternateInterface`,
+control transfers and bulk/interrupt transfers, and `connect`/`disconnect` events. Ordinary WebUSB code runs unchanged
+in the app. Plug devices in with a USB OTG adapter.
+
+Jade's `usb` tool does the same: `list`, `request`, `open`/`close`, `claim`/`release`, `control_in`/`control_out` and
+`transfer_in`/`transfer_out` (data as hex bytes, numbers or text; received bytes shown as hex and text, or saved to a
+vault file). In a browser it uses the browser's own WebUSB (Chrome or Edge, on https or localhost); only a person can
+pick a device there, so Jade asks with an "Allow a USB device" button.
+
 ## Note scripts & templates
 
 Like Obsidian's Dataview and Templater. In Read and Split view, ```` ```dataviewjs ```` (or ```` ```jade-js ````) blocks run
@@ -133,7 +160,7 @@ with its notification.
 | Path | What |
 | --- | --- |
 | `app/base/` | The pi-netrunner base page (Live2D Jade, BusyBox WebAssembly shell, Ollama agent loop). |
-| `app/modules/` | Jade Vault's layers: vault, memory, steering, providers, MCP, Python, SQLite, context guard, trajectories, HTTP, images, webxdc, Vector … |
+| `app/modules/` | Jade Vault's layers: vault, memory, steering, providers, MCP, Python, SQLite, context guard, trajectories, HTTP, images, webxdc, Vector, USB, the Fleet client … |
 | `app/build.py` | Applies the layers to the base page with exact-match edits and writes `dist/jade-vault.html`. |
 | `app/tools/` | Tailwind compile, and the Android page (CDN-free basics inlined). |
 | `apps/jade-link/` | Source of the built-in Jade Link webxdc app. |
@@ -151,7 +178,7 @@ Needs Node 20+, Python 3.9+, and for the APK a JDK 17+ (no Android SDK).
 npm install
 npx playwright install chromium     # for the tests
 npm run build                       # dist/jade-vault.html, android/proj/assets/index.html
-npm test                            # 49 suites
+npm test                            # 53 suites (Playwright, Python, SQLite)
 bash android/build-apk.sh           # dist/jade-vault-<version>.apk (debug key)
 ```
 

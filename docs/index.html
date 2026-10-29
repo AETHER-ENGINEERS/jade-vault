@@ -2131,7 +2131,8 @@ const idb = (() => {
 /* ---------------- settings ---------------- */
 const DEFAULTS = { toolRouter: 'auto', abOn: false, abUrl: '', abToken: '', abHours: 24, abKind: 'full', abKeys: false, abEncrypt: false, abPass: '', curiosityOn: false, cuMin: 45, cuMax: 180, cuFrom: '08:00', cuTo: '22:00', cuCap: 5, cuTools: 'web', cuActsOff: [], delegateOn: true, thinkOn: true, sshOn: true, sshHosts: [], hfSolo: true, wakeWords: '', browserOn: true, screenOn: true, phoneOn: true, sentryOn: true, sentryAllow: '', sentryLimit: 6, askRisky: true, sensesOn: true, voiceLang: '', sttOffline: false, visProv: '', visModel: '', sttProv: '', sttModel: '', vadMs: 900, tplOn: true, tplTools: false, tplDir: '/Templates', apiOn: false, apiPort: 8787, apiLan: false, apiToken: '', provider: 'local', fallbacks: [], fallbackOrder: ['local', 'llamacpp', 'cloud', 'groq', 'openai', 'aicord'], lcppHost: 'http://localhost:8080', lcppKey: '', aicKey: '', hbOn: false, hbEvery: 30, hbStart: '08:00', hbEnd: '22:00', hbChat: 'own', hbPrompt: '', hbProv: '', hbModel: '', auxProv: '', auxModel: '', bgMode: 'agent', bgNotify: true, groqKey: '', oaiHost: '', oaiKey: '', modelBy: {}, memoryOn: true, memoryRag: true, memoryRagK: 8, journalOn: true, embedOn: true, embedModel: 'nomic-embed-text', embedHost: '', embedKey: '', embedNotes: false, compactAuto: true, compactAfter: 8, compactKeep: 2, compactPct: 85, jadeCompact: false, jadeShow: true, jadeVoice: false, voiceName: '', voicePitch: 1.25, voiceRate: 1.03, jadeFrame: 'portrait', jadeTheme: 'jade', jadeSpectrum: '#bd72f3', jadeGradientStart: '#f34b68', jadeGradientEnd: '#62a4ff', jadeGradientDirection: 'vertical', jadeHairMode: 'original', jadeHairColor: '#342c3c', jadeHairEnd: '#b58af4', jadeHairDirection: 'vertical', jadeClothesMode: 'original', jadeClothesColor: '#382f47', jadeClothesEnd: '#62a4ff', jadeClothesDirection: 'vertical', jadeStockingsMode: 'original', jadeStockingsColor: '#252330', jadeStockingsEnd: '#9c86bc', jadeStockingsDirection: 'vertical', jadeBootsMode: 'original', jadeBootsColor: '#20212a', jadeBootsEnd: '#f4c95d', jadeBootsDirection: 'vertical', jadeSkinMode: 'original', jadeSkinTone: 'fair', jadeSkinColor: '#d29b7c', jadeSkinEnd: '#f1d0c5', jadeSkinDirection: 'vertical', ollayaOn: false, ollayaHost: 'http://localhost:11435', ollayaModel: '', ollayaKey: '', decideProv: 'ollaya', decideOllamaHost: '', host: 'http://localhost:11434', model: '', temperature: 0.2, numCtx: 16384, think: false, maxTurns: 40, bbUrl: '', engine: 'auto', search: 'auto', ollamaKey: '', searx: '' };
 const S = Object.assign({}, DEFAULTS, ls.get('settings', {}));
-const saveSettings = () => { if (window.__restoring || window.__modelOverride) return; if (activeProv && S.model) (S.modelBy ||= {})[activeProv] = S.model; ls.set('settings', S); };
+const saveSettings = () => { if (window.__restoring) return; S._savedAt = Date.now(); if (window.__modelOverride) { settingsStore({ ...S, model: window.__modelOverride.model ?? S.model }); return; } if (activeProv && S.model) (S.modelBy ||= {})[activeProv] = S.model; settingsStore(S); };
+function settingsStore(o) { ls.set('settings', o); try { idb.set('settingsMirror', JSON.parse(JSON.stringify(o))); } catch {} }
 
 /* =====================================================================
    JADE CAT — Live2D companion (pixi-live2d-display, Cubism 4)
@@ -7392,10 +7393,17 @@ function renderBgSettings() {
 $('#btnBattery').onclick = () => { try { window.NetrunnerAndroid.openBatterySettings(); } catch {} setTimeout(renderBgSettings, 4000); };
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#settings').hidden) renderBgSettings(); });
 
-// applied at boot: settings restored from a backup (localStorage writes right before a reload are not always flushed)
+// applied at boot: settings restored from a backup, or the IndexedDB copy of the settings when it is newer than
+// localStorage's (localStorage writes are not always flushed before a reload, or before Android kills the app)
 async function applyPendingSettings() {
-  const ps = await idb.get('pendingSettings'); if (!ps) return;
-  for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps); ls.set('settings', S); await idb.del('pendingSettings');
+  const ps = await idb.get('pendingSettings');
+  if (ps) { for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps, { _savedAt: Date.now() }); settingsStore(S); await idb.del('pendingSettings'); return; }
+  const m = await idb.get('settingsMirror');
+  if (m && (m._savedAt || 0) > (S._savedAt || 0)) {
+    for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, m); ls.set('settings', S);
+    try { applyJadeTheme(S.jadeTheme); } catch {}
+    console.warn('settings: restored the newer copy from IndexedDB (localStorage had lost it)');
+  }
 }
 
 /* =====================================================================
@@ -7451,9 +7459,9 @@ function renderHbStatus() {
 // run fn with another provider/model, restoring the chat model afterwards
 async function withModel(prov, model, fn) {
   if (!prov || !model || providerMissing(prov)) return fn();
-  const saved = { client, activeProv, model: S.model, models };
-  try { if (prov !== activeProv) { client = makeClientFor(prov); activeProv = prov; } S.model = model; window.__modelOverride = true; return await fn(); }
-  finally { client = saved.client; activeProv = saved.activeProv; S.model = saved.model; models = saved.models; window.__modelOverride = false; fillModelSelects(); }
+  const saved = { client, activeProv, model: S.model, models }, outer = window.__modelOverride;
+  try { if (prov !== activeProv) { client = makeClientFor(prov); activeProv = prov; } S.model = model; window.__modelOverride = outer || { model: saved.model }; return await fn(); }
+  finally { client = saved.client; activeProv = saved.activeProv; S.model = saved.model; models = saved.models; window.__modelOverride = outer || false; fillModelSelects(); }
 }
 const hbIsAck = (text) => {
   const t = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();

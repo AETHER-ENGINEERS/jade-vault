@@ -1010,7 +1010,10 @@ rep("S.lcppKey = $('#sLcppKey').value.trim();", "S.lcppKey = $('#sLcppKey').valu
 rep("$('#sLcppKey').value = S.lcppKey || '';", "$('#sLcppKey').value = S.lcppKey || ''; $('#sAicKey').value = S.aicKey || '';")
 rep("lcppKey: $('#sLcppKey')?.value.trim() || '',", "lcppKey: $('#sLcppKey')?.value.trim() || '', aicKey: $('#sAicKey')?.value.trim() || '',")
 
-rep("const saveSettings = () => { if (window.__restoring) return;", "const saveSettings = () => { if (window.__restoring || window.__modelOverride) return;")
+rep("const saveSettings = () => { if (window.__restoring) return;", "const saveSettings = () => { if (window.__restoring) return; S._savedAt = Date.now(); if (window.__modelOverride) { settingsStore({ ...S, model: window.__modelOverride.model ?? S.model }); return; }")
+# localStorage writes can be lost when the page reloads or the app is killed before they are flushed: settings are also
+# kept in IndexedDB, and at boot the newer copy wins (applyPendingSettings in extras.js)
+rep("(S.modelBy ||= {})[activeProv] = S.model; ls.set('settings', S); };", "(S.modelBy ||= {})[activeProv] = S.model; settingsStore(S); };\nfunction settingsStore(o) { ls.set('settings', o); try { idb.set('settingsMirror', JSON.parse(JSON.stringify(o))); } catch {} }")   # a background model call (journal, heartbeat …) borrows S.model: save the person's own model, never skip their change
 rep("  if (!S.journalOn || !sess || !S.model) return;", "  if (!S.journalOn || !sess || !S.model || sess._hb) return;")
 rep("- Daily notes live at /daily/YYYY-MM-DD.md.", "- Your heartbeat checklist is /Jade/HEARTBEAT.md: when the user wants you to keep an eye on something regularly, add a short line under its Check heading (use schedule instead for exact times).\\n- Files the user attaches in chat are saved under /attachments/YYYY-MM-DD/; PDFs get a .pdf.md text note next to them.\\n- Daily notes live at /daily/YYYY-MM-DD.md.")
 # composer: attach button + pending bar

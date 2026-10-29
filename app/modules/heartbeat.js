@@ -51,9 +51,9 @@ function renderHbStatus() {
 // run fn with another provider/model, restoring the chat model afterwards
 async function withModel(prov, model, fn) {
   if (!prov || !model || providerMissing(prov)) return fn();
-  const saved = { client, activeProv, model: S.model, models };
-  try { if (prov !== activeProv) { client = makeClientFor(prov); activeProv = prov; } S.model = model; window.__modelOverride = true; return await fn(); }
-  finally { client = saved.client; activeProv = saved.activeProv; S.model = saved.model; models = saved.models; window.__modelOverride = false; fillModelSelects(); }
+  const saved = { client, activeProv, model: S.model, models }, outer = window.__modelOverride;
+  try { if (prov !== activeProv) { client = makeClientFor(prov); activeProv = prov; } S.model = model; window.__modelOverride = outer || { model: saved.model }; return await fn(); }
+  finally { client = saved.client; activeProv = saved.activeProv; S.model = saved.model; models = saved.models; window.__modelOverride = outer || false; fillModelSelects(); }
 }
 const hbIsAck = (text) => {
   const t = String(text || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();

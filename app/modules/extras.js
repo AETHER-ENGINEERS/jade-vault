@@ -152,8 +152,15 @@ function renderBgSettings() {
 $('#btnBattery').onclick = () => { try { window.NetrunnerAndroid.openBatterySettings(); } catch {} setTimeout(renderBgSettings, 4000); };
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#settings').hidden) renderBgSettings(); });
 
-// applied at boot: settings restored from a backup (localStorage writes right before a reload are not always flushed)
+// applied at boot: settings restored from a backup, or the IndexedDB copy of the settings when it is newer than
+// localStorage's (localStorage writes are not always flushed before a reload, or before Android kills the app)
 async function applyPendingSettings() {
-  const ps = await idb.get('pendingSettings'); if (!ps) return;
-  for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps); ls.set('settings', S); await idb.del('pendingSettings');
+  const ps = await idb.get('pendingSettings');
+  if (ps) { for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps, { _savedAt: Date.now() }); settingsStore(S); await idb.del('pendingSettings'); return; }
+  const m = await idb.get('settingsMirror');
+  if (m && (m._savedAt || 0) > (S._savedAt || 0)) {
+    for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, m); ls.set('settings', S);
+    try { applyJadeTheme(S.jadeTheme); } catch {}
+    console.warn('settings: restored the newer copy from IndexedDB (localStorage had lost it)');
+  }
 }

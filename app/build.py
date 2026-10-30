@@ -1954,6 +1954,8 @@ rep("onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU);", "onnx: run
 rep("  onnx: 'onnx model", "  usb: 'usb device otg plugged arduino microcontroller serial adapter dongle port firmware endpoint',\n  onnx: 'onnx model")
 # the xterm instance itself, for the Fleet client's real terminal and for reading the whole scrollback
 rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };', 'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
+# ---------- enhanced: Pandora Dee 2.9.9.2's extras, each behind its own switch, all off (app/enhanced_jade.py) ----------
+exec(open(os.path.join(D, 'enhanced_jade.py'), encoding='utf-8').read())
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

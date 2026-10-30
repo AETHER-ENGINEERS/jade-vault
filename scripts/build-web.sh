@@ -11,3 +11,6 @@ python3 app/build.py
 node app/tools/twbuild.mjs dist/jade-vault.html dist/tw.css
 python3 app/tools/build_index.py
 python3 app/tools/build_fleet.py      # dist/jade-fleet.html: the Jade Fleet client (browser + APK)
+node scripts/build-litert.mjs         # android/proj/assets/litert/: LiteRT.js for the litert tool (the APK and the tests)
+python3 scripts/build-docs-app.py     # dist/jade-docs/ and dist/jade-docs.xdc: the Jade Docs webxdc app
+python3 scripts/build-think-vault.py  # dist/think-vault/: the vault-resident think tool

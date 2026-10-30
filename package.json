@@ -12,6 +12,9 @@
     "test:quick": "node tests/run.mjs sq_glue_test sq_bridge_test vault_test vector_test"
   },
   "devDependencies": {
+    "@litertjs/core": "2.5.3",
+    "@litertjs/wasm-utils": "2.5.3",
+    "esbuild": "0.25.10",
     "dompurify": "3.4.14",
     "katex": "0.16.47",
     "marked": "18.0.10",

@@ -107,10 +107,12 @@ ok(r.status === 200 && r.body.session.id === sid && await page.evaluate(id => cu
 await page.evaluate(() => openSettings());
 await page.waitForTimeout(300);
 const tabs = await page.evaluate(() => [...document.querySelectorAll('#setTabs .set-tab')].map(b => b.dataset.tab));
-ok(tabs.join() === 'model,memory,tools,connect,app', 'five settings tabs: ' + tabs);
+// 2.23.0: Pandora Dee's Appearance tab (look) sits before App
+ok(tabs.join() === 'model,memory,tools,connect,look,app', 'six settings tabs: ' + tabs);
 const vis = () => page.evaluate(() => [...document.querySelectorAll('#settings section[data-tab]')].filter(s => !s.classList.contains('tab-off') && !s.hidden && s.offsetParent !== null).map(s => s.querySelector('.pane-h').textContent.trim()));
 const allSections = await page.evaluate(() => document.querySelectorAll('#settings section[data-tab]').length);
-ok(allSections === 22, 'every settings section is on a tab: ' + allSections);
+// 2.23.0: Pandora Dee's extras add their own sections (Appearance, Text & layout, note tools)
+ok(allSections === 26, 'every settings section is on a tab: ' + allSections);
 await page.screenshot({ path: 'set_model.png' });
 let v = await vis();
 ok(v.includes('Model provider') && !v.includes('Long-term memory') && v.length <= 3, 'Model tab shows only its sections: ' + v);

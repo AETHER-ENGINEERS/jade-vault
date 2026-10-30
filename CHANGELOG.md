@@ -1,5 +1,19 @@
 # Changelog
 
+## 2.23.0
+
+Pandora Dee's extras come to Jade Vault. Every one starts **off** (or at Jade's own look): with nothing switched on, Jade Vault behaves as 2.22.1.
+
+- **Appearance tab.** Jade's gem themes and layer colours move here from App, with an atmosphere section and text & layout. Fixed on the way: recoloured hair, clothes and skin now reach the Live2D model.
+- **Roomy layout** (Appearance → Text & layout): on wide screens the app widens, with draggable widths and dividers; the note list sits beside the open note and Jade beside the chat. **Text size** from 85 to 150 %. **Drag to scroll** button strips with the mouse or wheel.
+- **Atmosphere** (Appearance → Atmosphere): still eyes, no scanlines, no cyber grid (a soft gem glow instead), each its own switch.
+- **Note tools** (App → Note tools):
+  - **Find & replace** in the editor (🔍, Ctrl/Cmd+F, Ctrl+H).
+  - **Rename & tidy:** rename notes and folders with their links following, and delete empty folders.
+  - **Import from notes apps:** Google Keep, Samsung Notes, Apple Notes, HTML, Word, PDF.
+  - **Pandora Dee backups:** a Pandora Dee backup's /Pandora files land in /Jade, and its rituals become flows.
+- The web build's Tailwind step works on Windows too.
+
 ## 2.22.1
 
 - **Fixed: `litert status` always said `webgpu: false`** on phones where LiteRT does run on WebGPU. It checked differently from `litert load`; both now use the same answer, so `status` and the `accelerator` a model loads with agree.

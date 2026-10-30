@@ -1,0 +1,14 @@
+[package]
+name = "jade-core"
+description = "Jade Vault's logic in Rust: the vault index and search, Sentry's rules, shared by the Android app and the browser build"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order"] }
+regex = { version = "1", default-features = false, features = ["std", "perf-literal", "perf-cache", "unicode-case", "unicode-perl"] }
+memchr = "2"
+
+[dev-dependencies]

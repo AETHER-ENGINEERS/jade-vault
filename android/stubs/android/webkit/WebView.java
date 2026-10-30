@@ -14,4 +14,15 @@ public class WebView extends android.view.View {
   public void loadUrl(String url) { throw new RuntimeException(); }
   public void destroy() { throw new RuntimeException(); }
   public void evaluateJavascript(String script, ValueCallback<String> cb) { throw new RuntimeException(); }
+  public String getTitle() { throw new RuntimeException(); }
+  public int getProgress() { throw new RuntimeException(); }
+  public void stopLoading() { throw new RuntimeException(); }
+  public void reload() { throw new RuntimeException(); }
+  public boolean canGoBack() { throw new RuntimeException(); }
+  public boolean canGoForward() { throw new RuntimeException(); }
+  public void goBack() { throw new RuntimeException(); }
+  public void goForward() { throw new RuntimeException(); }
+  public void clearHistory() { throw new RuntimeException(); }
+  public void clearCache(boolean includeDisk) { throw new RuntimeException(); }
+  public void clearFormData() { throw new RuntimeException(); }
 }

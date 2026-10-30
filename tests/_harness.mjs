@@ -6,11 +6,11 @@ import { autoTabs } from './_tabs.mjs';
 const { chromium } = pw;
 const CORS = { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': '*' };
 
-export async function start({ settings = {} } = {}) {
+export async function start({ settings = {}, init = '' } = {}) {
   const URL_ = process.argv[2] || 'file://' + process.env.JV_WEB;
   const css = fs.readFileSync('tw.css', 'utf8');
   const log = [], fail = []; const ok = (c, m) => (c ? log : fail).push((c ? 'PASS ' : 'FAIL ') + m);
-  const browser = await chromium.launch({ args: process.env.JV_GPU ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : [] });
+  const browser = await chromium.launch({ args: [...(process.env.JV_GPU ? ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist'] : []), ...(process.env.JV_ARGS ? process.env.JV_ARGS.split(' ') : [])] });
   const ctx = await browser.newContext({ viewport: { width: 390, height: 844 } });
   await ctx.addInitScript((settings) => {
     try { if (window !== window.top) return; } catch {}
@@ -23,13 +23,16 @@ export async function start({ settings = {} } = {}) {
       apiResult(id, status, body) { const w = window.__apiWait[id]; if (w) w({ status, body: JSON.parse(body) }); },
     };
   }, settings);
+  if (init) await ctx.addInitScript(init);   // runs after the fake Android shell exists, before the page's own scripts
   const page = autoTabs(await ctx.newPage());
   page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
   const model = { oneShot: [], chats: [], hold: null,
     // one-shot answers (jade.ask, Ask AI steps): reply to the last user message
     answer: (msgs) => { const u = msgs.at(-1).content; if (/JSON only/.test(msgs[0]?.content || '')) return '```json\n{"topic":"' + u.slice(0, 12) + '","n":3}\n```'; if (/urgent, normal or someday/.test(u)) return /fire|asap/i.test(u) ? 'urgent' : 'normal'; return 'ANSWER: ' + u; } };
   const ollaya = { calls: [] };
+  const extraRoutes = [];     // tests can add async (route) => true handlers for their own fake servers
   await page.route('**/*', async route => {
+    for (const f of extraRoutes) if (await f(route) === true) return;
     const req = route.request(); const url = req.url();
     if (url.startsWith('file://') || url.startsWith('data:') || url.startsWith('blob:')) return route.continue();
     if (req.method() === 'OPTIONS') return route.fulfill({ status: 204, headers: CORS });
@@ -40,13 +43,17 @@ export async function start({ settings = {} } = {}) {
     if (url === 'http://localhost:11434/api/chat') {
       const b = JSON.parse(req.postData());
       if (!b.stream) { model.oneShot.push(b.messages); return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ message: { role: 'assistant', content: model.answer(b.messages) }, done: true }) }); }
-      model.chats.push(b.messages);
+      model.chats.push(b.messages); (model.tools ||= []).push(b.tools || []);
       if (model.hold) await model.hold;
       const userText = [...b.messages].reverse().find(m => m.role === 'user')?.content.replace(/^\[[^\]]*\]\s*/, '') || '';
       const custom = model.chatReply ? model.chatReply(b.messages, userText) : null;   // a test can script the reply
       if (custom?.status) return route.fulfill({ status: custom.status, headers: CORS, contentType: 'application/json', body: JSON.stringify({ error: custom.error || 'boom' }) });
       if (custom) return route.fulfill({ headers: CORS, contentType: 'application/x-ndjson', body: JSON.stringify({ message: { role: 'assistant', content: custom.content || '', ...(custom.tool_calls ? { tool_calls: custom.tool_calls } : {}) }, done: false }) + '\n' + JSON.stringify({ message: { role: 'assistant', content: '' }, done: true, prompt_eval_count: 10, eval_count: 5 }) + '\n' });
       return route.fulfill({ headers: CORS, contentType: 'application/x-ndjson', body: JSON.stringify({ message: { role: 'assistant', content: 'Agent says: ' + userText }, done: false }) + '\n' + JSON.stringify({ message: { role: 'assistant', content: '' }, done: true, prompt_eval_count: 10, eval_count: 5 }) + '\n' });
+    }
+    if (url === 'http://localhost:11434/api/embed' && model.embed) {   // a test can supply a fake embedding model: model.embed = text => number[]
+      const b = JSON.parse(req.postData()); model.embedCalls = (model.embedCalls || 0) + 1;
+      return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ model: b.model, embeddings: b.input.map(t => model.embed(t)) }) });
     }
     if (url.startsWith('http://localhost:9911/')) {
       if (url.endsWith('/api/tags')) return route.fulfill({ headers: CORS, contentType: 'application/json', body: JSON.stringify({ models: [{ name: 'judge-1' }] }) });
@@ -70,5 +77,5 @@ export async function start({ settings = {} } = {}) {
   const write = (p, text) => page.evaluate(([p, t]) => vfs.write(p, t, { mkdirs: true }), [p, text]);
   const read = p => page.evaluate(p => vfs.isFile(p) ? vfs.read(p) : null, p);
   const done = async () => { console.log(log.join('\n')); console.log('\n' + (fail.length ? fail.join('\n') : 'ALL PASS')); await browser.close(); };
-  return { browser, ctx, page, ok, log, fail, sh, api, write, read, model, ollaya, done };
+  return { browser, ctx, page, ok, log, fail, sh, api, write, read, model, ollaya, done, extraRoutes };
 }

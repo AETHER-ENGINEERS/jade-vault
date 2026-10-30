@@ -69,7 +69,7 @@ ok(/Context: ~[\d.]+k of 16\.4k/i.test(card) && /SYSTEM\.md/.test(card), '/conte
 await page.screenshot({ path: 'ctx_context.png' });
 await page.evaluate(() => vfs.rm('/Jade/SYSTEM.md'));
 // ---- E: normal small chat is untouched ----
-await page.evaluate(() => newSession()); sent.length = 0; await send('hello again');
+await page.evaluate(() => { S.numCtx = 131072; newSession(); }); sent.length = 0; await send('hello again');
 ok(sent.length === 2 && !sent.some(x => x.compact), 'small chats: no compaction, no trimming');
 const how = await page.evaluate(() => CTX.last.how); ok(how === '', 'nothing trimmed: ' + how);
 console.log(log.join('\n')); console.log('\n' + (fail.length ? fail.join('\n') : 'ALL PASS'));

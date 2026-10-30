@@ -24,3 +24,6 @@ int sqlite3_os_end(void) { return SQLITE_OK; }
 /* tiny helpers so JS doesn't need to know struct layouts */
 void *jv_malloc(int n) { return malloc((size_t)n); }
 void jv_free(void *p) { free(p); }
+/* sqlite-vec 0.1.9, linked in: registered for every connection opened (SQLITE_EXTRA_INIT=jv_extra_init) */
+#include "sqlite-vec.h"
+int jv_extra_init(const char *z) { (void)z; return sqlite3_auto_extension((void (*)(void))sqlite3_vec_init); }

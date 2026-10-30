@@ -6,7 +6,8 @@ schedules, and lives on [Vector](https://vectorapp.io) messenger as your bot and
 
 **Get it:** download the APK from [Releases](../../releases) (Android 7+), or open `jade-vault.html`
 from a release in any modern browser. Point it at Ollama on your computer, or at Ollama Cloud, Groq,
-llama.cpp or any OpenAI-compatible endpoint.
+llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native, so Ollama needs no
+`OLLAMA_ORIGINS`: it only has to listen on an address the phone can reach.
 
 ## What Jade can do
 
@@ -14,9 +15,12 @@ llama.cpp or any OpenAI-compatible endpoint.
 - **Agent:** read/write/edit notes, a BusyBox shell (WebAssembly), `node` with `fs`, `fetch` and `https`, MicroPython, SQLite (`sqlite3`, `node:sqlite`, Python `sqlite3`), web search and fetch, `http_request` for any API (secrets as `{{NAME}}`), MCP servers (pi-style codemode, deferred or direct), skills.
 - **Memory and steering:** long-term memory, a journal of past chats, and steering through SOUL.md, AGENTS.md and SYSTEM.md.
 - **Running on its own:** schedules in plain English (a prompt, a shell command or a flow), `crontab`, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
-- **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, Ollaya decisions, AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
+- **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, decisions (Ollaya or Ollama), AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
 - **Scripting Jade:** `jade.tool()`, `jade.decide()`, `jade.ask()`, `jade.flow()` … in the shell's `node`, plus `jade` and `flow` shell commands.
 - **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
+- **Playbooks:** reusable, approved step lists that Jade can run from chat, a flow, a schedule or `crontab`; only unchanged, approved playbooks run unattended.
+- **Rust core:** the phone's network (many requests at once, HTTP/2, gzip, kept-alive connections), the vault folder, note indexing and search, Sentry's rules and web pages to Markdown run in Rust. See [`rust/README.md`](rust/README.md).
+- **On-device AI and hardware:** TensorFlow.js in scripts, `.tflite` models (LiteRT) and `.onnx` models (ONNX Runtime) on the phone's GPU through WebGPU (or the CPU); USB devices over OTG through `navigator.usb` and the `usb` tool.
 - **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
 - **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
 - **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
@@ -28,6 +32,14 @@ llama.cpp or any OpenAI-compatible endpoint.
   - Secretary: messages for you land in an inbox, or reach you at once.
 - **Chat:** Copy · 👍 · 👎 · Retry under each reply; copy and edit your own messages; copy code blocks or the whole chat.
 - **Avatar:** Live2D Jade, with voice (TTS).
+
+## Jade Fleet
+
+The same app as one terminal of a fleet: phones and browsers share one vault on a small server running the
+[jade-fleet](https://github.com/lucky-edgelord/jade-fleet) broker, run real `bash`, `python3` and `node` there,
+and reach the models (chat, embeddings, decisions, vision) through it. The build makes `dist/jade-fleet.html`
+(the broker serves it at its own address) and `bash android/build-apk.sh fleet` makes the Jade Fleet APK, which
+installs next to Jade Vault. Open it, enter the broker's address and token, and give the device a name.
 
 ## Flows
 
@@ -61,7 +73,7 @@ In `node` (the shell, a flow's JavaScript step, or Jade's own bash): `await jade
 `jade.agent(message)`, `jade.flow(name, input)`, `jade.shell('ls | wc -l')`, `jade.notify(title, body)`, `jade.kv.get/set`.
 Files the script writes are visible to the tools it calls and the other way round.
 **TensorFlow.js 4.22** is built in for scripts: `tf` (or `import * as tf from '@tensorflow/tfjs'`) in `node`, flow
-JavaScript steps and Jade's bash. It uses the GPU (WebGL) when the WebView offers it in a worker, else the CPU. Keep a
+JavaScript steps and Jade's bash. It runs on the GPU with WebGPU when the device offers it (Android's WebView does, in compatibility mode), else WebGL, else the CPU; `tf.getBackend()` says which. Keep a
 trained model with `await model.save('indexeddb://name')` and `tf.loadLayersModel('indexeddb://name')`. It is loaded only
 into scripts that use it (not note scripts), and needs no download.
 Shell commands: `jade tool <name> [json | key=value …]`, `jade decide`, `jade ask`, `jade agent`, `jade notify`, `jade kv`;
@@ -71,6 +83,38 @@ Schedules (the Schedule tab, Jade's schedule tool, `crontab`) run a **prompt** (
 or a **flow**. Command and flow schedules run on their own, without the model and without waiting for the chat; their
 output goes to `/Jade/Logs/cron.log` and a failure sends a notification. Like the rest of the app, schedules fire while
 the app is open (on Android, keep it in the background with Config → App → Background).
+
+## On-device AI: WebGPU, LiteRT and ONNX
+
+Jade runs models on the phone's GPU through WebGPU. Android's WebView offers WebGPU in "compatibility mode", and the
+app asks for the GPU that way when a plain request comes back empty (full WebGPU when the GPU can do it).
+
+- **TensorFlow.js** in scripts uses WebGPU, else WebGL, else the CPU; `tf.getBackend()` says which.
+- **`litert`** runs `.tflite` models (LiteRT.js 2.5), on WebGPU by default when the phone has it, else WebAssembly.
+- **`onnx`** runs `.onnx` models with ONNX Runtime Web 1.31: `load` (a vault path or a URL), `run` (numbers, a vault
+  `.json`/`.f32` file, or `{image: path}` for a picture), `info`, `status`, `unload`. WebGPU by default; layers WebGPU
+  cannot run use the CPU. FP32 models are the safest on phone GPUs; INT8 layers mostly run on the CPU, and phones
+  without `shader-f16` gain nothing from FP16.
+- Both check a model file before loading it: an error page, a JSON error or a git-LFS pointer saved under a model's
+  name is reported as what it is, and a download that comes back as one is not saved. Downloading the same model again
+  reuses the file already in `/models`.
+- Scripts only see vault files up to a size: `node` 2 MB, `python` 4 MB, `bash` on the phone 16 MB. Larger models
+  are still loaded by `litert` and `onnx` directly; look at them with `bash` (`ls -l /models`).
+
+The APK carries LiteRT's and ONNX Runtime's WebAssembly in its own files; a browser loads them from jsDelivr.
+WebGPU needs a secure page in a browser (https or localhost).
+
+## USB
+
+Android's WebView has no working WebUSB, so the app provides `navigator.usb` itself, on top of Android's USB host API:
+`getDevices`, `requestDevice` (Android asks once per device), `open`, `claimInterface`, `selectAlternateInterface`,
+control transfers and bulk/interrupt transfers, and `connect`/`disconnect` events. Ordinary WebUSB code runs unchanged
+in the app. Plug devices in with a USB OTG adapter.
+
+Jade's `usb` tool does the same: `list`, `request`, `open`/`close`, `claim`/`release`, `control_in`/`control_out` and
+`transfer_in`/`transfer_out` (data as hex bytes, numbers or text; received bytes shown as hex and text, or saved to a
+vault file). In a browser it uses the browser's own WebUSB (Chrome or Edge, on https or localhost); only a person can
+pick a device there, so Jade asks with an "Allow a USB device" button.
 
 ## Note scripts & templates
 
@@ -121,11 +165,12 @@ with its notification.
 | Path | What |
 | --- | --- |
 | `app/base/` | The pi-netrunner base page (Live2D Jade, BusyBox WebAssembly shell, Ollama agent loop). |
-| `app/modules/` | Jade Vault's layers: vault, memory, steering, providers, MCP, Python, SQLite, context guard, trajectories, HTTP, images, webxdc, Vector … |
+| `app/modules/` | Jade Vault's layers: vault, memory, steering, providers, MCP, Python, SQLite, context guard, trajectories, HTTP, images, webxdc, Vector, USB, the Fleet client … |
 | `app/build.py` | Applies the layers to the base page with exact-match edits and writes `dist/jade-vault.html`. |
 | `app/tools/` | Tailwind compile, and the Android page (CDN-free basics inlined). |
 | `apps/jade-link/` | Source of the built-in Jade Link webxdc app. |
 | `android/` | Android wrapper (WebView, foreground service, TTS, file save), built without the Android SDK. |
+| `rust/` | The Rust core: `core/` (shared logic), `android/` (`libjade.so`: network, vault folder, Sentry), `wasm/` (web pages to Markdown for the page). Built copies are checked in under `android/proj/lib/` and `app/vendor/`. |
 | `jade-vector/` | The Vector bridge: patch for Vector's vector-agent, the HTTP bridge, setup script, Docker. |
 | `sqlite-wasm/` | How `app/vendor/sqlite3.min.wasm` is built. |
 | `tests/` | Playwright suites (headless Chromium) and engine tests; `node tests/run.mjs`. |
@@ -138,9 +183,13 @@ Needs Node 20+, Python 3.9+, and for the APK a JDK 17+ (no Android SDK).
 npm install
 npx playwright install chromium     # for the tests
 npm run build                       # dist/jade-vault.html, android/proj/assets/index.html
-npm test                            # 15 suites, ~8 minutes
+npm test                            # 53 suites (Playwright, Python, SQLite)
 bash android/build-apk.sh           # dist/jade-vault-<version>.apk (debug key)
 ```
+
+Rust is optional: the build scripts rebuild `libjade.so` and the WebAssembly when `cargo` is installed and
+otherwise use the checked-in copies. To rebuild them, see [`rust/README.md`](rust/README.md)
+(`rust/build-android.sh`, `rust/build-wasm.sh`, `cd rust && cargo test`).
 
 To sign a release APK:
 

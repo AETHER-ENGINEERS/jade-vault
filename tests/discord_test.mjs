@@ -45,7 +45,7 @@ await fd('/_file', { name: 'cat.png', base64: CAT.toString('base64') });
 }
 const browser = await chromium.launch();
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true, timezoneId: 'America/New_York' });
-await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', journalOn: false })); });
+await ctx.addInitScript(() => { try { if (window !== window.top) return; } catch {} if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ toolRouter: 'off', model: 'qwen3:8b', journalOn: false })); });
 const page = autoTabs(await ctx.newPage()); page.on('pageerror', e => fail.push('[pageerror] ' + e.message));
 const calls = [];
 await ctx.route('**/*', async route => {

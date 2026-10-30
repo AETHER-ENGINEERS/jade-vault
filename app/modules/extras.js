@@ -46,16 +46,17 @@ const SECRET_KEYS = ['ollamaKey', 'groqKey', 'oaiKey', 'lcppKey', 'ollayaKey', '
 const b64enc = u8 => { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); };
 const b64dec = b => { const s = atob(b); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; };
 function rawDb() { return new Promise((res, rej) => { const r = indexedDB.open('jade-vault', 1); r.onupgradeneeded = () => r.result.createObjectStore('kv'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); }); }
+// settingsMirror and pendingSettings hold keys, so backups leave them out (backups carry settings their own way)
 async function dbDump() {
   const db = await rawDb();
-  return new Promise((res, rej) => { const st = db.transaction('kv').objectStore('kv'); const out = {}; const q = st.openCursor(); q.onsuccess = () => { const c = q.result; if (!c) return res(out); if (c.key !== 'vfs') out[c.key] = c.value; c.continue(); }; q.onerror = () => rej(q.error); });
+  return new Promise((res, rej) => { const st = db.transaction('kv').objectStore('kv'); const out = {}; const q = st.openCursor(); q.onsuccess = () => { const c = q.result; if (!c) return res(out); if (c.key !== 'vfs' && c.key !== 'settingsMirror' && c.key !== 'pendingSettings') out[c.key] = c.value; c.continue(); }; q.onerror = () => rej(q.error); });
 }
 async function dbRestore(obj, wipe) {
   const db = await rawDb();
   return new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); const st = t.objectStore('kv'); if (wipe) st.clear(); for (const [k, v] of Object.entries(obj)) st.put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); });
 }
 const isText = u8 => { if (u8.length > 4e6) return false; try { new TextDecoder('utf-8', { fatal: true }).decode(u8); return !/[\x00-\x08\x0e-\x1f]/.test(dec.decode(u8.subarray(0, 4000))); } catch { return false; } };
-const isConfigPath = p => /^\/jade\/(soul|system|agents|memory|heartbeat)\.md$/i.test(p) || /^\/jade\/mcp\.json$/i.test(p) || /^\/jade\/skills\//i.test(p) || /^\/agents\.md$/i.test(p);
+const isConfigPath = p => /^\/jade\/(soul|system|agents|memory|heartbeat|curiosity)\.md$/i.test(p) || /^\/jade\/mcp\.json$/i.test(p) || /^\/jade\/skills\//i.test(p) || /^\/agents\.md$/i.test(p);
 async function buildBackup(kind, withKeys) {
   const settings = JSON.parse(JSON.stringify(S)); if (!withKeys) for (const k of SECRET_KEYS) delete settings[k];
   const storage = {}; for (let i = 0; i < localStorage.length; i++) { const k = localStorage.key(i); if (k?.startsWith('jvault:') && k !== 'jvault:settings') { try { storage[k.slice(7)] = JSON.parse(localStorage.getItem(k)); } catch {} } }
@@ -95,7 +96,7 @@ async function exportBackup(kind) {
   await saveTextFile(name, lastBackupText);
 }
 async function importBackup(file) {
-  let data; try { data = JSON.parse(await file.text()); } catch { toast('That file is not valid JSON.', 'err'); return; }
+  let data; try { data = typeof abReadBackup === 'function' ? await abReadBackup(file) : JSON.parse(await file.text()); } catch (e) { toast(e && e.message && !/JSON/.test(e.message) ? esc(e.message) : 'That file is not valid JSON.', 'err'); return; }
   if (data?.app !== 'jade-vault' || !data.vault) { toast('That is not a Jade Vault backup.', 'err'); return; }
   const full = data.kind === 'full';
   const msg = full ? `Replace EVERYTHING here (notes, chats, schedules, settings) with the backup from ${String(data.exportedAt || '').slice(0, 10)}?` : `Merge config from ${String(data.exportedAt || '').slice(0, 10)} (settings, SOUL/AGENTS/SYSTEM, memory, skills)? Your other notes and chats stay.`;
@@ -152,8 +153,15 @@ function renderBgSettings() {
 $('#btnBattery').onclick = () => { try { window.NetrunnerAndroid.openBatterySettings(); } catch {} setTimeout(renderBgSettings, 4000); };
 document.addEventListener('visibilitychange', () => { if (!document.hidden && !$('#settings').hidden) renderBgSettings(); });
 
-// applied at boot: settings restored from a backup (localStorage writes right before a reload are not always flushed)
+// applied at boot: settings restored from a backup, or the IndexedDB copy of the settings when it is newer than
+// localStorage's (localStorage writes are not always flushed before a reload, or before Android kills the app)
 async function applyPendingSettings() {
-  const ps = await idb.get('pendingSettings'); if (!ps) return;
-  for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps); ls.set('settings', S); await idb.del('pendingSettings');
+  const ps = await idb.get('pendingSettings');
+  if (ps) { for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, ps, { _savedAt: Date.now() }); settingsStore(S); await idb.del('pendingSettings'); return; }
+  const m = await idb.get('settingsMirror');
+  if (m && (m._savedAt || 0) > (S._savedAt || 0)) {
+    for (const k of Object.keys(S)) delete S[k]; Object.assign(S, DEFAULTS, m); ls.set('settings', S);
+    try { applyJadeTheme(S.jadeTheme); } catch {}
+    console.warn('settings: restored the newer copy from IndexedDB (localStorage had lost it)');
+  }
 }

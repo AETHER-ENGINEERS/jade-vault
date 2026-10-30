@@ -193,5 +193,19 @@ await page.waitForFunction(() => typeof vfs !== 'undefined' && vfs.nodes.size > 
 await page.waitForTimeout(1500);
 const after = await page.evaluate(() => ({ w: vfs.isFile('/Welcome.md'), r: vfs.isFile('/Restored Note.md'), t: S.temperature, key: S.groqKey, chats: document.querySelectorAll('#sessList .sess').length }));
 ok(after.w && after.r && after.t === 0.7 && after.key === 'gsk_test', 'import restores files + settings, keeps existing keys: ' + JSON.stringify(after));
+// a setting changed while a background model call (journal, heartbeat …) borrows the chat model is still saved, with the person's own model
+const bg = await page.evaluate(async () => {
+  const own = S.model; window.__modelOverride = { model: own }; S.model = 'background-model:1b';   // what withModel does while it runs
+  const during = S.model; S.temperature = 0.33; saveSettings();
+  const stored = JSON.parse(localStorage.getItem('jvault:settings')); S.model = own; window.__modelOverride = false;
+  return { own, during, temp: stored.temperature, model: stored.model, after: S.model };
+});
+ok(bg.during === 'background-model:1b' && bg.temp === 0.33 && bg.model === bg.own && bg.after === bg.own, 'settings changed during a background model call are saved, keeping the chat model: ' + JSON.stringify(bg));
+// localStorage can lose its writes when the page reloads (or Android kills the app) before they are flushed; the
+// settings are kept in IndexedDB too, and the newer copy wins at boot
+await page.evaluate(async () => { S.temperature = 0.44; S.jadeTheme = 'ruby'; saveSettings(); await new Promise(r => setTimeout(r, 300)); localStorage.clear(); });
+await page.reload(); await page.waitForFunction(() => typeof vfs !== 'undefined' && vfs.nodes.size > 5, null, { timeout: 30000 }).catch(() => {}); await page.waitForTimeout(800);
+const lost = await page.evaluate(() => ({ t: S.temperature, theme: S.jadeTheme, label: document.querySelector('#btnTheme')?.textContent, ls: JSON.parse(localStorage.getItem('jvault:settings') || '{}').temperature }));
+ok(lost.t === 0.44 && lost.theme === 'ruby' && /ruby/i.test(lost.label || '') && lost.ls === 0.44, 'settings lost from localStorage come back from the IndexedDB copy at boot (theme applied too): ' + JSON.stringify(lost));
 console.log(log.join('\n')); console.log('\n' + (fail.length ? fail.join('\n') : 'ALL PASS'));
 await browser.close();

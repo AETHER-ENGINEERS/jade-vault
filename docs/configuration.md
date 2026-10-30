@@ -21,7 +21,7 @@ Endpoint defaults are examples, not a network configuration. In particular, `loc
 
 1. Install and start Ollama on the machine that will run the model, and download a suitable model there.
 2. Configure the server to listen on an interface reachable by the phone/browser. Limit access with the host firewall and a trusted network.
-3. Configure allowed browser origins on the model server as necessary. For Ollama, consult its `OLLAMA_HOST` and `OLLAMA_ORIGINS` settings for your installed version.
+3. Browser variant only: configure allowed browser origins on the model server as necessary (for Ollama, `OLLAMA_ORIGINS`). The Android app sends its requests natively (Rust, outside the WebView), so it needs no allowed origins; the server only has to listen on an address the phone can reach (for Ollama, `OLLAMA_HOST=0.0.0.0`).
 4. Enter the computer's LAN or private-VPN address in Jade Vault, for example `http://192.168.1.20:11434`.
 5. Connect and select the model. Test simple chat, then a note-search request.
 
@@ -44,7 +44,7 @@ Under **Customize Jade's appearance**, hair, clothes, stockings, and boots can e
 
 ## Other model settings
 
-Choose context and generation settings conservatively for your model and hardware. Ollaya decisions are a separate classification/decision capability used by `jade.decide()` and flow Decide steps; configure that service before relying on them. Heartbeat can use its own provider/model settings. A separate compaction model can also be selected; choose one suitable for summarizing the same private context as the chat model.
+Choose context and generation settings conservatively for your model and hardware. Decision models (Ollaya, or Ollama 0.35+ on the same `/v1/systemone` API; Config → Decision models → Server) are a separate classification/decision capability used by `jade.decide()` and flow Decide steps; configure that service before relying on them. Heartbeat can use its own provider/model settings. A separate compaction model can also be selected; choose one suitable for summarizing the same private context as the chat model.
 
 ## Credentials and secrets
 

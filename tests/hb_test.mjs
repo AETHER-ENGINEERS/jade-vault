@@ -11,7 +11,7 @@ const browser = await chromium.launch({ args: ['--use-gl=angle', '--use-angle=sw
 const ctx = await browser.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true, deviceScaleFactor: 2 });
 await ctx.addInitScript(() => {
   window.NetrunnerAndroid = { keepAlive() {}, batteryOptimized() { return false; }, openBatterySettings() {}, requestNotifications() {}, notify(t, b) { (window.__notes ||= []).push([t, b]); } };
-  if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', groqKey: 'gsk_test', journalOn: false }));
+  if (!localStorage.getItem('jvault:settings')) localStorage.setItem('jvault:settings', JSON.stringify({ model: 'qwen3:8b', groqKey: 'gsk_test', journalOn: false, numCtx: 131072 }));
 });
 const page = autoTabs(await ctx.newPage());
 page.on('pageerror', e => fail.push('[pageerror] ' + e.message));

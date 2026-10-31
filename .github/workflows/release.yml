@@ -33,6 +33,24 @@ jobs:
           java-version: 17
       - run: npm install --no-audit --no-fund
       - run: npm run build
+      - name: Rust for Android (libjade.so is rebuilt from rust/ every run)
+        run: |
+          rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+          # the runner's Android NDK: its clang wrappers link for API 26, as rust/README.md describes
+          NDK="${ANDROID_NDK_LATEST_HOME:-$ANDROID_NDK_HOME}"
+          BIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          [ -x "$BIN/aarch64-linux-android26-clang" ] || { echo "::error::No Android NDK found (looked in $NDK)."; exit 1; }
+          {
+            for t in aarch64-linux-android:aarch64-linux-android26 armv7-linux-androideabi:armv7a-linux-androideabi26 x86_64-linux-android:x86_64-linux-android26; do
+              target=${t%%:*}; cc="$BIN/${t#*:}-clang"; under=$(echo "$target" | tr - _)
+              echo "CARGO_TARGET_$(echo "$under" | tr a-z A-Z)_LINKER=$cc"
+              echo "CC_$under=$cc"
+              echo "AR_$under=$BIN/llvm-ar"
+            done
+          } >> "$GITHUB_ENV"
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust
       - name: Signed APK
         env:
           KS_B64: ${{ secrets.JADE_KEYSTORE_B64 }}

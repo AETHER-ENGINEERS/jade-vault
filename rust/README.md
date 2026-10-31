@@ -65,6 +65,10 @@ The libraries are linked against API 26 headers; symbols newer than the app's mi
 `scripts/build-web.sh` and `android/build-apk.sh` run these scripts when `cargo` is installed; without Rust they
 use the built copies checked in under `app/vendor/` and `android/proj/lib/`.
 
+CI does the same on GitHub's runners: it adds the three Android targets, points each at the runner's NDK clang
+for API 26, and rebuilds `libjade.so` on every run, so the APKs always match `rust/` (and says when the committed
+copies differ).
+
 ## Switching the native network off
 
 On the phone, `localStorage.setItem('jadeNativeNet', 'off')` in the page (for example from a WebView debugging console) sends

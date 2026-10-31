@@ -1954,6 +1954,22 @@ rep("onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU);", "onnx: run
 rep("  onnx: 'onnx model", "  usb: 'usb device otg plugged arduino microcontroller serial adapter dongle port firmware endpoint',\n  onnx: 'onnx model")
 # the xterm instance itself, for the Fleet client's real terminal and for reading the whole scrollback
 rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };', 'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
+# ---------- v34: pairing with a PDA SEASIDE desktop (pairing.js) ----------
+# Opened on its own in a browser tab, the app can send requests through a paired desktop when a server blocks pages
+# (CORS). Not used in the Android app or inside the desktop. The token is kept out of exports like the other keys.
+s = s.replace('/* =====================================================================\n   BOOT', rd('pairing.js') + '\n/* =====================================================================\n   BOOT', 1)
+SEAS_HTML = """      <section data-tab="connect" class="flex flex-col gap-3" id="seasPair">
+        <div class="pane-h">Pair with PDA SEASIDE</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Some servers block pages from reading their answers (CORS: many MCP servers, a local Ollama, SearXNG). Paired with a PDA SEASIDE desktop, this page sends those requests through it instead. Make a pairing code on the desktop (Settings &rarr; Classic &rarr; Classic opened elsewhere) and paste it here. A request that may already have arrived is never sent twice.</p>
+        <div class="flex gap-2"><input id="seasCode" class="field flex-1" placeholder="http://192.168.1.20:15693#pdd_..." autocomplete="off" spellcheck="false"><button type="button" class="btn btn-solid" id="seasPairBtn">Pair</button></div>
+        <label class="flex items-center gap-2 text-sm" for="seasAlways"><input type="checkbox" id="seasAlways" class="accent-emerald-400 w-4 h-4"> Send every outside request through the desktop (not only blocked ones)</label>
+        <div class="flex items-center gap-3 flex-wrap"><span class="text-sm text-dim" id="seasStatus"></span><button type="button" class="btn btn-ghost" id="seasUnpair" hidden>Unpair</button></div>
+      </section>
+
+"""
+rep("""      <section data-tab="tools" class="flex flex-col gap-3" id="secretSection">""", SEAS_HTML + """      <section data-tab="tools" class="flex flex-col gap-3" id="secretSection">""")
+rep("'sshHosts', 'abToken', 'abPass'];", "'sshHosts', 'abToken', 'abPass', 'seasidePair'];")
+
 # ---------- enhanced: Pandora Dee 2.9.9.2's extras, each behind its own switch, all off (app/enhanced_jade.py) ----------
 exec(open(os.path.join(D, 'enhanced_jade.py'), encoding='utf-8').read())
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:

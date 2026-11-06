@@ -7,7 +7,8 @@ on:
 
 jobs:
   app:
-    runs-on: ubuntu-latest
+    # Playwright 1.56 has no Chromium for Ubuntu 26.04 (ubuntu-latest since late October 2026)
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - uses: actions/checkout@v7
@@ -28,6 +29,8 @@ jobs:
         run: npm run build
       - name: Tests
         run: npm test
+      - name: Knowledge engine (Rust)
+        run: cargo test --manifest-path rust/Cargo.toml -p jade-kg --release
       - name: Build APK (debug key)
         run: bash android/build-apk.sh
       - name: Bridge checks

@@ -1198,8 +1198,9 @@ TRAJ_HTML = """      <section class="flex flex-col gap-3" id="trajSection">
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
           <label class="flex items-center gap-2 text-sm" for="sTrajOn"><input type="checkbox" id="sTrajOn" class="accent-emerald-400 w-4 h-4"> Log trajectories</label>
           <label class="flex items-center gap-2 text-sm" for="sTrajThink"><input type="checkbox" id="sTrajThink" class="accent-emerald-400 w-4 h-4"> Include thinking</label>
+          <label class="flex items-center gap-2 text-sm" for="sTrajMeta" title="Adds a metadata field to each line with the 👍/👎 rating, outcome, model and time, for preference training (DPO / KTO)"><input type="checkbox" id="sTrajMeta" class="accent-emerald-400 w-4 h-4"> Include ratings (👍/👎) and run info</label>
           <div><label class="lbl" for="sTrajFormat">Export format</label><select id="sTrajFormat" class="field mt-1"><option value="openai">OpenAI chat: messages + tools (Unsloth, Axolotl, TRL)</option><option value="sharegpt">ShareGPT with tools (LLaMA-Factory)</option></select></div>
-          <div><label class="lbl" for="sTrajFilter">Which runs</label><select id="sTrajFilter" class="field mt-1"><option value="clean">Finished runs, minus 👎</option><option value="good">Only 👍 replies</option><option value="all">Everything (errors too)</option></select></div>
+          <div><label class="lbl" for="sTrajFilter">Which runs</label><select id="sTrajFilter" class="field mt-1"><option value="clean">Finished runs, minus 👎</option><option value="good">Only 👍 replies</option><option value="prefs">Finished runs, 👎 too (for DPO / KTO)</option><option value="all">Everything (errors too)</option></select></div>
         </div>
         <div class="mono text-xs text-dim" id="trajStats">…</div>
         <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-solid" id="btnTrajExport">Export JSONL</button><button type="button" class="btn btn-red" id="btnTrajClear">Clear log</button></div>
@@ -1952,6 +1953,31 @@ rep("...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...WORLD_TOO
 rep("    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':", "    case 'usb': return await usbTool(args);\n    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':")
 rep("onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU);", "onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU); usb: USB devices plugged into the phone (OTG) or the computer: list, ask the user to allow one, open, claim, control and bulk transfers;")
 rep("  onnx: 'onnx model", "  usb: 'usb device otg plugged arduino microcontroller serial adapter dongle port firmware endpoint',\n  onnx: 'onnx model")
+# ---------- 2.23: the model router (laya picks the model for each main-chat turn) ----------
+rep("""ollama pull</span> and leave the address blank to use the Ollama address above. Both accept requests from localhost and local files by default; for the hosted page, start them with <span class="text-yl">OLLAYA_ORIGINS="*"</span> or <span class="text-yl">OLLAMA_ORIGINS="*"</span>.</p>
+      </section>""", """ollama pull</span> and leave the address blank to use the Ollama address above. Both accept requests from localhost and local files by default; for the hosted page, start them with <span class="text-yl">OLLAYA_ORIGINS="*"</span> or <span class="text-yl">OLLAMA_ORIGINS="*"</span>.</p>
+        <div class="pane-h" id="routerSection">Model router</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Before each message you send, the decision model reads it and picks which of these models answers: a quick one for everyday chat, a strong one only when the message needs it. It uses the server and address above (laya through Ollaya, Ollama 0.35+ or the fleet broker), even when the decide tool is off. If it can't decide, or the model it picks can't be reached, the main model answers.</p>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <label class="flex items-center gap-2 text-sm" for="sRouterOn"><input type="checkbox" id="sRouterOn" class="accent-emerald-400 w-4 h-4"> Let the decision model pick the model for each message</label>
+          <div><label class="lbl" for="sRouterDecider">Routing decision model</label><input id="sRouterDecider" class="field mt-1" placeholder="laya"></div>
+          <div><label class="lbl" for="sRouterMin">Main model when less sure than (0–1)</label><input id="sRouterMin" type="number" min="0" max="1" step="0.05" class="field mt-1" placeholder="0"></div>
+        </div>
+        <div><label class="lbl" for="sRouterModels">Models, one per line: provider | model | what it is good at</label><textarea id="sRouterModels" rows="4" class="field mt-1 mono" placeholder="local | qwen3:8b | quick everyday chat, short answers, simple lookups&#10;groq | openai/gpt-oss-120b | coding, long documents, hard multi-step reasoning"></textarea>
+        <p class="hint">Providers: local (Ollama), cloud (Ollama Cloud), groq, llamacpp, openai (the OpenAI-compatible endpoint), aicord, each with its key and address from Model provider. Leave the provider out to use the main one.</p></div>
+        <div class="flex gap-2 items-center flex-wrap"><input id="sRouterTry" class="field" style="flex:1;min-width:200px" placeholder="A message to try (empty: a coding question)"><button class="btn btn-cy" id="btnRouterTest">Test routing</button><span class="hint" id="routerNote"></span></div>
+      </section>""")
+s = s.replace('/* =====================================================================\n   BOOT', rd('model_router.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("function openSettings() {", "function openSettings() { try { routerFill(); } catch {}")
+rep("async function agentLoop() {\n  const triedProv = new Set();", "async function agentLoop(opts = {}) {\n  const triedProv = new Set();")
+rep("  const ai = aiBlock(); ai.querySelector('[data-model]').textContent = S.model; chatEl.appendChild(ai); const body = ai.querySelector('[data-body]');",
+    "  const RT = opts.route ? await routeTurn() : null; let runModel = RT && !RT.error ? RT.model : S.model, runClient = RT && !RT.error ? RT.client : null;\n  const ai = aiBlock(); ai.querySelector('[data-model]').textContent = runModel; chatEl.appendChild(ai); const body = ai.querySelector('[data-body]'); if (RT) body.appendChild(routerTag(RT));")
+rep("const req = { model: S.model, messages: apiMsgs, tools: toolsNow, stream: true,", "const req = { model: runModel, messages: apiMsgs, tools: toolsNow, stream: true,")
+rep("        currentIter = await client.chat(req);", "        currentIter = await (runClient || client).chat(req);")
+rep("        const msg = String(e.message || e);\n        if (isCtxError(msg) && ctxRetry < 3) {",
+    "        const msg = String(e.message || e);\n        if (runModel !== S.model || runClient) { thinkD.remove(); textEl.remove(); toast(`${esc(runModel)} (picked by the router) failed: ${esc(msg.slice(0, 120))}. Using ${esc(S.model)}.`); runModel = S.model; runClient = null; ai.querySelector('[data-model]').textContent = S.model; turns--; continue; }\n        if (isCtxError(msg) && ctxRetry < 3) {")
+rep("const asst = { role: 'assistant', content, model: S.model, ts: Date.now() };", "const asst = { role: 'assistant', content, model: runModel, ts: Date.now() };")
+rep("  await agentLoop();\n  if (queue.length) { const next = queue.splice(0).join('\\n\\n'); updateQueueNote(); await send(next); }", "  await agentLoop({ route: true });\n  if (queue.length) { const next = queue.splice(0).join('\\n\\n'); updateQueueNote(); await send(next); }")
 # the xterm instance itself, for the Fleet client's real terminal and for reading the whole scrollback
 rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };', 'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
 # ---------- v34: pairing with a PDA SEASIDE desktop (pairing.js) ----------
@@ -1972,6 +1998,54 @@ rep("'sshHosts', 'abToken', 'abPass'];", "'sshHosts', 'abToken', 'abPass', 'seas
 
 # ---------- enhanced: Pandora Dee 2.9.9.2's extras, each behind its own switch, all off (app/enhanced_jade.py) ----------
 exec(open(os.path.join(D, 'enhanced_jade.py'), encoding='utf-8').read())
+
+# ================= v2.24: Vault Loci, a built-in webxdc map of the vault, and the vault_map tool so Jade can walk it =================
+s = s.replace('/* =====================================================================\n   BOOT', rd('vault_map.js') + '\n/* =====================================================================\n   BOOT', 1)
+_vl = _b64.b64encode(open(os.path.join(DIST, 'vault-loci.xdc'), 'rb').read()).decode()
+_i = s.index('<script type="application/octet-stream" id="xdc-jadelink">'); _j = s.index('</script>', _i) + len('</script>')
+s = s[:_j] + '\n<script type="application/octet-stream" id="xdc-vaultloci">' + _vl + '</script>' + s[_j:]
+rep("    case 'more_tools': return moreToolsTool(args);", "    case 'more_tools': return moreToolsTool(args);\n    case 'vault_map': return await vaultMapTool(args);")
+# ================= v2.25: the knowledge graph (Rust reasoner as WebAssembly), the knowledge tool and the Knowledge screen =================
+s = s.replace('/* =====================================================================\n   BOOT', rd('knowledge.js') + '\n/* =====================================================================\n   BOOT', 1)
+_kg = _b64.b64encode(_gz.compress(open(os.path.join(D, 'vendor', 'jade_kg.wasm'), 'rb').read(), 9, mtime=0)).decode()
+s = s.replace('<script type="application/octet-stream" id="jade-core-wasm">', '<script type="application/octet-stream" id="jade-kg-wasm">' + _kg + '</script>\n<script type="application/octet-stream" id="jade-core-wasm">', 1)
+rep("    case 'more_tools': return moreToolsTool(args);", "    case 'more_tools': return moreToolsTool(args);\n    case 'knowledge': return await knowledgeTool(args);")
+rep("think: tree of thoughts with verification (call help first). Build tools", "think: tree of thoughts with verification (call help first); knowledge: the knowledge graph (facts, rules, constraints) and a reasoner that proves answers: verify claims, query, check for contradictions' + kgPromptExtra() + '. Build tools")
+rep("const navFor = { file: 'files', graph: 'files' }[name] || name;", "const navFor = { file: 'files', graph: 'files', kg: 'files' }[name] || name;")
+rep('<button class="btn btn-ghost" id="btnGraph" title="Graph view">Graph</button>', '<button class="btn btn-ghost" id="btnGraph" title="Graph view">Graph</button>\n        <button class="btn btn-ghost kg-btn" id="btnKnowledge" title="Knowledge graph: facts, rules, verification">Knowledge<span class="badge" id="kgBadge" hidden>0</span></button>')
+rep("    <!-- GRAPH -->", """    <!-- KNOWLEDGE -->
+    <section class="m-screen" data-panel="kg" hidden>
+      <div class="m-sub">
+        <button class="icon-btn" id="btnKgBack" aria-label="Back" style="width:38px;height:38px"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <span class="disp text-yl font-bold text-[14px] truncate flex-1 min-w-0">Knowledge</span>
+        <label class="kg-chk" title="Jade checks her factual claims against the graph and marks them"><input type="checkbox" id="kgVerify"> Verify answers</label>
+      </div>
+      <div class="kg-views" id="kgViews" role="tablist"><button role="tab" data-v="ask">Ask</button><button role="tab" data-v="facts">Facts</button><button role="tab" data-v="rules">Rules</button><button role="tab" data-v="check">Check</button><button role="tab" data-v="graph">Graph</button></div>
+      <div class="kg-body" id="kgPanel"></div>
+    </section>
+
+    <!-- GRAPH -->""")
+rep('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """.kg-btn{position:relative}.kg-btn .badge{position:absolute;top:-6px;right:-6px}
+.kg-views{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--line);overflow-x:auto}
+.kg-views button{flex:1;min-height:36px;padding:0 10px;background:none;border:1px solid var(--line);color:var(--dim);font-family:var(--f-disp);letter-spacing:.06em;font-size:12px;cursor:pointer;white-space:nowrap}
+.kg-views button[aria-selected=true]{border-color:var(--line-hot);color:var(--fg);background:rgba(31,229,165,.12)}
+.kg-body{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.kg-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kg-row .field{min-width:0}
+.kg-help{font-size:12px;color:var(--dim);margin:0;line-height:1.5}.kg-help code,.kg-ft code{font-family:var(--f-mono,monospace)}
+.kg-help.ok{color:#1fe5a5}.kg-help.bad{color:#ff6b7a}
+.kg-out{margin:0;padding:10px;border:1px solid var(--line);background:rgba(5,10,8,.7);white-space:pre-wrap;word-break:break-word;font-size:12.5px;line-height:1.5;min-height:48px;user-select:text}
+.kg-out.ok{border-color:rgba(31,229,165,.6)}.kg-out.bad{border-color:rgba(255,61,79,.7)}.kg-out.unk{border-color:rgba(255,200,80,.6)}
+.kg-prop{padding:8px 10px;border:1px dashed rgba(255,200,80,.6);font-size:13px}
+.kg-list{display:flex;flex-direction:column}
+.kg-fact{padding:8px 4px;border-bottom:1px solid var(--line)}
+.kg-ft{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;word-break:break-word}
+.kg-st{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.kg-st.confirmed{color:#1fe5a5;border-color:rgba(31,229,165,.5)}.kg-st.proposed{color:#ffc850;border-color:rgba(255,200,80,.5)}.kg-st.rejected{color:var(--dim)}
+.kg-src{font-size:11px;color:var(--dim);margin-top:2px}
+.kg-acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.kg-acts .btn{min-height:32px;padding:0 10px;font-size:12px}
+.kg-rules{min-height:300px;font-size:12.5px;line-height:1.5;width:100%}
+.kg-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer}
+.kg-cv{flex:1;min-height:360px;width:100%;touch-action:none;border:1px solid var(--line)}""")
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

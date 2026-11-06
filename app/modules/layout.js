@@ -18,7 +18,7 @@ const uiClamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 const uiVw = () => innerWidth / uiZoom();
 
 // wide, Notes shows the list beside the open note. setTab hides every screen but one, and Tailwind's layered
-// [hidden]{display:none!important} outranks any unlayered rule, so the second pane is un-hidden here instead
+// the [hidden] rule (display:none, important) outranks any unlayered rule, so the second pane is un-hidden here instead
 function layoutPanes() {
   const sc = document.body.dataset.screen, two = document.body.classList.contains('wide') && (sc === 'files' || sc === 'file');
   for (const n of ['files', 'file']) { const p = $(`[data-panel="${n}"]`); if (p) p.hidden = !(two || sc === n); }

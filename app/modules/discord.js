@@ -48,6 +48,7 @@ async function dcConnect() {
       for (let i = 0; i < 8 && !DC.user; i++) { await new Promise(r => setTimeout(r, 1000)); if (stale()) return false; const s2 = dcJson(await dcCall('status').catch(() => '{}'), {}) || {}; if (s2.ready) { DC.user = s2.user; DC.warn = s2.warn || ''; st.ready = true; break; } if (s2.error) { st.error = s2.error; break; } }
       if (!st.ready) throw new Error(st.error || 'the bridge is running but the bot is not online yet (check its log)');
     }
+    if (gen !== DC.gen) return false;
     DC.connected = true; DC.error = '';
     dcRefresh().catch(() => {});
     bgSync(); renderDcSettings(); dcSchedule(500);

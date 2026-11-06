@@ -1,9 +1,11 @@
 # Changelog
 
-## 2.23.0
+## 2.25.0-enhanced
 
-Pandora Dee's extras come to Jade Vault. Every one starts **off** (or at Jade's own look): with nothing switched on, Jade Vault behaves as 2.22.1.
+The AETHER-ENGINEERS fork: Lucky's 2.23.0 – 2.25.0 below, plus Pandora Dee's extras and pairing with PDA SEASIDE. Every extra starts **off** (or at Jade's own look): with nothing switched on, this behaves as Lucky's 2.25.0.
+(These extras were numbered 2.23.0 in this fork before Lucky's own 2.23.0.)
 
+- **Pair with PDA SEASIDE** (Connect tab): opened in a plain browser tab, Jade can send requests that a server blocks (CORS) through a paired desktop.
 - **Appearance tab.** Jade's gem themes and layer colours move here from App, with an atmosphere section and text & layout. Fixed on the way: recoloured hair, clothes and skin now reach the Live2D model.
 - **Roomy layout** (Appearance → Text & layout): on wide screens the app widens, with draggable widths and dividers; the note list sits beside the open note and Jade beside the chat. **Text size** from 85 to 150 %. **Drag to scroll** button strips with the mouse or wheel.
 - **Atmosphere** (Appearance → Atmosphere): still eyes, no scanlines, no cyber grid (a soft gem glow instead), each its own switch.
@@ -13,6 +15,37 @@ Pandora Dee's extras come to Jade Vault. Every one starts **off** (or at Jade's 
   - **Import from notes apps:** Google Keep, Samsung Notes, Apple Notes, HTML, Word, PDF.
   - **Pandora Dee backups:** a Pandora Dee backup's /Pandora files land in /Jade, and its rituals become flows.
 - The web build's Tailwind step works on Windows too.
+
+## 2.25.0
+
+- **The knowledge graph: facts, rules, and a reasoner that proves its answers.** Notes → Knowledge holds facts like `works_at(alice, acme)` and rules and constraints, and a reasoner (Datalog, written in Rust and run as WebAssembly) checks claims against them. Every answer is one of three:
+  - ✓ **proven**, with the facts and rules it rests on;
+  - ✗ **contradicted**: its opposite holds, or it would break one of your constraints (for example "a person has one employer");
+  - ? **unknown**: the graph does not say. Missing is never treated as false.
+- **Verify Jade's answers.** The new `knowledge` tool lets Jade verify claims, answer questions with variables (`above(bob, X)`), show why something holds, and list every contradiction in the graph. Turn on **Verify answers** in the Knowledge screen and she checks her factual claims against the graph and marks each one ✓, ✗ or ?.
+- **Check your notes.** Ask Jade to read notes and propose their facts, then **Check** lists every constraint they break, with the facts involved.
+- **You decide what counts.** Facts you add are confirmed. Facts Jade adds are proposed until you confirm them (the Knowledge button shows how many wait; Confirm all, or one at a time). A proof that rests on unconfirmed facts says so, and a fact you reject stays out: Jade cannot add it again.
+- The Knowledge screen has Ask (verify, query, why), Facts, Rules (an editor that refuses a broken rules file and says which line), Check and Graph views. The files are `/Jade/Knowledge/facts.jsonl` and `/Jade/Knowledge/rules.dl`, plain text that syncs and backs up with the vault; jade-py 0.12 uses the same files and the same engine. A `knowledge-graph` skill tells Jade how to extract facts and report verdicts.
+- The engine handles large graphs: in tests, 180,000 facts that follow from a chain of 600 people take about 0.15 s in the browser, and a graph that would grow past 2 million facts stops with a clear error.
+
+## 2.24.0
+
+- **Vault Loci: a map of the vault that you and Jade walk together.** A new built-in app in the Apps tab: a top-down, lit pixel-art room with eleven places (loci), used as a memory palace. Walk the avatar with the D-pad, WASD or the arrow keys (Shift or a held B runs), a gamepad, or a tap on the floor; A or E opens a place. **Jade walks the same avatar** with a new `vault_map` tool: she can look around, walk to a place, open it, speak in a speech bubble, change the lighting, and pin, recall or forget memories at places. Your own input always wins over a walk she is making, and she is told to stop and ask. `look` gives her a text map of the room and the direction and walking distance to every place, so she can find her way.
+  - **Text Jade from the map.** The new Chat button (or T) opens a chat box inside the app. A message wakes Jade in the app's own chat, the same way Jade Link does; her answer shows in the box and as a bubble over the avatar, and she can walk while you talk. The chat comes back when you reopen the map.
+  - The app stays sandboxed: it knows only what happens on the map (walks, bubbles, the memories pinned there, the chat), never your notes, memory or settings. Its memories are its own, separate from Jade's memory tool. A new `vault-map` skill in /Jade/skills tells Jade how to use it, including never pinning passwords or private data (the Core Vault is a place, not a lock).
+  - If you installed the Vault Loci demo from a file, it is upgraded in place and keeps its memories, and the demo's skill (which used a vault script) is replaced; a skill you wrote yourself is left alone. The app has a debug log and an input self-test (Light → Debug log).
+- **Fixed: a webxdc app could lose an update.** Two updates sent at the same moment (an app sending twice in a row, or the app and Jade together) could get the same number, and the second replaced the first in the app's history. Updates for an app are now stored one after another.
+
+## 2.23.1
+
+- **Ratings in trajectory exports.** Config → Trajectory log has a new **Include ratings (👍/👎) and run info** switch: each exported line gets a `metadata` field with the reply's rating, the run's outcome, model, provider, source, start time and per-call token counts. A new filter, **Finished runs, 👎 too (for DPO / KTO)**, keeps thumbed-down runs in the file (errors still stay out). Together they turn your ratings into preference data: 👎 a reply, tap Retry, 👍 the better one, and the export holds a pair with the same prompt. Off by default, so existing exports are unchanged. [jade-tune](https://github.com/lucky-edgelord/jade-autotuner) trains on these files (SFT, DPO, KTO). [jade-py](https://github.com/lucky-edgelord/jade-py) 0.11 logs and exports the same way, so files from both train together.
+- **Fixed: Vector and Discord could show "Not connected" right after connecting.** When two connections started close together (changing the token while the start-up connection was still being made), the first one failed as the second one closed it, and its failure marked the new connection as not connected. A connection that has been replaced now leaves the newer one alone.
+- **LiteRT is in the repository.** Its runtime (`@litertjs/core` 2.5.3) was only on the machine that built the releases; it is now in `app/vendor/litert` and the build copies it into the app, so every build, CI's included, runs LiteRT offline on the phone.
+- The build also makes the Jade Docs app and the think-tool vault files (`npm run build`), and CI runs every test suite again: since `ubuntu-latest` moved to Ubuntu 26.04 it had stopped at installing the browser.
+
+## 2.23.0
+
+- **Model router.** Before each message you send, the decision model (laya, on Ollaya, Ollama 0.35+ or the fleet broker) reads it and picks which of your models answers: list them under Config → Decision models → Model router, one per line as `provider | model | what it is good at`. The choices can be on different providers (a local Ollama model for everyday chat, a Groq or OpenAI-compatible model for hard questions), each with its own key and address from Model provider. The pick holds for the whole turn, including its tool rounds, and a small line above the reply shows which model answered and how sure laya was. If the decision fails, is less sure than the threshold you set, or the picked model fails, the main model answers. "Test routing" tries a message without sending it. Only messages you send are routed; the heartbeat, curiosity, Vector and Discord turns keep their own model. It works the same in the browser page, the Jade Vault app and the Jade Fleet client.
 
 ## 2.22.1
 
@@ -59,7 +92,7 @@ Pandora Dee's extras come to Jade Vault. Every one starts **off** (or at Jade's 
 ## 2.18.3
 
 - **Big vaults stay fast.** The link/tag index used to be rebuilt from every note after any write, so each chat turn that followed a write got slower the bigger the vault was (5,000 notes: about 160 ms per turn here, several times that on a phone). It now keeps what it parsed per note and re-reads only the notes that changed; link lookups are hash lookups and note names sort with a collator. After a write the system prompt now costs about 11 ms instead of 160 ms,; the cache holds only links, tags and word counts per note, never note text, so the vault stays on the phone's storage. Note search builds snippets only for the results it returns.
-- **The tool list no longer changes between turns.** The tool router picked tools per message, and the tool list is the start of the prompt, so a list that changed each turn made the model re-read the whole conversation instead of reusing its prompt cache. A tool offered earlier in a chat now stays offered: the set only grows, in one fixed order.
+- **Faster replies: the tool list no longer changes between turns.** The tool router picked tools per message, and because the tool list is the start of the prompt, a list that changed every turn made the model re-read the whole conversation instead of reusing its prompt cache (slow on a phone, and on cloud models it cost cached tokens). A tool offered earlier in a chat now stays offered; the set only grows and keeps one fixed order. The page itself measures the same as 2.17 (startup, tabs, rendering, vault index).
 
 ## 2.18.2
 

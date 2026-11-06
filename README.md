@@ -2,7 +2,7 @@
 
 A mobile, Obsidian-style markdown vault with an AI agent, Jade, built in. It runs entirely in the browser
 or as an Android app. Jade reads and writes your notes, runs code, uses tools, remembers you, keeps
-schedules, and lives on [Vector](https://vectorapp.io) messenger as your bot and secretary.
+schedules, and lives on [Vector](https://vectorapp.io) messenger as a bot account of her own, passing messages on to you.
 
 **Get it:** download the APK from [Releases](../../releases) (Android 7+), or open `jade-vault.html`
 from a release in any modern browser. Point it at Ollama on your computer, or at Ollama Cloud, Groq,
@@ -32,7 +32,7 @@ llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native,
   - She answers DMs and whitelisted channels by your trigger rules.
   - She reacts, replies, sends and receives files, and sees images.
   - She joins and leaves communities and plays Mini Apps.
-  - Secretary: messages for you land in an inbox, or reach you at once.
+  - Messages for you: when someone asks her to pass something on, it lands in an inbox, or reaches you at once.
 - **Chat:** Copy · 👍 · 👎 · Retry under each reply; copy and edit your own messages; copy code blocks or the whole chat.
 - **Avatar:** Live2D Jade, with voice (TTS).
 

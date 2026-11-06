@@ -27,6 +27,8 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: Build web app
         run: npm run build
+      - name: Names, not ranks (the People layer)
+        run: python3 tests/people_check.py
       - name: Tests
         run: npm test
       - name: Knowledge engine (Rust)

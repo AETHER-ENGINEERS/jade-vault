@@ -66,7 +66,7 @@ const T = a => E(a2 => backupTool(a2).then(x => x, e => 'ERR ' + e.message), a);
 ok(/Scheduled backup: on, every 24 h/.test(await T({ action: 'status' })), 'status');
 ok(/Backup uploaded: jade-vault-full-/.test(await T({ action: 'now' })), 'now');
 ok((await T({ action: 'list' })).includes(name1), 'list');
-ok(/ERR .*only the user/.test(await T({ action: 'restore' })), 'she cannot restore');
+ok(/ERR .*only {{PERSON_NAME}} can/.test(await T({ action: 'restore' })), 'she cannot restore');
 await E(() => { S.abOn = false; }); ok(!(await E(() => activeTools().some(t => t.function.name === 'backup'))), 'switched off, the tool is hidden'); await E(() => { S.abOn = true; });
 
 // 6. restore pipeline: download, verify, decode, then it asks before replacing anything (we say no)

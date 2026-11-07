@@ -32,7 +32,7 @@ r = await tool({ action: 'fly' }); ok(/^ERR unknown action fly/.test(r), 'an unk
 const walking = tool({ action: 'goto', locus: 'gate' });
 await page.waitForTimeout(700);
 await fr.evaluate(() => { window.__jade.hold('k:a', true); setTimeout(() => window.__jade.hold('k:a', false), 300); });
-r = await walking; ok(/the user took over/.test(r), 'the user\'s input wins over Jade\'s walk: ' + r);
+r = await walking; ok(/{{PERSON_NAME}} took over/.test(r), 'the user\'s input wins over Jade\'s walk: ' + r);
 
 // nothing lost: the host used to give two quick updates the same serial
 let u = await ups(); ok(u.every((x, i) => x.s === i + 1), `every update kept (serials 1..${u.length})`);

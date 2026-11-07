@@ -34,7 +34,7 @@ await E(() => { __phoneReply.alarm_set = a => JSON.stringify({ error: 'hour is 0
 await E(() => { __ph.length = 0; });
 let p = T({ action: 'call', number: '+15551234567', name: 'Mum' }); let card = await answerCard('no'); r = await p;
 ok(/Jade wants to call/.test(card) && /Mum/.test(card) && /\+15551234567/.test(card), 'a call shows who and what number: ' + card.replace(/\n/g, ' | '));
-ok(/The user said no/.test(r) && !(await E(() => __ph.some(x => x[0] === 'call'))), 'saying no means nothing is dialled');
+ok(/{{PERSON_NAME}} said no/.test(r) && !(await E(() => __ph.some(x => x[0] === 'call'))), 'saying no means nothing is dialled');
 p = T({ action: 'call', number: '+15551234567' }); await answerCard('yes'); r = await p;
 ok(!/ERR/.test(r) && (await last())[0] === 'call' && (await last())[1].number === '+15551234567', 'saying yes places the call');
 p = T({ action: 'sms_send', to: '555-0100', text: 'Running late, back in 10', name: 'Sam' }); card = await answerCard('yes'); r = await p;

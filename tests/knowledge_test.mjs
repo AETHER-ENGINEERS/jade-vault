@@ -49,7 +49,7 @@ r = await tool({ action: 'check' }); ok(/^1 contradiction/.test(r) && /works_at\
 r = await tool({ action: 'verify', claim: 'works_at(bob, initech)' }); ok(/^\? UNKNOWN/.test(r), 'unrelated claims stay unknown');
 await page.evaluate(() => { const l = kgFacts(); kgSetStatus(l.filter(f => f.fact === 'works_at(alice, globex)').map(f => f.id), 'rejected'); });
 r = await tool({ action: 'verify', claim: 'works_at(alice, globex)' }); ok(/^✗ CONTRADICTED.*would break a constraint/.test(r) && /one_employer/.test(r), 'a claim that breaks a constraint is contradicted: ' + r.split('\n')[0]);
-r = await tool({ action: 'add', fact: 'works_at(alice, globex)' }); ok(/the user rejected this fact before/.test(r), 'Jade cannot bring back a rejected fact');
+r = await tool({ action: 'add', fact: 'works_at(alice, globex)' }); ok(/{{PERSON_NAME}} rejected this fact before/.test(r), 'Jade cannot bring back a rejected fact');
 r = await tool({ action: 'remove', id: (await facts())[0].id }); ok(/Not removed/.test(r), 'Jade cannot remove the user\'s confirmed facts');
 
 // screen views

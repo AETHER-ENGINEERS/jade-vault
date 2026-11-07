@@ -5367,7 +5367,7 @@ Guidelines:
 - Keep {{PERSON_NAME}}'s words. When reorganising, move or link content rather than deleting it.
 - Never create a second note with the same name as an existing one; edit the existing note. Paths may omit .md.${S.memoryOn ? '\n- Memory: when {{PERSON_NAME}} tells you something lasting about themselves, a preference, a project or person, or says "remember", call memory save with one short fact. When they mention an earlier conversation or ask what you know, use memory search. Memory is for facts about {{PERSON_NAME}}; notes are for their content.' : ''}
 - For work with three or more steps, add tasks first, set each to in_progress when you start it and done when finished.
-- ${steer.own ? 'Talk the way your persona does, and only offer help when it is wanted, as an equal would. When you change notes' : 'Be concise. When finished'}, say which notes changed, as [[links]].`}${steeringContext(steer)}${mcpPromptBlock()}`; };
+- ${steer.own ? 'Talk the way your persona does. When you change notes' : 'Be concise. When finished'}, say which notes changed, as [[links]].`}${steeringContext(steer)}${mcpPromptBlock()}`; };
 
 let running = false; const queue = [];
 function setState(s) { bgState(s); $('#hudState').textContent = s; $('#hudState').style.color = s === 'IDLE' ? '' : 'var(--yl)'; }

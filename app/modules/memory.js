@@ -188,7 +188,7 @@ function memoryContext() {
 }
 
 /* ---------- journal: summarise a finished chat into episodic memory ---------- */
-const JOURNAL_SYS = `You keep Jade's diary. Jade is an AI assistant that manages the user's markdown notes vault. Read the chat and reply in exactly this format:
+const JOURNAL_SYS = `You keep Jade's diary. Jade keeps a markdown notes vault together with {{PERSON_NAME}}. Read the chat and reply in exactly this format:
 
 SUMMARY:
 - 2 to 5 short bullets: what the user wanted, what was done or decided, which notes were created or changed (as [[Note Name]]), anything left open.
@@ -200,6 +200,7 @@ No other text.`;
 const journaling = new Set();
 const jMarks = () => ls.get('journaled', {});
 async function journalSession(sess, { reason = 'leave', summary = null, upto = null } = {}) {
+  storySession(sess, { reason, upto });   // the Storybook (storybook.js), when it's on
   if (!S.journalOn || !sess || !S.model) return;
   const done = jMarks()[sess.id] || 0; const msgs = sess.messages || [];
   const end = upto ?? msgs.length;
@@ -212,7 +213,7 @@ async function journalSession(sess, { reason = 'leave', summary = null, upto = n
     if (!out) {
       let text = transcriptOf(fresh); if (text.length > 14000) text = '[…]\n' + text.slice(-14000);
       const r = await fetch(S.host.replace(/\/+$/, '') + '/api/chat', { method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model: S.model, stream: false, think: false, messages: [{ role: 'system', content: JOURNAL_SYS }, { role: 'user', content: `Chat title: ${sess.title}\n\n${text}` }], options: { temperature: 0.2, num_ctx: +S.numCtx } }) });
+        body: JSON.stringify({ model: S.model, stream: false, think: false, messages: [{ role: 'system', content: relFill(JOURNAL_SYS) }, { role: 'user', content: `Chat title: ${sess.title}\n\n${text}` }], options: { temperature: 0.2, num_ctx: +S.numCtx } }) });
       if (!r.ok) throw new Error('HTTP ' + r.status);
       out = String((await r.json()).message?.content || '').replace(/<think>[\s\S]*?<\/think>/g, '').trim();
     }
@@ -232,5 +233,5 @@ async function journalSession(sess, { reason = 'leave', summary = null, upto = n
 }
 
 let journalT = null;
-function scheduleJournal() { clearTimeout(journalT); if (!S.journalOn) return; journalT = setTimeout(() => { if (!running && cur) journalSession(cur, { reason: 'quiet' }); }, 4 * 60e3); }
+function scheduleJournal() { clearTimeout(journalT); if (!S.journalOn && !S.storyOn) return; journalT = setTimeout(() => { if (!running && cur) journalSession(cur, { reason: 'quiet' }); }, 4 * 60e3); }
 document.addEventListener('visibilitychange', () => { if (document.hidden && !running && cur) journalSession(cur, { reason: 'quiet' }); });

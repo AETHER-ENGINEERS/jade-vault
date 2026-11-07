@@ -62,15 +62,21 @@ await page.selectOption('#sVecNotify', 'urgent');
 await page.evaluate(() => { const t = document.querySelector('#sVecPoll'); t.value = '2'; t.dispatchEvent(new Event('change')); });
 await page.check('#sVecOn'); await page.waitForTimeout(1500);
 ok(/Not connected/.test(await page.textContent('#vecStatus')) && /token/i.test(await page.textContent('#vecStatus')), 'wrong token is refused: ' + (await page.textContent('#vecStatus')).slice(0, 80));
-await page.fill('#sVecToken', TOKEN); await page.dispatchEvent('#sVecToken', 'change'); await page.waitForTimeout(1500);
-ok(/Online/.test(await page.textContent('#vecStatus')) && /npub1jadebot/.test(await page.textContent('#vecStatus')), 'connects with the token, shows her npub');
+await page.fill('#sVecToken', TOKEN); await page.dispatchEvent('#sVecToken', 'change');
+await page.waitForFunction(() => /Online/.test(document.querySelector('#vecStatus')?.textContent || ''), null, { timeout: 20000 }).catch(() => {});   // CI machines are slower than a fixed pause
+ok(/Online/.test(await page.textContent('#vecStatus')) && /npub1jadebot/.test(await page.textContent('#vecStatus')), 'connects with the token, shows her npub: ' + (await page.textContent('#vecStatus')).slice(0, 120));
+// two connects at once (the start-up connect, a token change): the first fails when the second closes it, and must
+// not mark the second as not connected
+ok(await page.evaluate(async () => { const [ra, rb] = await Promise.all([vecConnect(), vecConnect()]); return !ra && rb && VEC.connected && !!VEC.client; }), 'a superseded connect does not undo the newer one');
+await page.waitForTimeout(300);
+ok(/Online/.test(await page.textContent('#vecStatus')), 'still online after two connects at once: ' + (await page.textContent('#vecStatus')).slice(0, 80));
 await page.evaluate(() => document.querySelector('#vecSection').scrollIntoView()); await page.screenshot({ path: 'vec_settings.png' });
 await page.evaluate(() => window.__androidBack());
 // main chat to return to
 const mainId = await page.evaluate(() => cur.id);
 const waitIdle = () => page.waitForFunction(() => !VEC.busy && !VEC.q.length && !running, null, { timeout: 30000 });
 const settle = async () => { await page.waitForTimeout(2600); await waitIdle(); await page.waitForTimeout(400); };
-// ---- 1. stranger: secretary, urgent ----
+// ---- 1. stranger: she passes it on, urgent ----
 await ctl('/reset_log', {});
 const m1 = await ctl('/message', { chat_id: ALICE, npub: ALICE, content: "Hi Jade! can you tell your boss the shipment arrives at 5pm? it's urgent" });
 await settle();
@@ -78,6 +84,7 @@ let L = (await ctl('/')).log;
 const c1 = calls.find(c => /tell your boss/.test(c.u));
 ok(c1 && JSON.stringify(c1.tools.sort()) === '["notify_owner","vector","web_search"]', 'stranger gets only chat tools: ' + JSON.stringify(c1?.tools));
 ok(c1 && !/Vault conventions|Long-term memory/.test(c1.sys) && /not your owner|private/i.test(c1.sys), 'stranger sees a scoped prompt without vault or memory');
+ok(c1 && /alongside [^,{]+, the person you work with/.test(c1.sys) && !/your owner|owned by|\{\{/.test(c1.sys), 'Vector rules: names, not ranks (the People layer): ' + (c1?.sys || '').slice(0, 200));
 ok(L.some(x => x.op === 'typing' && x.chat_id === ALICE), 'typing indicator while she works');
 ok(L.some(x => x.op === 'send' && x.chat_id === ALICE && x.replied_to === m1.id && /passed it on/.test(x.content)), 'reply sent back as a threaded reply');
 ok(L.some(x => x.op === 'send' && x.chat_id === OWNER && /shipment arrives at 5pm/.test(x.content)), 'urgent message DMed to the owner at once');

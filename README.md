@@ -2,7 +2,7 @@
 
 A mobile, Obsidian-style markdown vault with an AI agent, Jade, built in. It runs entirely in the browser
 or as an Android app. Jade reads and writes your notes, runs code, uses tools, remembers you, keeps
-schedules, and lives on [Vector](https://vectorapp.io) messenger as your bot and secretary.
+schedules, and lives on [Vector](https://vectorapp.io) messenger as a bot account of her own, passing messages on to you.
 
 **Get it:** download the APK from [Releases](../../releases) (Android 7+), or open `jade-vault.html`
 from a release in any modern browser. Point it at Ollama on your computer, or at Ollama Cloud, Groq,
@@ -16,20 +16,23 @@ llama.cpp or any OpenAI-compatible endpoint. On the phone the network is native,
 - **Memory and steering:** long-term memory, a journal of past chats, and steering through SOUL.md, AGENTS.md and SYSTEM.md.
 - **Running on its own:** schedules in plain English (a prompt, a shell command or a flow), `crontab`, a heartbeat that works from HEARTBEAT.md, and a background mode on Android.
 - **Flows:** n8n-style automations in their own tab: steps of Jade's tools, JavaScript, shell commands, decisions (Ollaya or Ollama), AI answers and logic, started by hand, on a schedule, when a note changes, from the shell, from scripts or over the API.
+- **Knowledge graph:** facts, rules and constraints, and a Rust reasoner (as WebAssembly) that answers ✓ proven with its proof, ✗ contradicted, or ? unknown. Jade verifies claims and her own answers against it; her facts wait for your confirmation. Notes → Knowledge.
+- **Vault Loci:** a lit, top-down map of the vault used as a memory palace (a built-in webxdc app). You and Jade walk the same avatar: you with the D-pad or a tap, she with the `vault_map` tool. She pins and recalls memories at places, and you can text her from inside the map.
+- **Model router:** before each message, the decision model (laya on Ollaya, Ollama 0.35+ or a fleet broker) picks which of your models answers it: a quick one for everyday chat, a strong one only when the message needs it (Config → Decision models → Model router).
 - **Scripting Jade:** `jade.tool()`, `jade.decide()`, `jade.ask()`, `jade.flow()` … in the shell's `node`, plus `jade` and `flow` shell commands.
 - **Note scripts & templates:** Obsidian-style ```` ```dataviewjs ```` blocks, inline `` `$= …` `` and Templater templates (`<% tp.date.now() %>`).
 - **Playbooks:** reusable, approved step lists that Jade can run from chat, a flow, a schedule or `crontab`; only unchanged, approved playbooks run unattended.
 - **Rust core:** the phone's network (many requests at once, HTTP/2, gzip, kept-alive connections), the vault folder, note indexing and search, Sentry's rules and web pages to Markdown run in Rust. See [`rust/README.md`](rust/README.md).
 - **On-device AI and hardware:** TensorFlow.js in scripts, `.tflite` models (LiteRT) and `.onnx` models (ONNX Runtime) on the phone's GPU through WebGPU (or the CPU); USB devices over OTG through `navigator.usb` and the `usb` tool.
 - **Robust:** context guard (compacts, trims, learns model limits), a provider fallback chain, and timestamps so she always knows the date and time.
-- **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎.
+- **Fine-tuning data:** a trajectory log of every run as the model saw it, exported as JSONL (OpenAI chat with tools, or ShareGPT), filtered by 👍/👎, optionally with the ratings themselves for DPO / KTO.
 - **Webxdc apps:** an Apps tab with sandboxed offline mini apps that Jade can read, play and build. **Jade Link**, a messenger plus shared board, is built in.
 - **Vector messenger:**
   - Jade is a bot. You (the owner) get the full Jade; admins get Vector powers; everyone else gets friendly chat and Mini Apps.
   - She answers DMs and whitelisted channels by your trigger rules.
   - She reacts, replies, sends and receives files, and sees images.
   - She joins and leaves communities and plays Mini Apps.
-  - Secretary: messages for you land in an inbox, or reach you at once.
+  - Messages for you: when someone asks her to pass something on, it lands in an inbox, or reaches you at once.
 - **Chat:** Copy · 👍 · 👎 · Retry under each reply; copy and edit your own messages; copy code blocks or the whole chat.
 - **Avatar:** Live2D Jade, with voice (TTS).
 

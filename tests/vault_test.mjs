@@ -267,10 +267,11 @@ ok(/^You are Jade, the keeper/.test(sp) && /Be concise/.test(sp), 'the stock sou
 const sp3 = await page.evaluate(() => { const o = vfs.read('/Jade/SOUL.md'); vfs.write('/Jade/SOUL.md', '---\nname: Pandora Dee\n---\n# SOUL\nI keep the company house in order.'); const r = systemPrompt(); vfs.write('/Jade/SOUL.md', o); return r; });
 ok(/^You are Pandora Dee\. You live in Jade Vault/.test(sp3) && /as an equal/.test(sp3) && !/keeper of the user's personal knowledge vault|Be concise/.test(sp3) && /company house/.test(sp3) && /Vault conventions:/.test(sp3), 'a soul of their own leads: its name, no notes-assistant intro: ' + JSON.stringify(sp3.slice(0, 60)));
 // ---- v3: skills ----
+await page.waitForFunction(() => vfs.isFile('/Jade/skills/vault-map/SKILL.md') && vfs.isFile('/Jade/skills/knowledge-graph/SKILL.md'), null, { timeout: 15000 });   // seeded by Vault Loci (2.24) and the knowledge graph (2.25)
 const sk = await page.evaluate(async () => { const t = async (n, a) => { try { return await runTool(n, a, null); } catch (e) { return 'ERR ' + e.message; } };
   return { n: listSkills().length, tool: await t('skill', { name: 'Daily Review' }), bad: await t('skill', { name: 'nope' }),
     mk: await t('write', { path: '/Jade/skills/weekly-review/SKILL.md', content: '---\nname: weekly-review\ndescription: Weekly review. Use on Sundays.\n---\n# Weekly\n1. Do it.\n' }), n2: listSkills().length }; });
-ok(sk.n === 5 && sk.n2 === 6, 'skills seeded + new skill via write (not blocked as duplicate): ' + sk.n + '→' + sk.n2 + ' ' + sk.mk.slice(0, 50));
+ok(sk.n === 7 && sk.n2 === 8, 'skills seeded + new skill via write (not blocked as duplicate): ' + sk.n + '→' + sk.n2 + ' ' + sk.mk.slice(0, 50));
 ok(/Skill "daily-review" loaded/.test(sk.tool) && /Collect open tasks/.test(sk.tool), 'skill tool loads instructions');
 ok(/No skill named "nope". Available:/.test(sk.bad), 'unknown skill error lists skills');
 // slash suggest + /skill: in composer (new chat so the mock restarts its script)

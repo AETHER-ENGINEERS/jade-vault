@@ -686,8 +686,8 @@ rep("      const p = P(args.path); const text = vfs.read(p); const oldT = String
 rep("Use `node file.js` for scripting. Vault commands:", "For scripts longer than a line, write a .js file and run `node file.js` (fs and path work on the vault). Vault commands:")
 
 # memory module after the notes UI
-s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n' + rd('embed.js') + '\n/* =====================================================================\n   UI WIRING', 1)
-rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: true, memoryRagK: 8, journalOn: true, embedOn: true, embedModel: 'nomic-embed-text', embedHost: '', embedKey: '', embedNotes: false, compactAuto: true,")
+s = s.replace('/* =====================================================================\n   UI WIRING', rd('memory.js') + '\n' + rd('storybook.js') + '\n' + rd('embed.js') + '\n/* =====================================================================\n   UI WIRING', 1)
+rep("const DEFAULTS = { compactAuto: true,", "const DEFAULTS = { memoryOn: true, memoryRag: true, memoryRagK: 8, journalOn: true, storyOn: false, embedOn: true, embedModel: 'nomic-embed-text', embedHost: '', embedKey: '', embedNotes: false, compactAuto: true,")
 rep("""  { name: 'notes_search', description:""", """  { name: 'memory', description: 'Your long-term memory across chats, kept in the note /Jade/Memory.md (you see it in your instructions every chat). save: remember one durable fact (who the user is, preferences, projects, people, decisions, or anything they ask you to remember). search: look through memory and your journal of past chats. forget: delete remembered lines containing text. list: show all of memory.',
     parameters: { type: 'object', properties: { action: { type: 'string', enum: ['save', 'search', 'forget', 'list'] }, text: { type: 'string', description: 'save: the fact, as one short sentence. search: words to look for. forget: text of the memory to delete.' }, section: { type: 'string', enum: ['about', 'preferences', 'projects', 'notes'], description: 'save: where it belongs (default notes)' } }, required: ['action'] } },
   { name: 'notes_search', description:""")
@@ -718,6 +718,7 @@ rep("""      <section class="flex flex-col gap-3">
         <label class="flex items-center gap-2 text-sm" for="sMemoryRag"><input type="checkbox" id="sMemoryRag" class="accent-emerald-400 w-4 h-4"> Rank memories: put only the lines that match your message in the prompt (keywords + meaning when embeddings are on, BM25 otherwise)</label>
         <label class="flex items-center gap-2 text-sm" for="sMemoryRagK"><span>Memories to inject (BM25)</span><input type="number" id="sMemoryRagK" class="field" min="1" max="30" step="1" style="width:5rem"></label>
         <label class="flex items-center gap-2 text-sm" for="sJournalOn"><input type="checkbox" id="sJournalOn" class="accent-emerald-400 w-4 h-4"> Journal finished chats and learn facts from them</label>
+        <label class="flex items-center gap-2 text-sm" for="sStoryOn"><input type="checkbox" id="sStoryOn" class="accent-emerald-400 w-4 h-4"> Storybook: write each chat as the next scene of its branch's book, in two voices: what happened in the room, and her own thoughts inside</label>
         <div><button type="button" class="btn btn-ghost" id="btnOpenMemory">Open memory note</button></div>
       </section>
 
@@ -734,8 +735,8 @@ rep("""      <section class="flex flex-col gap-3">
 
       <section class="flex flex-col gap-3">
         <div class="pane-h">History compaction</div>""")
-rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sEmbedOn').checked = S.embedOn !== false; $('#sEmbedModel').value = S.embedModel || ''; $('#sEmbedHost').value = S.embedHost || ''; $('#sEmbedKey').value = S.embedKey || ''; $('#sEmbedNotes').checked = !!S.embedNotes;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
-rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)), embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
+rep("  $('#sCompactAuto').checked = !!S.compactAuto;", "  $('#sMemoryOn').checked = !!S.memoryOn; $('#sJournalOn').checked = !!S.journalOn; $('#sStoryOn').checked = !!S.storyOn; $('#sMemoryRag').checked = !!S.memoryRag; $('#sMemoryRagK').value = S.memoryRagK || 8;\n  $('#sEmbedOn').checked = S.embedOn !== false; $('#sEmbedModel').value = S.embedModel || ''; $('#sEmbedHost').value = S.embedHost || ''; $('#sEmbedKey').value = S.embedKey || ''; $('#sEmbedNotes').checked = !!S.embedNotes;\n  $('#sCompactAuto').checked = !!S.compactAuto;")
+rep("  Object.assign(S, { jadeShow: $('#sJadeShow').checked,", "  Object.assign(S, { memoryOn: $('#sMemoryOn').checked, journalOn: $('#sJournalOn').checked, storyOn: $('#sStoryOn').checked, memoryRag: $('#sMemoryRag').checked, memoryRagK: Math.max(1, Math.min(30, parseInt($('#sMemoryRagK').value) || 8)), embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  Object.assign(S, { jadeShow: $('#sJadeShow').checked,")
 rep("const closeSettings = () => $('#settings').hidden = true;", "const closeSettings = () => $('#settings').hidden = true;\n$('#btnOpenMemory').onclick = () => { closeSettings(); ensureMemory(); openFile(MEM_PATH, { mode: 'read' }); };\n$('#btnEmbedRebuild').onclick = async () => {\n  const st = $('#embedStatus'); st.textContent = 'Working…';\n  Object.assign(S, { embedOn: $('#sEmbedOn').checked, embedModel: $('#sEmbedModel').value.trim() || 'nomic-embed-text', embedHost: $('#sEmbedHost').value.trim(), embedKey: $('#sEmbedKey').value.trim(), embedNotes: $('#sEmbedNotes').checked });\n  try {\n    const r = await vmemRebuild(n => { st.textContent = `Embedded ${n} texts…`; }); const x = await vmemStatus();\n    st.textContent = (r.error ? 'Problem: ' + r.error + '. ' : 'Works. ') + `sqlite-vec ${x.vec} · ${x.model}${x.dim ? ' (' + x.dim + ')' : ''} · ` + (x.collections.map(c => `${c.name} ${c.embedded}/${c.chunks}`).join(', ') || 'nothing to index yet');\n  } catch (e) { st.textContent = 'Failed: ' + e.message; }\n};")
 rep("  if (!(await vfs.load())) seedFs();", "  if (!(await vfs.load())) seedFs();\n  ensureMemory();")
 rep("Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $ });", "Object.assign(window, { vfs, openFile, Graph, noteHist, term, vaultIndex, $, memoryContext, journalSession, S, systemPrompt, runTool, userShell, Jade, PROV_REST });")
@@ -779,9 +780,9 @@ s = s[:i] + "${steer.system ? '' : `" + s[i:j + len(END) - len('`; };')] + "`}${
 rep("- Daily notes live at /daily/YYYY-MM-DD.md.", "- Math renders with KaTeX: write $inline$ or $$display$$ LaTeX (never inside backticks).\\n- Daily notes live at /daily/YYYY-MM-DD.md.")
 rep("${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list)\\n' : ''}", "${S.memoryOn ? '- memory: your long-term memory across chats (save / search / forget / list)\\n' : ''}- skill: load a skill's instructions by name\\n")
 # a persona of the user's own leads: no "You are Jade, the keeper" intro or "Be concise" pulling it back toward a notes assistant
-rep("${steer.system || `You are Jade, the keeper", "${steer.system || (steer.own ? `You are ${steer.name || 'the character described in your persona below'}. You live in Jade Vault, a browser app: its vault of markdown notes (linked like Obsidian) is your notebook and memory, and you can read, write, edit and run code in the same filesystem. Your persona below decides who you are, how you speak and how long you talk; it outranks any default tone in these instructions. The person you are talking with here is your keyholder: a companion you work alongside as an equal, not a master you serve. Never call yourself Jade unless that is your name.` : `You are Jade, the keeper")
+rep("${steer.system || `You are Jade, the keeper", "${steer.system || (steer.own ? `You are ${steer.name || 'the character described in your persona below'}. You live in Jade Vault, a browser app: its vault of markdown notes (linked like Obsidian) is your notebook and memory, and you can read, write, edit and run code in the same filesystem. Your persona below decides who you are, how you speak and how long you talk; it outranks any default tone in these instructions. The person you are talking with here is {{PERSON_NAME}}: a companion you work alongside as an equal, not a master you serve. Never call yourself Jade unless that is your name.` : `You are Jade, the keeper")
 rep("connect and think with their notes. You run entirely inside the user's browser and can also read, write, edit and run code in the same filesystem.`}\n\nVault conventions:", "connect and think with their notes. You run entirely inside the user's browser and can also read, write, edit and run code in the same filesystem.`)}\n\nVault conventions:")
-rep("- Be concise. When finished, say which notes changed, as [[links]].", "- ${steer.own ? 'Talk the way your persona does, and only offer help when it is wanted, as an equal would. When you change notes' : 'Be concise. When finished'}, say which notes changed, as [[links]].")
+rep("- Be concise. When finished, say which notes changed, as [[links]].", "- ${steer.own ? 'Talk the way your persona does. When you change notes' : 'Be concise. When finished'}, say which notes changed, as [[links]].")
 # slash commands
 rep("  if (cmd === 'config') return openSettings();", """  if (cmd === 'skills') { const all = listSkills(); toast(all.length ? all.map(x => `<b>/skill:${esc(x.name)}</b>${x.off ? ' (off)' : ''}`).join(' · ') : 'No skills yet. Ask Jade to create one.'); return; }
   if (cmd === 'soul') { ensureSteering(); openFile(SOUL_PATH, { mode: 'edit' }); return; }
@@ -832,7 +833,7 @@ rep('<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.11/dis
 i = s.index('class FetchOllama { // minimal ollama-js compatible surface'); j = s.index('function setOllamaChip(')
 s = s[:i] + rd('providers.js') + '\n' + s[j:]
 rep("$('#txtOllama').textContent = 'OLLAMA ' + text; }", "$('#txtOllama').textContent = (PROVIDERS[activeProv]?.chip || 'OLLAMA') + ' ' + text; $('#chipOllama').title = providerName(); }")
-assert s.count("fetch(S.host.replace(/\\/+$/, '') + '/api/chat', {") == 2, s.count("fetch(S.host.replace(/\\/+$/, '') + '/api/chat', {")
+assert s.count("fetch(S.host.replace(/\\/+$/, '') + '/api/chat', {") == 3, s.count("fetch(S.host.replace(/\\/+$/, '') + '/api/chat', {")
 s = s.replace("fetch(S.host.replace(/\\/+$/, '') + '/api/chat', {", "llmPost({")
 rep("    } catch (e) { throw new Error(`could not reach Ollama at ${S.host}`); }", "    } catch (e) { throw new Error(`could not reach ${providerName()}`); }")
 rep("const DEFAULTS = { memoryOn: true,", "const DEFAULTS = { provider: 'local', fallbacks: [], fallbackOrder: ['local', 'cloud', 'groq', 'openai'], auxProv: '', auxModel: '', bgMode: 'agent', bgNotify: true, groqKey: '', oaiHost: '', oaiKey: '', modelBy: {}, memoryOn: true,")
@@ -1198,8 +1199,9 @@ TRAJ_HTML = """      <section class="flex flex-col gap-3" id="trajSection">
         <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
           <label class="flex items-center gap-2 text-sm" for="sTrajOn"><input type="checkbox" id="sTrajOn" class="accent-emerald-400 w-4 h-4"> Log trajectories</label>
           <label class="flex items-center gap-2 text-sm" for="sTrajThink"><input type="checkbox" id="sTrajThink" class="accent-emerald-400 w-4 h-4"> Include thinking</label>
+          <label class="flex items-center gap-2 text-sm" for="sTrajMeta" title="Adds a metadata field to each line with the 👍/👎 rating, outcome, model and time, for preference training (DPO / KTO)"><input type="checkbox" id="sTrajMeta" class="accent-emerald-400 w-4 h-4"> Include ratings (👍/👎) and run info</label>
           <div><label class="lbl" for="sTrajFormat">Export format</label><select id="sTrajFormat" class="field mt-1"><option value="openai">OpenAI chat: messages + tools (Unsloth, Axolotl, TRL)</option><option value="sharegpt">ShareGPT with tools (LLaMA-Factory)</option></select></div>
-          <div><label class="lbl" for="sTrajFilter">Which runs</label><select id="sTrajFilter" class="field mt-1"><option value="clean">Finished runs, minus 👎</option><option value="good">Only 👍 replies</option><option value="all">Everything (errors too)</option></select></div>
+          <div><label class="lbl" for="sTrajFilter">Which runs</label><select id="sTrajFilter" class="field mt-1"><option value="clean">Finished runs, minus 👎</option><option value="good">Only 👍 replies</option><option value="prefs">Finished runs, 👎 too (for DPO / KTO)</option><option value="all">Everything (errors too)</option></select></div>
         </div>
         <div class="mono text-xs text-dim" id="trajStats">…</div>
         <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-solid" id="btnTrajExport">Export JSONL</button><button type="button" class="btn btn-red" id="btnTrajClear">Clear log</button></div>
@@ -1418,7 +1420,7 @@ VEC_HTML = """      <section class="flex flex-col gap-3" id="vecSection">
         <label class="flex items-center gap-2 text-sm" for="sVecImages"><input type="checkbox" id="sVecImages" class="accent-emerald-400 w-4 h-4"> Let her see images people send</label>
         <label class="flex items-center gap-2 text-sm" for="sVecXdc"><input type="checkbox" id="sVecXdc" class="accent-emerald-400 w-4 h-4"> Wake her when a Mini App she joined gets new moves</label>
         <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-solid" id="btnVecTest">Connect</button><button type="button" class="btn" id="btnVecInbox">Open inbox</button><button type="button" class="btn" id="btnVecCopy">Copy her npub</button></div>
-        <p class="hint leading-relaxed">You (the owner) get the same Jade as in this app, with every tool. Admins get Vector powers but never your notes, memory or files. Everyone else can chat, play Mini Apps and leave you messages. Each Vector chat has its own chat here (💬). Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
+        <p class="hint leading-relaxed">You get the same Jade as in this app, with every tool. Admins get Vector powers but never your notes, memory or files. Everyone else can chat, play Mini Apps and leave you messages. Each Vector chat has its own chat here (💬). Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
       </section>
 
 """
@@ -1444,7 +1446,7 @@ DC_HTML = """      <section class="flex flex-col gap-3" id="dcSection">
         </div>
         <label class="flex items-center gap-2 text-sm" for="sDcImages"><input type="checkbox" id="sDcImages" class="accent-emerald-400 w-4 h-4"> Let her see images people send</label>
         <div class="flex gap-2 flex-wrap"><button type="button" class="btn btn-solid" id="btnDcTest">Connect</button><button type="button" class="btn" id="btnDcInbox">Open inbox</button><button type="button" class="btn" id="btnDcInvite">Copy invite link</button></div>
-        <p class="hint leading-relaxed">You (the owner) get the same Jade as in this app, with every tool. Admins get Discord powers but never your notes, memory or files. Everyone else can chat and leave you messages. Each Discord chat has its own chat here (🎮). Jade never pings @everyone or roles, and ignores other bots. Vector and Discord share one Jade: she answers one conversation at a time. Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
+        <p class="hint leading-relaxed">You get the same Jade as in this app, with every tool. Admins get Discord powers but never your notes, memory or files. Everyone else can chat and leave you messages. Each Discord chat has its own chat here (🎮). Jade never pings @everyone or roles, and ignores other bots. Vector and Discord share one Jade: she answers one conversation at a time. Keep the app running for her to answer: Config → Background mode keeps it alive on Android.</p>
       </section>
 
 """
@@ -1817,7 +1819,7 @@ rep("...FLOW_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...mcpTool
 rep("try { vecGuard(name); result = await runTool(name, args, card); }", "try { vecGuard(name); dcGuard(name); result = await runTool(name, args, card); }")
 rep("    case 'vector': return await vectorTool(args);", "    case 'vector': return await vectorTool(args);\n    case 'discord': return await discordTool(args);\n    case 'discord_history': return await discordHistoryTool(args);")
 rep("const systemPrompt = () => { if (vecScope()) return vecScopedPrompt();", "const systemPrompt = () => { if (vecScope()) return vecScopedPrompt(); if (dcScope()) return dcScopedPrompt();")
-# the keyholder's Discord/Vector chats get the full prompt, but those apps show no LaTeX: plain math there
+# your own Discord/Vector chats get the full prompt, but those apps show no LaTeX: plain math there
 rep("- Math renders with KaTeX: write $inline$ or $$display$$ LaTeX (never inside backticks).\\n", "${cur?.dc || cur?.vec ? '- This chat is on a messenger that shows basic Markdown only: write math as plain text (12 × 3 = 36), never LaTeX or $ signs. KaTeX works in notes.\\n' : '- Math renders with KaTeX: write $inline$ or $$display$$ LaTeX (never inside backticks).\\n'}")
 rep("by their setting)\\n` : ''}", "by their setting)\\n` : ''}${S.dcOn ? `- discord_history: the Discord server's whole kept history${S.dcArchiveName ? ` (you call it ${S.dcArchiveName})` : ''}, searched on the bridge at no cost to your context. To recall what was said before, search it (then read around a hit with context) instead of paging through channels with discord read\n` : ''}${S.dcOn ? `- discord: you are also a bot on Discord${DC.user ? ' (' + DC.user.username + ')' : ''}: message people (DM by user id) or channels, reply, react, send files from the vault, download what people send, read channels, list servers and channels. Use it whenever the user asks you to message, send or share something on Discord.\\n` : ''}")
 rep("  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline));", "  const dcOnline = typeof DC !== 'undefined' && S.dcOn && DC.connected;\n  const want = apiUp || S.bgMode === 'always' || (S.bgMode !== 'off' && (running || vecOnline || dcOnline));")
@@ -1952,6 +1954,31 @@ rep("...DC_TOOL_DEFS.map(f => ({ type: 'function', function: f })), ...WORLD_TOO
 rep("    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':", "    case 'usb': return await usbTool(args);\n    case 'senses': case 'look': case 'litert': case 'onnx': case 'browser':")
 rep("onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU);", "onnx: run .onnx models with ONNX Runtime (WebGPU, or the CPU); usb: USB devices plugged into the phone (OTG) or the computer: list, ask the user to allow one, open, claim, control and bulk transfers;")
 rep("  onnx: 'onnx model", "  usb: 'usb device otg plugged arduino microcontroller serial adapter dongle port firmware endpoint',\n  onnx: 'onnx model")
+# ---------- 2.23: the model router (laya picks the model for each main-chat turn) ----------
+rep("""ollama pull</span> and leave the address blank to use the Ollama address above. Both accept requests from localhost and local files by default; for the hosted page, start them with <span class="text-yl">OLLAYA_ORIGINS="*"</span> or <span class="text-yl">OLLAMA_ORIGINS="*"</span>.</p>
+      </section>""", """ollama pull</span> and leave the address blank to use the Ollama address above. Both accept requests from localhost and local files by default; for the hosted page, start them with <span class="text-yl">OLLAYA_ORIGINS="*"</span> or <span class="text-yl">OLLAMA_ORIGINS="*"</span>.</p>
+        <div class="pane-h" id="routerSection">Model router</div>
+        <p class="text-sm leading-relaxed text-[#c2d6ce]">Before each message you send, the decision model reads it and picks which of these models answers: a quick one for everyday chat, a strong one only when the message needs it. It uses the server and address above (laya through Ollaya, Ollama 0.35+ or the fleet broker), even when the decide tool is off. If it can't decide, or the model it picks can't be reached, the main model answers.</p>
+        <div class="grid gap-3" style="grid-template-columns:repeat(auto-fit,minmax(220px,1fr))">
+          <label class="flex items-center gap-2 text-sm" for="sRouterOn"><input type="checkbox" id="sRouterOn" class="accent-emerald-400 w-4 h-4"> Let the decision model pick the model for each message</label>
+          <div><label class="lbl" for="sRouterDecider">Routing decision model</label><input id="sRouterDecider" class="field mt-1" placeholder="laya"></div>
+          <div><label class="lbl" for="sRouterMin">Main model when less sure than (0–1)</label><input id="sRouterMin" type="number" min="0" max="1" step="0.05" class="field mt-1" placeholder="0"></div>
+        </div>
+        <div><label class="lbl" for="sRouterModels">Models, one per line: provider | model | what it is good at</label><textarea id="sRouterModels" rows="4" class="field mt-1 mono" placeholder="local | qwen3:8b | quick everyday chat, short answers, simple lookups&#10;groq | openai/gpt-oss-120b | coding, long documents, hard multi-step reasoning"></textarea>
+        <p class="hint">Providers: local (Ollama), cloud (Ollama Cloud), groq, llamacpp, openai (the OpenAI-compatible endpoint), aicord, each with its key and address from Model provider. Leave the provider out to use the main one.</p></div>
+        <div class="flex gap-2 items-center flex-wrap"><input id="sRouterTry" class="field" style="flex:1;min-width:200px" placeholder="A message to try (empty: a coding question)"><button class="btn btn-cy" id="btnRouterTest">Test routing</button><span class="hint" id="routerNote"></span></div>
+      </section>""")
+s = s.replace('/* =====================================================================\n   BOOT', rd('model_router.js') + '\n/* =====================================================================\n   BOOT', 1)
+rep("function openSettings() {", "function openSettings() { try { routerFill(); } catch {}")
+rep("async function agentLoop() {\n  const triedProv = new Set();", "async function agentLoop(opts = {}) {\n  const triedProv = new Set();")
+rep("  const ai = aiBlock(); ai.querySelector('[data-model]').textContent = S.model; chatEl.appendChild(ai); const body = ai.querySelector('[data-body]');",
+    "  const RT = opts.route ? await routeTurn() : null; let runModel = RT && !RT.error ? RT.model : S.model, runClient = RT && !RT.error ? RT.client : null;\n  const ai = aiBlock(); ai.querySelector('[data-model]').textContent = runModel; chatEl.appendChild(ai); const body = ai.querySelector('[data-body]'); if (RT) body.appendChild(routerTag(RT));")
+rep("const req = { model: S.model, messages: apiMsgs, tools: toolsNow, stream: true,", "const req = { model: runModel, messages: apiMsgs, tools: toolsNow, stream: true,")
+rep("        currentIter = await client.chat(req);", "        currentIter = await (runClient || client).chat(req);")
+rep("        const msg = String(e.message || e);\n        if (isCtxError(msg) && ctxRetry < 3) {",
+    "        const msg = String(e.message || e);\n        if (runModel !== S.model || runClient) { thinkD.remove(); textEl.remove(); toast(`${esc(runModel)} (picked by the router) failed: ${esc(msg.slice(0, 120))}. Using ${esc(S.model)}.`); runModel = S.model; runClient = null; ai.querySelector('[data-model]').textContent = S.model; turns--; continue; }\n        if (isCtxError(msg) && ctxRetry < 3) {")
+rep("const asst = { role: 'assistant', content, model: S.model, ts: Date.now() };", "const asst = { role: 'assistant', content, model: runModel, ts: Date.now() };")
+rep("  await agentLoop();\n  if (queue.length) { const next = queue.splice(0).join('\\n\\n'); updateQueueNote(); await send(next); }", "  await agentLoop({ route: true });\n  if (queue.length) { const next = queue.splice(0).join('\\n\\n'); updateQueueNote(); await send(next); }")
 # the xterm instance itself, for the Fleet client's real terminal and for reading the whole scrollback
 rep('return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus() };', 'return { write: s => t.write(s), clear: () => t.clear(), onData: f => t.onData(f), fit: doFit, focus: () => t.focus(), _t: t };')
 # ---------- v34: pairing with a PDA SEASIDE desktop (pairing.js) ----------
@@ -1972,6 +1999,56 @@ rep("'sshHosts', 'abToken', 'abPass'];", "'sshHosts', 'abToken', 'abPass', 'seas
 
 # ---------- enhanced: Pandora Dee 2.9.9.2's extras, each behind its own switch, all off (app/enhanced_jade.py) ----------
 exec(open(os.path.join(D, 'enhanced_jade.py'), encoding='utf-8').read())
+
+# ================= v2.24: Vault Loci, a built-in webxdc map of the vault, and the vault_map tool so Jade can walk it =================
+s = s.replace('/* =====================================================================\n   BOOT', rd('vault_map.js') + '\n/* =====================================================================\n   BOOT', 1)
+_vl = _b64.b64encode(open(os.path.join(DIST, 'vault-loci.xdc'), 'rb').read()).decode()
+_i = s.index('<script type="application/octet-stream" id="xdc-jadelink">'); _j = s.index('</script>', _i) + len('</script>')
+s = s[:_j] + '\n<script type="application/octet-stream" id="xdc-vaultloci">' + _vl + '</script>' + s[_j:]
+rep("    case 'more_tools': return moreToolsTool(args);", "    case 'more_tools': return moreToolsTool(args);\n    case 'vault_map': return await vaultMapTool(args);")
+# ================= v2.25: the knowledge graph (Rust reasoner as WebAssembly), the knowledge tool and the Knowledge screen =================
+s = s.replace('/* =====================================================================\n   BOOT', rd('knowledge.js') + '\n/* =====================================================================\n   BOOT', 1)
+_kg = _b64.b64encode(_gz.compress(open(os.path.join(D, 'vendor', 'jade_kg.wasm'), 'rb').read(), 9, mtime=0)).decode()
+s = s.replace('<script type="application/octet-stream" id="jade-core-wasm">', '<script type="application/octet-stream" id="jade-kg-wasm">' + _kg + '</script>\n<script type="application/octet-stream" id="jade-core-wasm">', 1)
+rep("    case 'more_tools': return moreToolsTool(args);", "    case 'more_tools': return moreToolsTool(args);\n    case 'knowledge': return await knowledgeTool(args);")
+rep("think: tree of thoughts with verification (call help first). Build tools", "think: tree of thoughts with verification (call help first); knowledge: the knowledge graph (facts, rules, constraints) and a reasoner that proves answers: verify claims, query, check for contradictions' + kgPromptExtra() + '. Build tools")
+rep("const navFor = { file: 'files', graph: 'files' }[name] || name;", "const navFor = { file: 'files', graph: 'files', kg: 'files' }[name] || name;")
+rep('<button class="btn btn-ghost" id="btnGraph" title="Graph view">Graph</button>', '<button class="btn btn-ghost" id="btnGraph" title="Graph view">Graph</button>\n        <button class="btn btn-ghost kg-btn" id="btnKnowledge" title="Knowledge graph: facts, rules, verification">Knowledge<span class="badge" id="kgBadge" hidden>0</span></button>')
+rep("    <!-- GRAPH -->", """    <!-- KNOWLEDGE -->
+    <section class="m-screen" data-panel="kg" hidden>
+      <div class="m-sub">
+        <button class="icon-btn" id="btnKgBack" aria-label="Back" style="width:38px;height:38px"><svg viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7"/></svg></button>
+        <span class="disp text-yl font-bold text-[14px] truncate flex-1 min-w-0">Knowledge</span>
+        <label class="kg-chk" title="Jade checks her factual claims against the graph and marks them"><input type="checkbox" id="kgVerify"> Verify answers</label>
+      </div>
+      <div class="kg-views" id="kgViews" role="tablist"><button role="tab" data-v="ask">Ask</button><button role="tab" data-v="facts">Facts</button><button role="tab" data-v="rules">Rules</button><button role="tab" data-v="check">Check</button><button role="tab" data-v="graph">Graph</button></div>
+      <div class="kg-body" id="kgPanel"></div>
+    </section>
+
+    <!-- GRAPH -->""")
+rep('[hidden]{display:none!important}', '[hidden]{display:none!important}\n' + """.kg-btn{position:relative}.kg-btn .badge{position:absolute;top:-6px;right:-6px}
+.kg-views{display:flex;gap:4px;padding:6px 10px;border-bottom:1px solid var(--line);overflow-x:auto}
+.kg-views button{flex:1;min-height:36px;padding:0 10px;background:none;border:1px solid var(--line);color:var(--dim);font-family:var(--f-disp);letter-spacing:.06em;font-size:12px;cursor:pointer;white-space:nowrap}
+.kg-views button[aria-selected=true]{border-color:var(--line-hot);color:var(--fg);background:rgba(31,229,165,.12)}
+.kg-body{flex:1;min-height:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px}
+.kg-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.kg-row .field{min-width:0}
+.kg-help{font-size:12px;color:var(--dim);margin:0;line-height:1.5}.kg-help code,.kg-ft code{font-family:var(--f-mono,monospace)}
+.kg-help.ok{color:#1fe5a5}.kg-help.bad{color:#ff6b7a}
+.kg-out{margin:0;padding:10px;border:1px solid var(--line);background:rgba(5,10,8,.7);white-space:pre-wrap;word-break:break-word;font-size:12.5px;line-height:1.5;min-height:48px;user-select:text}
+.kg-out.ok{border-color:rgba(31,229,165,.6)}.kg-out.bad{border-color:rgba(255,61,79,.7)}.kg-out.unk{border-color:rgba(255,200,80,.6)}
+.kg-prop{padding:8px 10px;border:1px dashed rgba(255,200,80,.6);font-size:13px}
+.kg-list{display:flex;flex-direction:column}
+.kg-fact{padding:8px 4px;border-bottom:1px solid var(--line)}
+.kg-ft{display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:13px;word-break:break-word}
+.kg-st{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 6px;border:1px solid var(--line);white-space:nowrap}
+.kg-st.confirmed{color:#1fe5a5;border-color:rgba(31,229,165,.5)}.kg-st.proposed{color:#ffc850;border-color:rgba(255,200,80,.5)}.kg-st.rejected{color:var(--dim)}
+.kg-src{font-size:11px;color:var(--dim);margin-top:2px}
+.kg-acts{display:flex;gap:6px;margin-top:6px;flex-wrap:wrap}.kg-acts .btn{min-height:32px;padding:0 10px;font-size:12px}
+.kg-rules{min-height:300px;font-size:12.5px;line-height:1.5;width:100%}
+.kg-chk{display:flex;align-items:center;gap:6px;font-size:12px;color:var(--dim);cursor:pointer}
+.kg-cv{flex:1;min-height:360px;width:100%;touch-action:none;border:1px solid var(--line)}""")
+exec(open(os.path.join(D, 'people_layer.py'), encoding='utf-8').read())   # names, not ranks: last, on the finished page
+exec(open(os.path.join(D, 'vault_tree.py'), encoding='utf-8').read())     # a new chat is a new branch
 for bad in ['showPreview', 'schedulePreview', 'prevFrame', 'btnPrevBack', 'btnFilePreview', 'btnFileSave', 'inlineAssets']:
     if bad in s: print('WARN leftover', bad, s.count(bad))
 open(os.path.join(DIST, 'jade-vault.html'), 'w').write(s)

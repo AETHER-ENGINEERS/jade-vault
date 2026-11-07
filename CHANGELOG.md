@@ -15,6 +15,11 @@ The AETHER-ENGINEERS fork: Lucky's 2.23.0 – 2.25.0 below, plus Pandora Dee's e
   - **Import from notes apps:** Google Keep, Samsung Notes, Apple Notes, HTML, Word, PDF.
   - **Pandora Dee backups:** a Pandora Dee backup's /Pandora files land in /Jade, and its rituals become flows.
 - The web build's Tailwind step works on Windows too.
+- **Names, not ranks (the People layer).** Jade's prompts, bridges and messages name the person she's with (from a dossier in `/People/<name>.md`, or the labels in Config) instead of calling anyone "the user" or "the owner". A check in CI keeps rank words out of the built app.
+- **The Vault Tree.** A new chat is a new branch: New branch, Branches, Rename / Copy / Delete this branch.
+- **Context guard** understands "prompt too long; exceeded max context length by N tokens" (Ollama Cloud's wording): it learns the real limit from how far over the prompt went, trims and retries.
+- **A persona of your own talks its own way:** the base prompt no longer says "only offer help when it is wanted".
+- **The Storybook** (Config → Memory, off until you switch it on): each branch is a book and each chat its next scene, in two first-person voices (what happened in the room, and her own thoughts inside), stamped in UTC to the second and tagged with its room. Only what's new goes in, saved secrets are redacted, and facts from a private room stay in that room's book.
 
 ## 2.25.0
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.25.0-enhanced.1
+
+- **http_request keeps to where it should go.** This device, the home network and a tailnet are out of reach unless the address is listed in Config → Secrets → "Local addresses", so a page Jade reads can't steer a request at the router, a service on this device or another app's keys.
+- **Secrets tied to their hosts.** A secret can be given hosts (`api.github.com, *.githubusercontent.com`): it's only ever sent there, even when a playbook already filled it in, and it stays out of scripts' `process.env`.
+- **No redirects with a secret in the request**, since a key header would go along to wherever the redirect leads; the result says it redirected instead.
+
 ## 2.25.0-enhanced
 
 The AETHER-ENGINEERS fork: Lucky's 2.23.0 – 2.25.0 below, plus Pandora Dee's extras and pairing with PDA SEASIDE. Every extra starts **off** (or at Jade's own look): with nothing switched on, this behaves as Lucky's 2.25.0.
